@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { CalendarIcon, Plus, X } from "lucide-react"
-import { createOutage } from "../actions/excel-actions"
+import { createOutage } from "../actions/outage-actions"
 import { useToast } from "@/hooks/use-toast"
 
 interface OutageFormData {
@@ -116,7 +116,7 @@ export function OutageForm() {
 
       toast({
         title: "Success",
-        description: "Outage has been created and saved to Excel successfully",
+        description: "Outage has been created successfully",
       })
 
       // Reset form
@@ -133,9 +133,6 @@ export function OutageForm() {
         assignee: "",
         severity: "",
       })
-
-      // Refresh the page to show new data
-      window.location.reload()
     } catch (error) {
       toast({
         title: "Error",
@@ -154,7 +151,7 @@ export function OutageForm() {
           <CalendarIcon className="w-5 h-5" />
           Schedule New Outage
         </CardTitle>
-        <CardDescription>Create a new planned outage with detailed impact information (saved to Excel)</CardDescription>
+        <CardDescription>Create a new planned outage with detailed impact information</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">

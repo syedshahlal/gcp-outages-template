@@ -13,10 +13,6 @@ import {
   ChevronUp,
   Plus,
   BarChart3,
-  Filter,
-  Search,
-  RotateCcw,
-  RefreshCw,
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -26,12 +22,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import dynamic from "next/dynamic"
-import { getOutages } from "./actions/data-actions"
 
-// Dynamically import components
+// Dynamically import components that might have SSR issues
 const UptimeMetrics = dynamic(
   () => import("./components/uptime-metrics").then((mod) => ({ default: mod.UptimeMetrics })),
   {
@@ -40,20 +33,21 @@ const UptimeMetrics = dynamic(
   },
 )
 
-const EnhancedOutageForm = dynamic(
-  () => import("./components/enhanced-outage-form").then((mod) => ({ default: mod.EnhancedOutageForm })),
-  {
-    ssr: false,
-    loading: () => <div className="h-96 bg-gray-100 animate-pulse rounded-lg"></div>,
-  },
-)
+const OutageForm = dynamic(() => import("./components/outage-form").then((mod) => ({ default: mod.OutageForm })), {
+  ssr: false,
+  loading: () => <div className="h-96 bg-gray-100 animate-pulse rounded-lg"></div>,
+})
 
 interface OutageData {
   id: number
   title: string
   startDate: Date
   endDate: Date
-  environments: string[]
+  environments: {
+    name: string
+    affected: boolean
+    impact: string
+  }[]
   affectedModels: string
   reason: string
   detailedImpact: string[]
@@ -61,13 +55,180 @@ interface OutageData {
   status: string
   type: string
   severity: "High" | "Medium" | "Low"
-  priority?: number
-  category?: string
-  contactEmail?: string
-  estimatedUsers?: number
-  createdAt?: Date
-  updatedAt?: Date
 }
+
+const outageData: OutageData[] = [
+  {
+    id: 1,
+    title: "Trino LLE Release",
+    startDate: new Date("2024-06-17T15:00:00"),
+    endDate: new Date("2024-06-17T17:00:00"),
+    environments: [
+      { name: "POC", affected: true, impact: "Trino LLE completely unavailable" },
+      { name: "SBX DEV", affected: false, impact: "No impact" },
+      { name: "SBX UAT", affected: false, impact: "No impact" },
+      { name: "PROD", affected: false, impact: "No impact" },
+    ],
+    affectedModels: "All models in POC environment",
+    reason: "Trino LLE Release deployment",
+    detailedImpact: [
+      "POC environment: Trino LLE service will be completely unavailable",
+      "All data processing jobs using Trino in POC will fail",
+      "No impact on other environments",
+    ],
+    assignee: "Infrastructure Team",
+    status: "Not Started",
+    type: "Planned",
+    severity: "Low",
+  },
+  {
+    id: 2,
+    title: "Annual DR Exercise",
+    startDate: new Date("2024-06-21T06:00:00"),
+    endDate: new Date("2024-06-21T18:00:00"),
+    environments: [
+      { name: "POC", affected: false, impact: "No impact" },
+      { name: "SBX DEV", affected: true, impact: "Complete environment unavailable" },
+      { name: "SBX UAT", affected: true, impact: "Complete environment unavailable" },
+      { name: "PROD", affected: true, impact: "Complete environment unavailable" },
+    ],
+    affectedModels: "All models in affected environments",
+    reason: "Annual Disaster Recovery Exercise - Production to DR Environment Failover",
+    detailedImpact: [
+      "SBX DEV: Complete environment shutdown for 12 hours",
+      "SBX UAT: Complete environment shutdown for 12 hours",
+      "PROD: Complete environment shutdown for 12 hours",
+      "All GCP lanes in these environments will be unavailable",
+      "No user access to applications, dashboards, or data processing",
+    ],
+    assignee: "GCP L2 L3 Team",
+    status: "Not Started",
+    type: "Planned",
+    severity: "High",
+  },
+  {
+    id: 3,
+    title: "DR Week Extended Maintenance",
+    startDate: new Date("2024-06-21T18:00:00"),
+    endDate: new Date("2024-06-28T06:00:00"),
+    environments: [
+      { name: "POC", affected: true, impact: "UAT2 lane completely unavailable" },
+      { name: "SBX DEV", affected: true, impact: "Trino service unavailable" },
+      { name: "SBX UAT", affected: true, impact: "Trino service unavailable" },
+      { name: "PROD", affected: true, impact: "Limited functionality" },
+    ],
+    affectedModels: "All models requiring Trino processing",
+    reason: "Extended DR testing and maintenance period",
+    detailedImpact: [
+      "POC: UAT2 lane will be completely inaccessible for 7 days",
+      "SBX DEV: Trino service unavailable - no data processing jobs",
+      "SBX UAT: Trino service unavailable - no data processing jobs",
+      "PROD: Some services may have intermittent issues",
+      "Any workflows dependent on Trino will fail in SBX environments",
+    ],
+    assignee: "GCP L2 L3 Team",
+    status: "Not Started",
+    type: "Planned",
+    severity: "High",
+  },
+  {
+    id: 4,
+    title: "Tableau Maintenance",
+    startDate: new Date("2024-06-21T07:45:00"),
+    endDate: new Date("2024-06-22T08:00:00"),
+    environments: [
+      { name: "POC", affected: true, impact: "Tableau reports unavailable" },
+      { name: "SBX DEV", affected: true, impact: "Tableau reports unavailable" },
+      { name: "SBX UAT", affected: true, impact: "Tableau reports unavailable" },
+      { name: "PROD", affected: true, impact: "Tableau reports unavailable" },
+    ],
+    affectedModels: "No impact on model processing",
+    reason: "Tableau server maintenance and updates",
+    detailedImpact: [
+      "All environments: Tableau dashboards and reports will be inaccessible",
+      "Data visualization and reporting features unavailable",
+      "No impact on core GCP UI or model workflows",
+      "Limited impact on data produced from other sources",
+    ],
+    assignee: "Tableau Team",
+    status: "Not Started",
+    type: "Planned",
+    severity: "Medium",
+  },
+  {
+    id: 5,
+    title: "Weekly EPAS Patching",
+    startDate: new Date("2024-06-22T18:00:00"),
+    endDate: new Date("2024-06-23T02:00:00"),
+    environments: [
+      { name: "POC", affected: true, impact: "Complete environment unavailable" },
+      { name: "SBX DEV", affected: true, impact: "Complete environment unavailable" },
+      { name: "SBX UAT", affected: true, impact: "Complete environment unavailable" },
+      { name: "PROD", affected: false, impact: "No impact" },
+    ],
+    affectedModels: "All models in affected environments",
+    reason: "Weekly EPAS (Enterprise PostgreSQL Advanced Server) security patching",
+    detailedImpact: [
+      "POC: Complete database unavailability for 8 hours",
+      "SBX DEV: Complete database unavailability for 8 hours",
+      "SBX UAT: Complete database unavailability for 8 hours",
+      "All applications dependent on EPAS database will be down",
+      "PROD environment remains operational",
+    ],
+    assignee: "EPAS Team",
+    status: "Not Started",
+    type: "Planned",
+    severity: "Medium",
+  },
+  {
+    id: 6,
+    title: "GCP 5.6 Platform Deployment",
+    startDate: new Date("2024-06-23T00:00:00"),
+    endDate: new Date("2024-06-23T06:00:00"),
+    environments: [
+      { name: "POC", affected: false, impact: "No impact" },
+      { name: "SBX DEV", affected: true, impact: "Complete environment unavailable during deployment" },
+      { name: "SBX UAT", affected: true, impact: "Complete environment unavailable during deployment" },
+      { name: "PROD", affected: false, impact: "No impact" },
+    ],
+    affectedModels: "All models in SBX environments",
+    reason: "Deployment of Release GCP 5.6 Platform",
+    detailedImpact: [
+      "SBX DEV: Complete environment shutdown during deployment",
+      "SBX UAT: Complete environment shutdown during deployment",
+      "New platform features will be available after deployment",
+      "Potential for extended downtime if deployment issues occur",
+    ],
+    assignee: "EM Team",
+    status: "Not Started",
+    type: "Planned",
+    severity: "Medium",
+  },
+  {
+    id: 7,
+    title: "Horizon Jira Maintenance",
+    startDate: new Date("2024-06-25T19:00:00"),
+    endDate: new Date("2024-06-25T21:00:00"),
+    environments: [
+      { name: "POC", affected: true, impact: "Jira project access unavailable" },
+      { name: "SBX DEV", affected: true, impact: "Jira project access unavailable" },
+      { name: "SBX UAT", affected: true, impact: "Jira project access unavailable" },
+      { name: "PROD", affected: true, impact: "Jira project access unavailable" },
+    ],
+    affectedModels: "No direct impact on model processing",
+    reason: "Horizon Maintenance - Jira server updates",
+    detailedImpact: [
+      "All environments: No access to Jira2 and Jira3 projects",
+      "Users cannot access or update Jira tickets",
+      "Project management and issue tracking unavailable",
+      "Core platform functionality remains operational",
+    ],
+    assignee: "Horizon Team",
+    status: "Not Started",
+    type: "Planned",
+    severity: "Low",
+  },
+]
 
 const environments = ["POC", "SBX DEV", "SBX UAT", "PROD"]
 const environmentColors = {
@@ -84,7 +245,6 @@ const severityColors = {
 }
 
 export default function OutageDashboard() {
-  const [outageData, setOutageData] = useState<OutageData[]>([])
   const [selectedEnvironments, setSelectedEnvironments] = useState<string[]>(environments)
   const [selectedMonth, setSelectedMonth] = useState("2024-06")
   const [selectedOutage, setSelectedOutage] = useState<OutageData | null>(null)
@@ -101,12 +261,6 @@ export default function OutageDashboard() {
   } | null>(null)
   const [isMounted, setIsMounted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [viewMode, setViewMode] = useState<"timeline" | "list">("timeline")
-  const [sortBy, setSortBy] = useState<"date" | "severity" | "team">("date")
-  const [isLoading, setIsLoading] = useState(true)
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
 
   useEffect(() => {
     setIsMounted(true)
@@ -123,72 +277,13 @@ export default function OutageDashboard() {
     }
   }, [])
 
-  // Load outages from data storage
-  const loadOutages = async (showRefreshIndicator = false) => {
-    try {
-      if (showRefreshIndicator) {
-        setIsRefreshing(true)
-      } else {
-        setIsLoading(true)
-      }
-
-      const outages = await getOutages()
-      setOutageData(outages as OutageData[])
-      setLastUpdated(new Date())
-    } catch (error) {
-      console.error("Failed to load outages:", error)
-    } finally {
-      setIsLoading(false)
-      setIsRefreshing(false)
-    }
-  }
-
-  useEffect(() => {
-    if (isMounted) {
-      loadOutages()
-    }
-  }, [isMounted])
-
-  // Auto-refresh every 30 seconds
-  useEffect(() => {
-    if (!isMounted) return
-
-    const interval = setInterval(() => {
-      loadOutages(true)
-    }, 30000)
-
-    return () => clearInterval(interval)
-  }, [isMounted])
-
   const filteredOutages = useMemo(() => {
-    const filtered = outageData.filter((outage) => {
-      const hasSelectedEnv = outage.environments.some((env) => selectedEnvironments.includes(env))
+    return outageData.filter((outage) => {
+      const hasSelectedEnv = outage.environments.some((env) => env.affected && selectedEnvironments.includes(env.name))
       const monthMatch = outage.startDate.toISOString().startsWith(selectedMonth)
-      const searchMatch =
-        searchTerm === "" ||
-        outage.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        outage.assignee.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (outage.category && outage.category.toLowerCase().includes(searchTerm.toLowerCase()))
-
-      return hasSelectedEnv && monthMatch && searchMatch
+      return hasSelectedEnv && monthMatch
     })
-
-    // Sort outages
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case "severity":
-          const severityOrder = { High: 3, Medium: 2, Low: 1 }
-          return severityOrder[b.severity] - severityOrder[a.severity]
-        case "team":
-          return a.assignee.localeCompare(b.assignee)
-        case "date":
-        default:
-          return a.startDate.getTime() - b.startDate.getTime()
-      }
-    })
-
-    return filtered
-  }, [outageData, selectedEnvironments, selectedMonth, searchTerm, sortBy])
+  }, [selectedEnvironments, selectedMonth])
 
   const dateRange = useMemo(() => {
     if (filteredOutages.length === 0) return { start: new Date(), end: new Date(), totalDays: 1 }
@@ -213,10 +308,7 @@ export default function OutageDashboard() {
     const startPercent = (startMs / totalMs) * 100
     const widthPercent = (durationMs / totalMs) * 100
 
-    return {
-      left: `${Math.max(0, startPercent)}%`,
-      width: `${Math.max(2, widthPercent)}%`,
-    }
+    return { left: `${Math.max(0, startPercent)}%`, width: `${Math.max(2, widthPercent)}%` }
   }
 
   const getDayByDayBreakdown = () => {
@@ -274,12 +366,6 @@ export default function OutageDashboard() {
     }))
   }
 
-  const resetFilters = () => {
-    setSelectedEnvironments(environments)
-    setSearchTerm("")
-    setSortBy("date")
-  }
-
   const dayByDayBreakdown = getDayByDayBreakdown()
 
   const Tooltip = ({ outage, x, y, visible }: { outage: OutageData; x: number; y: number; visible: boolean }) => {
@@ -295,7 +381,13 @@ export default function OutageDashboard() {
           {formatDateTime(outage.startDate)} → {formatDateTime(outage.endDate)}
         </div>
         <div className="text-sm opacity-90">Duration: {getDuration(outage.startDate, outage.endDate)}</div>
-        <div className="text-sm opacity-90">Team: {outage.assignee}</div>
+        <div className="text-sm opacity-90">
+          Environments:{" "}
+          {outage.environments
+            .filter((e) => e.affected)
+            .map((e) => e.name)
+            .join(", ")}
+        </div>
       </div>
     )
   }
@@ -312,28 +404,13 @@ export default function OutageDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-2 sm:p-4" data-testid="dashboard">
+    <div className="min-h-screen bg-gray-50 p-2 sm:p-4">
       <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
-          <div className="flex items-center justify-center gap-4">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">GCP Outages</h1>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => loadOutages(true)}
-              disabled={isRefreshing}
-              className="flex items-center gap-2"
-            >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
-              {isRefreshing ? "Refreshing..." : "Refresh"}
-            </Button>
-          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">GCP Outages</h1>
           <p className="text-sm sm:text-base text-gray-600">
             Comprehensive dashboard for tracking GCP platform outages, uptime metrics, and scheduling maintenance
-          </p>
-          <p className="text-xs text-gray-500">
-            Last updated: {lastUpdated.toLocaleString()} | Auto-refresh every 30 seconds
           </p>
         </div>
 
@@ -346,7 +423,7 @@ export default function OutageDashboard() {
             </TabsTrigger>
             <TabsTrigger value="schedule" className="flex items-center gap-2">
               <Plus className="w-4 h-4" />
-              Schedule & Report
+              Schedule Outage
             </TabsTrigger>
             <TabsTrigger value="metrics" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
@@ -367,77 +444,42 @@ export default function OutageDashboard() {
                       <strong>HIGH IMPACT:</strong> {outage.title} on {formatDateTime(outage.startDate)} -{" "}
                       {formatDateTime(outage.endDate)}
                       <br />
-                      <strong>Team:</strong> {outage.assignee}
-                      {outage.estimatedUsers && outage.estimatedUsers > 0 && (
-                        <>
-                          <br />
-                          <strong>Estimated Users Affected:</strong> {outage.estimatedUsers.toLocaleString()}
-                        </>
-                      )}
+                      <strong>Affected:</strong>{" "}
+                      {outage.environments
+                        .filter((e) => e.affected)
+                        .map((e) => e.name)
+                        .join(", ")}
                     </AlertDescription>
                   </Alert>
                 ))}
             </div>
 
-            {/* Enhanced Filters */}
+            {/* Filters */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-lg">
-                  <Filter className="w-5 h-5" />
-                  Advanced Filters & Controls
+                  <Server className="w-5 h-5" />
+                  Environment Filter
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {/* Search and Sort Row */}
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <div className="flex-1">
-                      <Label className="text-sm font-medium">Search Outages</Label>
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                        <Input
-                          placeholder="Search by title, team, or category..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="pl-10"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Sort By</Label>
-                      <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                        <SelectTrigger className="w-40">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="date">Date</SelectItem>
-                          <SelectItem value="severity">Severity</SelectItem>
-                          <SelectItem value="team">Team</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Month</Label>
-                      <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                        <SelectTrigger className="w-40">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="2024-06">June 2024</SelectItem>
-                          <SelectItem value="2024-07">July 2024</SelectItem>
-                          <SelectItem value="2024-08">August 2024</SelectItem>
-                          <SelectItem value="2024-09">September 2024</SelectItem>
-                          <SelectItem value="2024-10">October 2024</SelectItem>
-                          <SelectItem value="2024-11">November 2024</SelectItem>
-                          <SelectItem value="2024-12">December 2024</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Month</label>
+                    <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                      <SelectTrigger className="w-full sm:w-40">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="2024-06">June 2024</SelectItem>
+                        <SelectItem value="2024-07">July 2024</SelectItem>
+                        <SelectItem value="2024-08">August 2024</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
-                  {/* Environment Filters */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Show Outages Affecting:</Label>
+                  <div className="space-y-2 w-full sm:w-auto">
+                    <label className="text-sm font-medium">Show Outages Affecting:</label>
                     <div className="grid grid-cols-2 sm:flex gap-2 sm:gap-4">
                       {environments.map((env) => (
                         <div key={env} className="flex items-center space-x-2">
@@ -446,371 +488,202 @@ export default function OutageDashboard() {
                             checked={selectedEnvironments.includes(env)}
                             onCheckedChange={(checked) => handleEnvironmentChange(env, checked as boolean)}
                           />
-                          <Label htmlFor={env} className="text-sm font-medium cursor-pointer">
+                          <label htmlFor={env} className="text-sm font-medium cursor-pointer">
                             {env}
-                          </Label>
+                          </label>
                         </div>
                       ))}
                     </div>
-                  </div>
-
-                  {/* View Controls */}
-                  <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between pt-4 border-t">
-                    <div className="flex items-center gap-2">
-                      <Label className="text-sm font-medium">View:</Label>
-                      <div className="flex gap-2">
-                        <Button
-                          variant={viewMode === "timeline" ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setViewMode("timeline")}
-                        >
-                          Timeline
-                        </Button>
-                        <Button
-                          variant={viewMode === "list" ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setViewMode("list")}
-                        >
-                          List View
-                        </Button>
-                      </div>
-                    </div>
-
-                    <Button variant="outline" size="sm" onClick={resetFilters}>
-                      <RotateCcw className="w-4 h-4 mr-2" />
-                      Reset Filters
-                    </Button>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Enhanced Gantt Chart */}
-            {viewMode === "timeline" && (
-              <Card data-testid="gantt-chart">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <Calendar className="w-5 h-5" />
-                        Interactive Outage Timeline - {selectedMonth}
-                      </CardTitle>
-                      <CardDescription className="text-sm">
-                        Real-time timeline with automatic updates. Click on any outage for details.
-                        <br />
-                        Showing {filteredOutages.length} outages | Timeline: {dateRange.start.toLocaleDateString()} -{" "}
-                        {dateRange.end.toLocaleDateString()}
-                      </CardDescription>
-                    </div>
-                    {isMobile && (
-                      <Button variant="ghost" size="sm" onClick={() => toggleSection("gantt")}>
-                        {expandedSections.gantt ? (
-                          <ChevronUp className="w-4 h-4" />
-                        ) : (
-                          <ChevronDown className="w-4 h-4" />
-                        )}
-                      </Button>
-                    )}
+            {/* Interactive Gantt Chart */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <Calendar className="w-5 h-5" />
+                      Interactive Outage Timeline - {selectedMonth}
+                    </CardTitle>
+                    <CardDescription className="text-sm">
+                      Click on any outage bar for detailed information. Hover for quick preview.
+                      <br />
+                      Timeline: {dateRange.start.toLocaleDateString()} - {dateRange.end.toLocaleDateString()}
+                    </CardDescription>
                   </div>
-                </CardHeader>
-                {expandedSections.gantt && (
-                  <CardContent>
-                    <div className="space-y-4">
-                      {/* Enhanced Timeline Header */}
-                      <div className="relative">
-                        <div className="flex text-xs font-medium text-gray-600 mb-2">
-                          <div className="w-full sm:w-96 pr-4">Outage Information</div>
-                          <div className="hidden sm:block flex-1 text-center">
-                            {selectedMonth === "2024-06" ? "June 2024" : selectedMonth} - Daily Timeline
-                          </div>
-                        </div>
-                        <div className="flex">
-                          <div className="w-full sm:w-96 pr-4"></div>
-                          <div className="hidden sm:block flex-1 relative h-10 bg-gray-100 rounded-lg overflow-hidden">
-                            <div className="absolute inset-0 flex">
-                              {Array.from({ length: Math.min(dateRange.totalDays, 31) }, (_, i) => {
-                                const currentDate = new Date(dateRange.start)
-                                currentDate.setDate(currentDate.getDate() + i)
-                                return (
-                                  <div
-                                    key={i}
-                                    className="flex-1 flex flex-col items-center justify-center text-xs font-medium border-r border-gray-300 last:border-r-0 min-w-0 py-1"
-                                  >
-                                    <div>{currentDate.getDate()}</div>
-                                    <div className="text-gray-400 text-xs">
-                                      {currentDate.toLocaleDateString("en-US", { weekday: "short" })}
-                                    </div>
-                                  </div>
-                                )
-                              })}
-                            </div>
+                  {isMobile && (
+                    <Button variant="ghost" size="sm" onClick={() => toggleSection("gantt")}>
+                      {expandedSections.gantt ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              {expandedSections.gantt && (
+                <CardContent>
+                  <div className="space-y-4">
+                    {/* Mobile-friendly Calendar Header */}
+                    <div className="relative">
+                      <div className="flex text-xs font-medium text-gray-600 mb-2">
+                        <div className="w-full sm:w-80 pr-2 sm:pr-4">Outage Details</div>
+                        <div className="hidden sm:block flex-1 text-center">June 2024 - Daily Timeline</div>
+                      </div>
+                      <div className="flex">
+                        <div className="w-full sm:w-80 pr-2 sm:pr-4"></div>
+                        <div className="hidden sm:block flex-1 relative h-8 bg-gray-100 rounded-lg overflow-hidden">
+                          <div className="absolute inset-0 flex">
+                            {Array.from({ length: Math.min(dateRange.totalDays, 31) }, (_, i) => {
+                              const currentDate = new Date(dateRange.start)
+                              currentDate.setDate(currentDate.getDate() + i)
+                              return (
+                                <div
+                                  key={i}
+                                  className="flex-1 flex items-center justify-center text-xs font-medium border-r border-gray-300 last:border-r-0 min-w-0"
+                                >
+                                  {currentDate.getDate()}
+                                </div>
+                              )
+                            })}
                           </div>
                         </div>
                       </div>
+                    </div>
 
-                      {/* Enhanced Gantt Bars */}
-                      <div className="space-y-2">
-                        {isLoading ? (
-                          <div className="space-y-2">
-                            {[...Array(5)].map((_, i) => (
-                              <div key={i} className="flex items-center space-x-4">
-                                <div className="w-96 h-16 bg-gray-200 animate-pulse rounded"></div>
-                                <div className="flex-1 h-16 bg-gray-200 animate-pulse rounded"></div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : filteredOutages.length === 0 ? (
-                          <div className="text-center py-12 text-gray-500">
-                            <Calendar className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                            <h3 className="text-lg font-medium mb-2">No outages found</h3>
-                            <p>Try adjusting your filters or create a new outage.</p>
-                          </div>
-                        ) : (
-                          filteredOutages.map((outage, index) => {
-                            const position = getGanttPosition(outage.startDate, outage.endDate)
+                    {/* Interactive Gantt Bars */}
+                    <div className="space-y-3">
+                      {filteredOutages.map((outage) => {
+                        const affectedEnvs = outage.environments.filter(
+                          (env) => env.affected && selectedEnvironments.includes(env.name),
+                        )
 
-                            return (
-                              <div key={outage.id} className="relative group">
-                                <div className="flex flex-col sm:flex-row items-start sm:items-center hover:bg-gray-50 rounded-lg p-2 transition-colors">
-                                  {/* Enhanced Outage Info */}
-                                  <div className="w-full sm:w-96 pr-4 mb-2 sm:mb-0">
-                                    <div className="space-y-2">
-                                      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                                        <h4 className="font-medium text-sm flex-1">{outage.title}</h4>
-                                        <div className="flex gap-2">
-                                          <Badge className={severityColors[outage.severity]} variant="outline">
-                                            {outage.severity}
-                                          </Badge>
-                                          <Badge variant="secondary" className="text-xs">
-                                            #{outage.id}
-                                          </Badge>
-                                        </div>
-                                      </div>
-                                      <div className="flex flex-wrap gap-1">
-                                        {outage.environments.map((env) => (
-                                          <Badge
-                                            key={env}
-                                            className={`text-xs ${environmentColors[env as keyof typeof environmentColors]} text-white`}
-                                          >
-                                            {env}
-                                          </Badge>
-                                        ))}
-                                      </div>
-                                      <div className="text-xs text-gray-600 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
-                                        <span className="flex items-center gap-1">
-                                          <Clock className="w-3 h-3" />
-                                          <span className="sm:hidden">
-                                            {outage.startDate.toLocaleDateString()} -{" "}
-                                            {outage.endDate.toLocaleDateString()}
-                                          </span>
-                                          <span className="hidden sm:inline">
-                                            {formatDateTime(outage.startDate)} → {formatDateTime(outage.endDate)}
-                                          </span>
-                                        </span>
-                                        <span className="flex items-center gap-1">
-                                          <Users className="w-3 h-3" />
-                                          {outage.assignee}
-                                        </span>
-                                      </div>
-                                    </div>
+                        const position = getGanttPosition(outage.startDate, outage.endDate)
+
+                        return (
+                          <div key={outage.id} className="relative">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center">
+                              {/* Outage Info - Mobile stacked, Desktop side-by-side */}
+                              <div className="w-full sm:w-80 pr-2 sm:pr-4 mb-2 sm:mb-0">
+                                <div className="space-y-2">
+                                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                    <h4 className="font-medium text-sm">{outage.title}</h4>
+                                    <Badge className={severityColors[outage.severity]} variant="outline">
+                                      {outage.severity}
+                                    </Badge>
                                   </div>
-
-                                  {/* Enhanced Gantt Bar */}
-                                  <div className="hidden sm:block flex-1 relative h-16 bg-gray-100 rounded-lg overflow-hidden">
-                                    <div
-                                      className={`absolute top-2 h-12 rounded-lg flex items-center px-3 text-white text-xs font-medium shadow-lg cursor-pointer transition-all duration-200 hover:shadow-xl hover:scale-105 ${
-                                        outage.severity === "High"
-                                          ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
-                                          : outage.severity === "Medium"
-                                            ? "bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700"
-                                            : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
-                                      } ${hoveredOutage === outage.id ? "ring-2 ring-white ring-opacity-50" : ""}`}
-                                      style={position}
-                                      onClick={() => setSelectedOutage(outage)}
-                                      onMouseEnter={(e) => {
-                                        setHoveredOutage(outage.id)
-                                        setTooltipData({
-                                          outage,
-                                          x: e.clientX,
-                                          y: e.clientY,
-                                          visible: true,
-                                        })
-                                      }}
-                                      onMouseLeave={() => {
-                                        setHoveredOutage(null)
-                                        setTooltipData(null)
-                                      }}
-                                      onMouseMove={(e) => {
-                                        if (tooltipData) {
-                                          setTooltipData({
-                                            ...tooltipData,
-                                            x: e.clientX,
-                                            y: e.clientY,
-                                          })
-                                        }
-                                      }}
-                                    >
-                                      <div className="flex items-center gap-2 min-w-0">
-                                        <Clock className="w-3 h-3 flex-shrink-0" />
-                                        <span className="truncate">
-                                          {getDuration(outage.startDate, outage.endDate)}
-                                        </span>
-                                      </div>
-                                    </div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {affectedEnvs.map((env) => (
+                                      <Badge
+                                        key={env.name}
+                                        className={`text-xs ${environmentColors[env.name as keyof typeof environmentColors]} text-white`}
+                                      >
+                                        {env.name}
+                                      </Badge>
+                                    ))}
                                   </div>
-
-                                  {/* Mobile Action Button */}
-                                  <div className="sm:hidden w-full">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => setSelectedOutage(outage)}
-                                      className="w-full justify-between"
-                                    >
-                                      <span>View Details</span>
-                                      <span className="text-xs">{getDuration(outage.startDate, outage.endDate)}</span>
-                                    </Button>
+                                  <div className="text-xs text-gray-600">
+                                    <div className="sm:hidden">
+                                      {outage.startDate.toLocaleDateString()} - {outage.endDate.toLocaleDateString()}
+                                    </div>
+                                    <div className="hidden sm:block">
+                                      {formatDateTime(outage.startDate)} → {formatDateTime(outage.endDate)}
+                                    </div>
                                   </div>
                                 </div>
                               </div>
-                            )
-                          })
-                        )}
-                      </div>
 
-                      {/* Enhanced Legend */}
-                      <div className="mt-6 pt-4 border-t">
-                        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 text-sm">
-                          <div className="flex flex-wrap gap-4">
-                            <div className="flex items-center gap-2">
-                              <div className="w-4 h-4 bg-gradient-to-r from-red-500 to-red-600 rounded"></div>
-                              <span>High Impact</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <div className="w-4 h-4 bg-gradient-to-r from-yellow-500 to-yellow-600 rounded"></div>
-                              <span>Medium Impact</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <div className="w-4 h-4 bg-gradient-to-r from-green-500 to-green-600 rounded"></div>
-                              <span>Low Impact</span>
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap gap-3">
-                            {environments.map((env) => (
-                              <div key={env} className="flex items-center gap-1">
+                              {/* Gantt Bar - Hidden on mobile, visible on desktop */}
+                              <div className="hidden sm:block flex-1 relative h-12 bg-gray-100 rounded-lg">
                                 <div
-                                  className={`w-3 h-3 ${environmentColors[env as keyof typeof environmentColors]} rounded`}
-                                ></div>
-                                <span className="text-xs">{env}</span>
+                                  className={`absolute top-1 h-10 rounded-lg flex items-center px-2 text-white text-xs font-medium shadow-md cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-105 ${
+                                    outage.severity === "High"
+                                      ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
+                                      : outage.severity === "Medium"
+                                        ? "bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700"
+                                        : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+                                  } ${hoveredOutage === outage.id ? "ring-2 ring-white ring-opacity-50" : ""}`}
+                                  style={position}
+                                  onClick={() => setSelectedOutage(outage)}
+                                  onMouseEnter={(e) => {
+                                    setHoveredOutage(outage.id)
+                                    setTooltipData({
+                                      outage,
+                                      x: e.clientX,
+                                      y: e.clientY,
+                                      visible: true,
+                                    })
+                                  }}
+                                  onMouseLeave={() => {
+                                    setHoveredOutage(null)
+                                    setTooltipData(null)
+                                  }}
+                                  onMouseMove={(e) => {
+                                    if (tooltipData) {
+                                      setTooltipData({
+                                        ...tooltipData,
+                                        x: e.clientX,
+                                        y: e.clientY,
+                                      })
+                                    }
+                                  }}
+                                >
+                                  <Clock className="w-3 h-3 mr-1 flex-shrink-0" />
+                                  <span className="truncate">{getDuration(outage.startDate, outage.endDate)}</span>
+                                </div>
                               </div>
-                            ))}
+
+                              {/* Mobile Action Button */}
+                              <div className="sm:hidden w-full">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setSelectedOutage(outage)}
+                                  className="w-full justify-between"
+                                >
+                                  <span>View Details</span>
+                                  <span className="text-xs">{getDuration(outage.startDate, outage.endDate)}</span>
+                                </Button>
+                              </div>
+                            </div>
                           </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* Legend */}
+                    <div className="mt-6 pt-4 border-t">
+                      <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 text-sm">
+                        <div className="flex flex-wrap gap-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 bg-gradient-to-r from-red-500 to-red-600 rounded"></div>
+                            <span>High Impact</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 bg-gradient-to-r from-yellow-500 to-yellow-600 rounded"></div>
+                            <span>Medium Impact</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 bg-gradient-to-r from-green-500 to-green-600 rounded"></div>
+                            <span>Low Impact</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-3">
+                          {environments.map((env) => (
+                            <div key={env} className="flex items-center gap-1">
+                              <div
+                                className={`w-3 h-3 ${environmentColors[env as keyof typeof environmentColors]} rounded`}
+                              ></div>
+                              <span className="text-xs">{env}</span>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     </div>
-                  </CardContent>
-                )}
-              </Card>
-            )}
-
-            {/* List View */}
-            {viewMode === "list" && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Server className="w-5 h-5" />
-                    Outages List View
-                  </CardTitle>
-                  <CardDescription>Showing {filteredOutages.length} outages in detailed list format</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {isLoading ? (
-                      <div className="space-y-4">
-                        {[...Array(3)].map((_, i) => (
-                          <div key={i} className="border rounded-lg p-4 animate-pulse">
-                            <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                            <div className="h-3 bg-gray-200 rounded w-1/2 mb-2"></div>
-                            <div className="h-3 bg-gray-200 rounded w-2/3"></div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : filteredOutages.length === 0 ? (
-                      <div className="text-center py-8 text-gray-500">
-                        <Server className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                        <h3 className="text-lg font-medium mb-2">No outages found</h3>
-                        <p>Try adjusting your filters or create a new outage.</p>
-                      </div>
-                    ) : (
-                      filteredOutages.map((outage) => (
-                        <div
-                          key={outage.id}
-                          className="border rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
-                          onClick={() => setSelectedOutage(outage)}
-                        >
-                          <div className="flex justify-between items-start mb-3">
-                            <div className="flex-1">
-                              <h3 className="font-semibold text-lg">{outage.title}</h3>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Badge className={severityColors[outage.severity]}>{outage.severity}</Badge>
-                                {outage.priority && <Badge variant="secondary">Priority {outage.priority}</Badge>}
-                                {outage.category && <Badge variant="outline">{outage.category}</Badge>}
-                              </div>
-                            </div>
-                            <Badge variant="secondary">#{outage.id}</Badge>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <p>
-                                <strong>Duration:</strong> {getDuration(outage.startDate, outage.endDate)}
-                              </p>
-                              <p>
-                                <strong>Team:</strong> {outage.assignee}
-                              </p>
-                              {outage.contactEmail && (
-                                <p>
-                                  <strong>Contact:</strong> {outage.contactEmail}
-                                </p>
-                              )}
-                            </div>
-                            <div>
-                              <p>
-                                <strong>Start:</strong> {formatDateTime(outage.startDate)}
-                              </p>
-                              <p>
-                                <strong>End:</strong> {formatDateTime(outage.endDate)}
-                              </p>
-                              {outage.estimatedUsers && outage.estimatedUsers > 0 && (
-                                <p>
-                                  <strong>Users Affected:</strong> {outage.estimatedUsers.toLocaleString()}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="flex flex-wrap gap-1 mt-3">
-                            {outage.environments.map((env) => (
-                              <Badge key={env} variant="secondary" className="text-xs">
-                                {env}
-                              </Badge>
-                            ))}
-                          </div>
-
-                          {outage.reason && (
-                            <div className="mt-3 pt-3 border-t">
-                              <p className="text-sm text-gray-600">
-                                <strong>Reason:</strong> {outage.reason}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      ))
-                    )}
                   </div>
                 </CardContent>
-              </Card>
-            )}
+              )}
+            </Card>
 
             {/* Day by Day Breakdown */}
             <Card>
@@ -839,133 +712,117 @@ export default function OutageDashboard() {
               {expandedSections.dayByDay && (
                 <CardContent>
                   <div className="space-y-6">
-                    {dayByDayBreakdown.length === 0 ? (
-                      <div className="text-center py-8 text-gray-500">
-                        <Calendar className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                        <h3 className="text-lg font-medium mb-2">No outages scheduled</h3>
-                        <p>No outages found for the selected filters and time period.</p>
-                      </div>
-                    ) : (
-                      dayByDayBreakdown.map(([date, outages]) => (
-                        <div key={date} className="border-l-4 border-blue-500 pl-4">
-                          <h3 className="text-base sm:text-lg font-semibold mb-3">
-                            {new Date(date).toLocaleDateString("en-US", {
-                              weekday: "long",
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                            })}
-                          </h3>
+                    {dayByDayBreakdown.map(([date, outages]) => (
+                      <div key={date} className="border-l-4 border-blue-500 pl-4">
+                        <h3 className="text-base sm:text-lg font-semibold mb-3">
+                          {new Date(date).toLocaleDateString("en-US", {
+                            weekday: "long",
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          })}
+                        </h3>
 
-                          <div className="space-y-4">
-                            {outages.map((outage) => (
-                              <div
-                                key={`${outage.id}-${date}`}
-                                className="bg-white rounded-lg border p-3 sm:p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                                onClick={() => setSelectedOutage(outage)}
-                              >
-                                <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-3 gap-2">
-                                  <div className="flex-1">
-                                    <h4 className="font-semibold text-base sm:text-lg">{outage.title}</h4>
-                                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-600 mt-1">
-                                      <span className="flex items-center gap-1">
-                                        <Clock className="w-4 h-4" />
-                                        <span className="sm:hidden">
-                                          {outage.startDate.toLocaleDateString()} -{" "}
-                                          {outage.endDate.toLocaleDateString()}
-                                        </span>
-                                        <span className="hidden sm:inline">
-                                          {formatDateTime(outage.startDate)} → {formatDateTime(outage.endDate)}
-                                        </span>
+                        <div className="space-y-4">
+                          {outages.map((outage) => (
+                            <div
+                              key={`${outage.id}-${date}`}
+                              className="bg-white rounded-lg border p-3 sm:p-4 shadow-sm"
+                            >
+                              <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-3 gap-2">
+                                <div className="flex-1">
+                                  <h4 className="font-semibold text-base sm:text-lg">{outage.title}</h4>
+                                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-600 mt-1">
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="w-4 h-4" />
+                                      <span className="sm:hidden">
+                                        {outage.startDate.toLocaleDateString()} - {outage.endDate.toLocaleDateString()}
                                       </span>
-                                      <span>Duration: {getDuration(outage.startDate, outage.endDate)}</span>
-                                    </div>
-                                  </div>
-                                  <div className="flex gap-2">
-                                    <Badge className={severityColors[outage.severity]}>{outage.severity} Impact</Badge>
-                                    {outage.priority && <Badge variant="secondary">P{outage.priority}</Badge>}
+                                      <span className="hidden sm:inline">
+                                        {formatDateTime(outage.startDate)} → {formatDateTime(outage.endDate)}
+                                      </span>
+                                    </span>
+                                    <span>Duration: {getDuration(outage.startDate, outage.endDate)}</span>
                                   </div>
                                 </div>
+                                <Badge className={severityColors[outage.severity]}>{outage.severity} Impact</Badge>
+                              </div>
 
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                  <div>
-                                    <h5 className="font-medium mb-2 flex items-center gap-2">
-                                      <MapPin className="w-4 h-4" />
-                                      Environment Impact
-                                    </h5>
-                                    <div className="space-y-2">
-                                      {outage.environments
-                                        .filter((env) => selectedEnvironments.includes(env))
-                                        .map((env) => (
-                                          <div
-                                            key={env}
-                                            className="flex items-center justify-between p-2 rounded bg-gray-50"
-                                          >
-                                            <div className="flex items-center gap-2">
-                                              <Badge
-                                                className={`${environmentColors[env as keyof typeof environmentColors]} text-white text-xs`}
-                                              >
-                                                {env}
-                                              </Badge>
-                                              <span className="text-sm text-red-600 font-medium">AFFECTED</span>
-                                            </div>
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                <div>
+                                  <h5 className="font-medium mb-2 flex items-center gap-2">
+                                    <MapPin className="w-4 h-4" />
+                                    Environment Impact
+                                  </h5>
+                                  <div className="space-y-2">
+                                    {outage.environments
+                                      .filter((env) => selectedEnvironments.includes(env.name))
+                                      .map((env) => (
+                                        <div
+                                          key={env.name}
+                                          className="flex items-center justify-between p-2 rounded bg-gray-50"
+                                        >
+                                          <div className="flex items-center gap-2">
+                                            <Badge
+                                              className={`${environmentColors[env.name as keyof typeof environmentColors]} text-white text-xs`}
+                                            >
+                                              {env.name}
+                                            </Badge>
+                                            <span
+                                              className={`text-sm ${env.affected ? "text-red-600 font-medium" : "text-green-600"}`}
+                                            >
+                                              {env.affected ? "AFFECTED" : "No Impact"}
+                                            </span>
                                           </div>
-                                        ))}
-                                    </div>
-                                  </div>
-
-                                  <div>
-                                    <h5 className="font-medium mb-2 flex items-center gap-2">
-                                      <Info className="w-4 h-4" />
-                                      Detailed Impact
-                                    </h5>
-                                    <ul className="text-sm space-y-1">
-                                      {outage.detailedImpact.slice(0, 3).map((impact, index) => (
-                                        <li key={index} className="flex items-start gap-2">
-                                          <span className="text-red-500 mt-1 flex-shrink-0">•</span>
-                                          <span>{impact}</span>
-                                        </li>
+                                        </div>
                                       ))}
-                                      {outage.detailedImpact.length > 3 && (
-                                        <li className="text-gray-500 text-xs">
-                                          +{outage.detailedImpact.length - 3} more impacts...
-                                        </li>
-                                      )}
-                                    </ul>
                                   </div>
                                 </div>
 
-                                <div className="mt-4 pt-3 border-t flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                  <div className="flex items-center gap-2">
-                                    <Users className="w-4 h-4 text-gray-500" />
-                                    <span className="text-sm text-gray-600">Responsible Team:</span>
-                                    <Badge variant="secondary">{outage.assignee}</Badge>
-                                  </div>
-                                  {outage.estimatedUsers && outage.estimatedUsers > 0 && (
-                                    <div className="text-sm text-gray-600">
-                                      <strong>Users Affected:</strong> {outage.estimatedUsers.toLocaleString()}
-                                    </div>
-                                  )}
+                                <div>
+                                  <h5 className="font-medium mb-2 flex items-center gap-2">
+                                    <Info className="w-4 h-4" />
+                                    Detailed Impact
+                                  </h5>
+                                  <ul className="text-sm space-y-1">
+                                    {outage.detailedImpact.map((impact, index) => (
+                                      <li key={index} className="flex items-start gap-2">
+                                        <span className="text-red-500 mt-1 flex-shrink-0">•</span>
+                                        <span>{impact}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
                                 </div>
                               </div>
-                            ))}
-                          </div>
+
+                              <div className="mt-4 pt-3 border-t flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                  <Users className="w-4 h-4 text-gray-500" />
+                                  <span className="text-sm text-gray-600">Responsible Team:</span>
+                                  <Badge variant="secondary">{outage.assignee}</Badge>
+                                </div>
+                                <div className="text-sm text-gray-600">
+                                  <strong>Reason:</strong> {outage.reason}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      ))
-                    )}
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               )}
             </Card>
 
-            {/* Enhanced Summary Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+            {/* Summary Stats */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               <Card>
                 <CardContent className="p-3 sm:p-4 text-center">
                   <div className="text-xl sm:text-2xl font-bold text-red-600">
                     {filteredOutages.filter((o) => o.severity === "High").length}
                   </div>
-                  <div className="text-xs sm:text-sm text-gray-500">High Impact</div>
+                  <div className="text-xs sm:text-sm text-gray-500">High Impact Outages</div>
                 </CardContent>
               </Card>
               <Card>
@@ -973,7 +830,7 @@ export default function OutageDashboard() {
                   <div className="text-xl sm:text-2xl font-bold text-yellow-600">
                     {filteredOutages.filter((o) => o.severity === "Medium").length}
                   </div>
-                  <div className="text-xs sm:text-sm text-gray-500">Medium Impact</div>
+                  <div className="text-xs sm:text-sm text-gray-500">Medium Impact Outages</div>
                 </CardContent>
               </Card>
               <Card>
@@ -981,7 +838,7 @@ export default function OutageDashboard() {
                   <div className="text-xl sm:text-2xl font-bold text-green-600">
                     {filteredOutages.filter((o) => o.severity === "Low").length}
                   </div>
-                  <div className="text-xs sm:text-sm text-gray-500">Low Impact</div>
+                  <div className="text-xs sm:text-sm text-gray-500">Low Impact Outages</div>
                 </CardContent>
               </Card>
               <Card>
@@ -992,23 +849,15 @@ export default function OutageDashboard() {
                       return acc + Math.round(hours)
                     }, 0)}
                   </div>
-                  <div className="text-xs sm:text-sm text-gray-500">Total Hours</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-3 sm:p-4 text-center">
-                  <div className="text-xl sm:text-2xl font-bold text-purple-600">
-                    {filteredOutages.reduce((acc, outage) => acc + (outage.estimatedUsers || 0), 0).toLocaleString()}
-                  </div>
-                  <div className="text-xs sm:text-sm text-gray-500">Users Affected</div>
+                  <div className="text-xs sm:text-sm text-gray-500">Total Downtime Hours</div>
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
 
-          {/* Schedule & Report Tab */}
+          {/* Schedule Outage Tab */}
           <TabsContent value="schedule">
-            <EnhancedOutageForm />
+            <OutageForm />
           </TabsContent>
 
           {/* Metrics Tab */}
@@ -1037,9 +886,9 @@ export default function OutageDashboard() {
           visible={!!tooltipData?.visible}
         />
 
-        {/* Enhanced Modal for Outage Details */}
+        {/* Interactive Modal for Outage Details */}
         <Dialog open={!!selectedOutage} onOpenChange={() => setSelectedOutage(null)}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             {selectedOutage && (
               <>
                 <DialogHeader>
@@ -1047,53 +896,47 @@ export default function OutageDashboard() {
                     <div>
                       <DialogTitle className="text-xl">{selectedOutage.title}</DialogTitle>
                       <DialogDescription className="mt-2">
-                        ID: #{selectedOutage.id} | {formatDateTime(selectedOutage.startDate)} →{" "}
-                        {formatDateTime(selectedOutage.endDate)}
+                        {formatDateTime(selectedOutage.startDate)} → {formatDateTime(selectedOutage.endDate)}
                         <br />
-                        Duration: {getDuration(selectedOutage.startDate, selectedOutage.endDate)} | Team:{" "}
-                        {selectedOutage.assignee}
-                        {selectedOutage.category && (
-                          <>
-                            <br />
-                            Category: {selectedOutage.category}
-                          </>
-                        )}
+                        Duration: {getDuration(selectedOutage.startDate, selectedOutage.endDate)}
                       </DialogDescription>
                     </div>
-                    <div className="flex gap-2">
-                      <Badge className={severityColors[selectedOutage.severity]}>
-                        {selectedOutage.severity} Impact
-                      </Badge>
-                      {selectedOutage.priority && <Badge variant="secondary">Priority {selectedOutage.priority}</Badge>}
-                    </div>
+                    <Badge className={severityColors[selectedOutage.severity]}>{selectedOutage.severity} Impact</Badge>
                   </div>
                 </DialogHeader>
 
-                <div className="space-y-6">
+                <div className="space-y-4">
                   <div>
-                    <h4 className="font-semibold mb-3">Affected Environments</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <h4 className="font-semibold mb-2">Affected Environments</h4>
+                    <div className="grid grid-cols-2 gap-2">
                       {selectedOutage.environments.map((env) => (
-                        <div key={env} className="p-3 rounded-lg border bg-red-50 border-red-200">
+                        <div
+                          key={env.name}
+                          className={`p-3 rounded-lg border ${
+                            env.affected ? "bg-red-50 border-red-200" : "bg-green-50 border-green-200"
+                          }`}
+                        >
                           <div className="flex items-center gap-2 mb-1">
                             <Badge
-                              className={`${environmentColors[env as keyof typeof environmentColors]} text-white text-xs`}
+                              className={`${environmentColors[env.name as keyof typeof environmentColors]} text-white text-xs`}
                             >
-                              {env}
+                              {env.name}
                             </Badge>
-                            <span className="text-sm font-medium text-red-600">AFFECTED</span>
+                            <span className={`text-sm font-medium ${env.affected ? "text-red-600" : "text-green-600"}`}>
+                              {env.affected ? "AFFECTED" : "No Impact"}
+                            </span>
                           </div>
-                          <p className="text-sm text-gray-600">{env} environment will be impacted</p>
+                          <p className="text-sm text-gray-600">{env.impact}</p>
                         </div>
                       ))}
                     </div>
                   </div>
 
                   <div>
-                    <h4 className="font-semibold mb-3">Detailed Impact</h4>
+                    <h4 className="font-semibold mb-2">Detailed Impact</h4>
                     <ul className="space-y-2">
                       {selectedOutage.detailedImpact.map((impact, index) => (
-                        <li key={index} className="flex items-start gap-2 p-3 bg-gray-50 rounded-lg">
+                        <li key={index} className="flex items-start gap-2 p-2 bg-gray-50 rounded">
                           <span className="text-red-500 mt-1">•</span>
                           <span className="text-sm">{impact}</span>
                         </li>
@@ -1101,42 +944,16 @@ export default function OutageDashboard() {
                     </ul>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t">
                     <div>
-                      <h4 className="font-semibold mb-2">Outage Details</h4>
-                      <div className="space-y-2 text-sm">
-                        <p>
-                          <strong>Affected Models:</strong> {selectedOutage.affectedModels || "Not specified"}
-                        </p>
-                        <p>
-                          <strong>Status:</strong> {selectedOutage.status}
-                        </p>
-                        <p>
-                          <strong>Type:</strong> {selectedOutage.type}
-                        </p>
-                        {selectedOutage.contactEmail && (
-                          <p>
-                            <strong>Contact Email:</strong> {selectedOutage.contactEmail}
-                          </p>
-                        )}
-                        {selectedOutage.estimatedUsers && selectedOutage.estimatedUsers > 0 && (
-                          <p>
-                            <strong>Estimated Users Affected:</strong> {selectedOutage.estimatedUsers.toLocaleString()}
-                          </p>
-                        )}
-                      </div>
+                      <span className="text-sm font-medium text-gray-600">Responsible Team:</span>
+                      <Badge variant="secondary" className="ml-2">
+                        {selectedOutage.assignee}
+                      </Badge>
                     </div>
                     <div>
-                      <h4 className="font-semibold mb-2">Reason</h4>
-                      <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
-                        {selectedOutage.reason || "No reason provided"}
-                      </p>
-                      {selectedOutage.createdAt && (
-                        <div className="mt-4 text-xs text-gray-500">
-                          <p>Created: {selectedOutage.createdAt.toLocaleString()}</p>
-                          {selectedOutage.updatedAt && <p>Updated: {selectedOutage.updatedAt.toLocaleString()}</p>}
-                        </div>
-                      )}
+                      <span className="text-sm font-medium text-gray-600">Reason:</span>
+                      <span className="text-sm ml-2">{selectedOutage.reason}</span>
                     </div>
                   </div>
                 </div>
