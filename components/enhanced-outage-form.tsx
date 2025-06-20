@@ -178,62 +178,22 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
       try {
         const [envConfig, teamConfig] = await Promise.all([fetchConfig("environments"), fetchConfig("teams")])
 
+        console.log("Loaded environment config:", envConfig)
+        console.log("Loaded team config:", teamConfig)
+
         setEnvironments(Array.isArray(envConfig.environments) ? envConfig.environments : envConfig)
         setTeams(Array.isArray(teamConfig.teams) ? teamConfig.teams : teamConfig)
       } catch (error) {
         console.error("Failed to load configuration:", error)
         toast({
           title: "Configuration Error",
-          description: "Failed to load environments and teams. Using defaults.",
+          description: "Failed to load environments and teams from configuration files.",
           variant: "destructive",
         })
 
-        // Fallback to hardcoded values
-        setEnvironments([
-          { id: "poc", name: "POC", color: "bg-blue-500", description: "Proof of Concept Environment" },
-          { id: "sbx-dev", name: "SBX DEV", color: "bg-green-500", description: "Sandbox Development Environment" },
-          {
-            id: "sbx-uat",
-            name: "SBX UAT",
-            color: "bg-yellow-500",
-            description: "Sandbox User Acceptance Testing Environment",
-          },
-          { id: "sbx-beta", name: "SBX Beta", color: "bg-orange-500", description: "Sandbox Beta Environment" },
-          { id: "prod", name: "PROD", color: "bg-red-500", description: "Production Environment" },
-        ])
-        setTeams([
-          {
-            id: "infrastructure",
-            name: "Infrastructure Team",
-            email: "infrastructure@company.com",
-            description: "Manages core infrastructure and platform services",
-          },
-          {
-            id: "gcp-l2-l3",
-            name: "GCP L2 L3 Team",
-            email: "gcp-support@company.com",
-            description: "Google Cloud Platform Level 2 and Level 3 support",
-          },
-          {
-            id: "tableau",
-            name: "Tableau Team",
-            email: "tableau@company.com",
-            description: "Business Intelligence and Analytics platform team",
-          },
-          {
-            id: "epas",
-            name: "EPAS Team",
-            email: "epas@company.com",
-            description: "Enterprise PostgreSQL Advanced Server team",
-          },
-          { id: "em", name: "EM Team", email: "em@company.com", description: "Engineering Management team" },
-          {
-            id: "horizon",
-            name: "Horizon Team",
-            email: "horizon@company.com",
-            description: "Horizon platform and services team",
-          },
-        ])
+        // Only set empty arrays as fallback - let user know data failed to load
+        setEnvironments([])
+        setTeams([])
       } finally {
         setLoadingConfig(false)
       }
@@ -742,55 +702,61 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
             {/* Responsible Teams - Multi-select Dropdown */}
             <div className="space-y-2">
               <Label>Responsible Teams</Label>
-              <Popover open={teamDropdownOpen} onOpenChange={setTeamDropdownOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={teamDropdownOpen}
-                    className="w-full justify-between"
-                    onClick={() => setTeamDropdownOpen(!teamDropdownOpen)}
-                  >
-                    {formData.assignees.length === 0
-                      ? "Select teams..."
-                      : `${formData.assignees.length} team${formData.assignees.length > 1 ? "s" : ""} selected`}
-                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-full p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Search teams..." />
-                    <CommandList>
-                      <CommandEmpty>No teams found.</CommandEmpty>
-                      <CommandGroup>
-                        {teams.map((team) => (
-                          <CommandItem
-                            key={team.id}
-                            value={team.id}
-                            onSelect={(value) => {
-                              console.log("Team selected:", value, team.name)
-                              handleTeamToggle(team.id)
-                            }}
-                            className="cursor-pointer"
-                          >
-                            <Check
-                              className={`mr-2 h-4 w-4 ${
-                                formData.assignees.includes(team.id) ? "opacity-100" : "opacity-0"
-                              }`}
-                            />
-                            <div className="flex-1">
-                              <div className="font-medium">{team.name}</div>
-                              <div className="text-xs text-muted-foreground">{team.description}</div>
-                              <div className="text-xs text-blue-600">{team.email}</div>
-                            </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+              {teams.length === 0 ? (
+                <div className="p-4 text-center text-muted-foreground border rounded-md">
+                  <p>No teams available. Please check the configuration.</p>
+                </div>
+              ) : (
+                <Popover open={teamDropdownOpen} onOpenChange={setTeamDropdownOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={teamDropdownOpen}
+                      className="w-full justify-between"
+                      onClick={() => setTeamDropdownOpen(!teamDropdownOpen)}
+                    >
+                      {formData.assignees.length === 0
+                        ? "Select teams..."
+                        : `${formData.assignees.length} team${formData.assignees.length > 1 ? "s" : ""} selected`}
+                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search teams..." />
+                      <CommandList>
+                        <CommandEmpty>No teams found.</CommandEmpty>
+                        <CommandGroup>
+                          {teams.map((team) => (
+                            <CommandItem
+                              key={team.id}
+                              value={team.id}
+                              onSelect={(value) => {
+                                console.log("Team selected:", value, team.name)
+                                handleTeamToggle(team.id)
+                              }}
+                              className="cursor-pointer"
+                            >
+                              <Check
+                                className={`mr-2 h-4 w-4 ${
+                                  formData.assignees.includes(team.id) ? "opacity-100" : "opacity-0"
+                                }`}
+                              />
+                              <div className="flex-1">
+                                <div className="font-medium">{team.name}</div>
+                                <div className="text-xs text-muted-foreground">{team.description}</div>
+                                <div className="text-xs text-blue-600">{team.email}</div>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              )}
 
               {formData.assignees.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
