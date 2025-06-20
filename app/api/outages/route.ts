@@ -1,43 +1,24 @@
 import { NextResponse } from "next/server"
+import { getOutages, createOutage } from "@/actions/data-actions"
 
 export const runtime = "nodejs"
 
-/* -------------------------------------------------------------------------- */
-/*  In-memory store — survives hot reloads during the preview session only.   */
-/* -------------------------------------------------------------------------- */
-interface Outage {
-  id: string
-  title: string
-  startDate: string
-  endDate: string
-  environments: string[]
-  affectedModels?: string
-  reason?: string
-  detailedImpact?: string[]
-  assignee?: string
-  severity: "High" | "Medium" | "Low"
-  createdAt: string
-  updatedAt: string
-}
-
-/* eslint-disable no-var */
-var outages: Outage[] = globalThis.__OUTAGES__ ?? []
-globalThis.__OUTAGES__ = outages
-/* eslint-enable  no-var */
-
-function generateId() {
-  return `OUT-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`.toUpperCase()
-}
-
 /* ------------------------------  GET handler  ----------------------------- */
 export async function GET() {
-  return NextResponse.json({ outages })
+  try {
+    const outages = await getOutages()
+    return NextResponse.json({ outages })
+  } catch (error) {
+    console.error("GET /api/outages error:", error)
+    return NextResponse.json({ success: false, message: "Failed to fetch outages" }, { status: 500 })
+  }
 }
 
 /* ------------------------------  POST handler ----------------------------- */
 export async function POST(req: Request) {
   try {
     const body = await req.json()
+    console.log("Creating outage with data:", body)
 
     // Basic validation
     const required = ["title", "startDate", "endDate", "severity"]
@@ -49,26 +30,48 @@ export async function POST(req: Request) {
       )
     }
 
-    const outage: Outage = {
-      id: generateId(),
+    // Transform the data to match the expected format for data-actions
+    const outageData = {
       title: body.title,
-      startDate: new Date(body.startDate).toISOString(),
-      endDate: new Date(body.endDate).toISOString(),
-      environments: body.environments ?? [],
-      affectedModels: body.affectedModels ?? "",
-      reason: body.reason ?? "",
-      detailedImpact: body.detailedImpact ?? [],
-      assignee: body.assignee ?? "",
-      severity: body.severity,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      startDate: new Date(body.startDate),
+      endDate: new Date(body.endDate),
+      environments: Array.isArray(body.environments) ? body.environments : [],
+      affectedModels: body.affectedModels || "",
+      reason: body.reason || "",
+      detailedImpact: Array.isArray(body.detailedImpact) ? body.detailedImpact : [],
+      assignee: body.assignee || "",
+      severity: body.severity as "High" | "Medium" | "Low",
+      priority: body.priority || 1,
+      category: body.category || "",
+      contactEmail: body.contactEmail || "",
+      estimatedUsers: body.estimatedUsers || 0,
+      outageType: body.outageType || ("Internal" as "Internal" | "External"),
     }
 
-    outages.push(outage)
+    console.log("Transformed outage data:", outageData)
 
-    return NextResponse.json({ success: true, outage, message: "Outage created" })
+    // Use the data action to create and persist the outage
+    const result = await createOutage(outageData)
+
+    if (result.success) {
+      console.log("Outage created successfully:", result.outage)
+      return NextResponse.json({
+        success: true,
+        outage: result.outage,
+        message: result.message,
+      })
+    } else {
+      console.error("Failed to create outage:", result)
+      return NextResponse.json({ success: false, message: "Failed to create outage" }, { status: 500 })
+    }
   } catch (err) {
     console.error("POST /api/outages error:", err)
-    return NextResponse.json({ success: false, message: "Internal error creating outage" }, { status: 500 })
+    return NextResponse.json(
+      {
+        success: false,
+        message: err instanceof Error ? err.message : "Internal error creating outage",
+      },
+      { status: 500 },
+    )
   }
 }
