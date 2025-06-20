@@ -122,7 +122,7 @@ async function sendBulkNotifications(payload: any) {
   return await res.json()
 }
 
-export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () => void }) {
+function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () => void }) {
   const { toast } = useToast()
   const [environments, setEnvironments] = useState<Environment[]>([])
   const [teams, setTeams] = useState<Team[]>([])
@@ -1101,3 +1101,6 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
     </>
   )
 }
+
+export { TabularMultiOutageForm }
+export default TabularMultiOutageForm
