@@ -1,5 +1,7 @@
 "use client"
 import { useState, useEffect } from "react"
+import type React from "react"
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -30,6 +32,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { parseExcelFile } from "@/actions/excel-actions"
 
 // Types and interfaces
 interface Environment {
@@ -131,6 +134,8 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
   const [emailSubject, setEmailSubject] = useState("")
   const [emailMessage, setEmailMessage] = useState("")
   const [sendingEmail, setSendingEmail] = useState(false)
+  const [isImporting, setIsImporting] = useState(false)
+  const [importError, setImportError] = useState<string | null>(null)
 
   // Initialize with one empty row
   const createEmptyRow = (): OutageRow => ({
@@ -272,6 +277,117 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
     })
 
     return errors
+  }
+
+  // Excel import handling
+  const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setIsImporting(true)
+    setImportError(null)
+
+    try {
+      const buffer = await file.arrayBuffer()
+      const importedData = await parseExcelFile(buffer)
+
+      // Transform imported data to match our row format
+      const newRows: OutageRow[] = importedData.map((data) => {
+        // Map environment names to IDs
+        const envIds = data.environments
+          .map((envName) => {
+            const env = environments.find((e) => e.name.toLowerCase() === envName.toLowerCase())
+            return env ? env.id : envName
+          })
+          .filter(Boolean)
+
+        // Map assignee names to team IDs
+        const teamIds = data.assignee
+          .split(",")
+          .map((assigneeName) => {
+            const team = teams.find((t) => t.name.toLowerCase() === assigneeName.trim().toLowerCase())
+            return team ? team.id : assigneeName.trim()
+          })
+          .filter(Boolean)
+
+        return {
+          id: Math.random().toString(36).substr(2, 9),
+          title: data.title,
+          startDate: data.startDate.toISOString().split("T")[0],
+          startTime: data.startDate.toTimeString().slice(0, 5),
+          endDate: data.endDate.toISOString().split("T")[0],
+          endTime: data.endDate.toTimeString().slice(0, 5),
+          environments: envIds,
+          affectedModels: data.affectedModels,
+          reason: data.reason,
+          detailedImpact: Array.isArray(data.detailedImpact) ? data.detailedImpact : [data.detailedImpact || ""],
+          assignees: teamIds,
+          severity: data.severity,
+          category: data.category || "",
+          contactEmail: data.contactEmail || "",
+          estimatedUsers: data.estimatedUsers || 0,
+          outageType: data.outageType || "",
+        }
+      })
+
+      setRows(newRows)
+
+      toast({
+        title: "Import Successful",
+        description: `${importedData.length} outages imported from Excel file`,
+      })
+
+      // Clear the file input
+      event.target.value = ""
+    } catch (error) {
+      console.error("Import error:", error)
+      const errorMessage = error instanceof Error ? error.message : "Failed to import Excel file"
+      setImportError(errorMessage)
+      toast({
+        title: "Import Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
+  const downloadTemplate = () => {
+    // Create a sample Excel template
+    const templateData = [
+      {
+        Title: "Sample Outage",
+        StartDate: "2024-01-15",
+        EndDate: "2024-01-15",
+        Environments: "Production,Staging",
+        AffectedModels: "User Service, Payment API",
+        Reason: "Scheduled maintenance",
+        Assignee: "DevOps Team",
+        Severity: "Medium",
+        Category: "Maintenance",
+        ContactEmail: "devops@company.com",
+        EstimatedUsers: 1000,
+        OutageType: "Internal",
+      },
+    ]
+
+    // Convert to CSV for simplicity (Excel format would require additional library)
+    const headers = Object.keys(templateData[0])
+    const csvContent = [
+      headers.join(","),
+      templateData.map((row) => headers.map((header) => `"${row[header]}"`).join(",")).join("\n"),
+    ].join("\n")
+
+    const blob = new Blob([csvContent], { type: "text/csv" })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "outage-template.csv"
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
   }
 
   // Submission
@@ -451,11 +567,35 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
                 <FileSpreadsheet className="w-5 h-5" />
                 Schedule Multiple Outages
               </CardTitle>
-              <CardDescription>
-                Create multiple planned outages in a tabular format with bulk operations
-              </CardDescription>
+              <CardDescription>Create multiple planned outages manually or import from Excel file</CardDescription>
             </div>
             <div className="flex gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={downloadTemplate}>
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                Download Template
+              </Button>
+              <div className="relative">
+                <input
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={handleFileImport}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  disabled={isImporting}
+                />
+                <Button type="button" variant="outline" size="sm" disabled={isImporting}>
+                  {isImporting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
+                      Importing...
+                    </>
+                  ) : (
+                    <>
+                      <FileSpreadsheet className="w-4 h-4 mr-2" />
+                      Import Excel
+                    </>
+                  )}
+                </Button>
+              </div>
               <Button type="button" variant="outline" size="sm" onClick={clearAllRows}>
                 <RotateCcw className="w-4 h-4 mr-2" />
                 Clear All
@@ -476,6 +616,14 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
                 row represents one outage. Use the action buttons to add, duplicate, or remove rows.
               </AlertDescription>
             </Alert>
+            {importError && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>Import Error:</strong> {importError}
+                </AlertDescription>
+              </Alert>
+            )}
 
             <ScrollArea className="w-full">
               <div className="min-w-[1400px]">
