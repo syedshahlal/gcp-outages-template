@@ -27,11 +27,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ThemeToggle } from "@/components/theme-toggle"
 import dynamic from "next/dynamic"
-import { getOutages } from "./actions/data-actions"
 import { useToast } from "@/hooks/use-toast"
 import { EmailTestForm } from "./components/email-test-form"
 import { InteractiveReport } from "./components/interactive-report"
 import { OutageDetailModal } from "./components/outage-detail-modal"
+
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import outagesJson from "@/data/outages.json"
 
 // Dynamically imported heavy components
 const UptimeMetrics = dynamic(
@@ -180,19 +182,21 @@ export default function OutageDashboard() {
     return () => window.removeEventListener("resize", onResize)
   }, [])
 
-  const fetchOutages = async (spin = false) => {
+  const fetchOutages = async () => {
     try {
-      spin ? setRefreshing(true) : setLoading(true)
-      const raw = await getOutages()
-      const parsed = raw.map((o: any) => ({
+      setRefreshing(true)
+      // simulate network delay so the spinner isn’t instantaneous
+      await new Promise((r) => setTimeout(r, 300))
+
+      const parsed = outagesJson.map((o) => ({
         ...o,
         startDate: new Date(o.startDate),
         endDate: new Date(o.endDate),
         createdAt: o.createdAt ? new Date(o.createdAt) : undefined,
         updatedAt: o.updatedAt ? new Date(o.updatedAt) : undefined,
-        outageType: o.outageType || "Internal", // Default for backward compatibility
+        outageType: (o as any).outageType || "Internal",
       })) as OutageData[]
-      // Sort by start date (earliest first) as per requirement
+
       parsed.sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
       setOutages(parsed)
       setLastUpdated(new Date())
@@ -207,11 +211,6 @@ export default function OutageDashboard() {
 
   useEffect(() => {
     if (mounted) fetchOutages()
-  }, [mounted])
-  useEffect(() => {
-    if (!mounted) return
-    const id = setInterval(() => fetchOutages(true), 3e4)
-    return () => clearInterval(id)
   }, [mounted])
 
   /* ------------------------------- Derived ------------------------------ */

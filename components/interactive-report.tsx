@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { BarChart3, Download, Calendar, AlertTriangle, TrendingUp, PieChart, FileText } from "lucide-react"
-import { generateReportData } from "@/actions/data-actions"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import {
   BarChart,
@@ -20,6 +19,9 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Activity, Target, Zap, Shield, Timer, FileDown, Presentation, Globe } from "lucide-react"
+
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import outagesRaw from "@/data/outages.json"
 
 interface ReportData {
   summary: {
@@ -73,22 +75,74 @@ export function InteractiveReport() {
 
   const [filteredData, setFilteredData] = useState<ReportData | null>(null)
 
-  useEffect(() => {
-    loadReportData()
-  }, [])
-
-  const loadReportData = async () => {
+  const loadReportData = () => {
     try {
       setLoading(true)
-      const data = await generateReportData()
-      setReportData(data)
+
+      // Convert ISO strings → Date instances
+      const outages = outagesRaw.map((o) => ({
+        ...o,
+        startDate: new Date(o.startDate),
+        endDate: new Date(o.endDate),
+      }))
+
+      const now = new Date()
+      const totalOutages = outages.length
+      const upcoming = outages.filter((o) => o.startDate > now)
+      const past = outages.filter((o) => o.endDate < now)
+      const ongoing = outages.filter((o) => o.startDate <= now && o.endDate >= now)
+
+      const sum = <T,>(arr: T[], fn: (v: T) => number) => arr.reduce((a, b) => a + fn(b), 0)
+
+      const totalDowntime = sum(outages, (o) => (+o.endDate - +o.startDate) / 36e5)
+      const avgDowntime = totalOutages ? totalDowntime / totalOutages : 0
+      const usersAffected = sum(outages, (o: any) => o.estimatedUsers || 0)
+
+      const countBy = <K extends keyof (typeof outages)[0]>(arr: any[], key: K) =>
+        arr.reduce<Record<string, number>>((acc, o) => {
+          const val = o[key]
+          if (Array.isArray(val)) {
+            val.forEach((v) => (acc[v] = (acc[v] || 0) + 1))
+          } else {
+            acc[val as string] = (acc[val as string] || 0) + 1
+          }
+          return acc
+        }, {})
+
+      const severity = countBy(outages, "severity")
+      const type = countBy(outages, "outageType")
+      const environment = countBy(outages, "environments")
+
+      const data = {
+        summary: {
+          totalOutages,
+          upcomingOutages: upcoming.length,
+          pastOutages: past.length,
+          ongoingOutages: ongoing.length,
+          totalDowntime: Math.round(totalDowntime),
+          averageDowntime: Math.round(avgDowntime * 10) / 10,
+          totalUsersAffected: usersAffected,
+        },
+        breakdowns: { severity, type, environment },
+        recentOutages: outages.slice(-10).reverse(),
+        upcomingOutages: upcoming.slice(0, 10),
+      }
+
+      setReportData(data as any)
+      setFilteredData(null) // reset filters on reload
+      setError(null)
     } catch (err) {
-      setError("Failed to load report data")
       console.error(err)
+      setError("Failed to load report data")
     } finally {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    loadReportData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const applyFilters = (data: ReportData) => {
     let filtered = [...data.recentOutages, ...data.upcomingOutages]
