@@ -193,15 +193,36 @@ export default function OutageDashboard() {
       if (!isRefresh) setLoading(true)
       setRefreshing(isRefresh)
 
-      // In production, fetch from API route instead of static JSON
-      const response = await fetch("/api/outages")
-      if (!response.ok) {
-        throw new Error("Failed to fetch outages from API")
+      // Give the UI a tiny delay for nicer spinners
+      await new Promise((r) => setTimeout(r, 300))
+
+      /* ----------------------------------------------------------
+       * 1) Try the API route first (only works in prod / dev-server)
+       * 2) If that fails (e.g. next-lite preview) fall back to the
+       *    embedded JSON so the page still renders.
+       * ---------------------------------------------------------- */
+      let data: any[] | null = null
+
+      try {
+        const base =
+          typeof window !== "undefined"
+            ? `${window.location.origin}/api/outages`
+            : `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/api/outages`
+        const resp = await fetch(base, { cache: "no-store" })
+        if (resp.ok) {
+          data = await resp.json()
+        } else {
+          console.warn("API responded but not OK:", resp.status)
+        }
+      } catch {
+        /* network / runtime error - ignore – we’ll fall back */
       }
 
-      const data = await response.json()
+      if (!data) {
+        console.info("Using bundled outages.json fallback (preview/runtime without API)")
+        data = outagesJson
+      }
 
-      // Parse the data
       const parsed = data.map((o: any) => ({
         ...o,
         startDate: new Date(o.startDate),
@@ -211,53 +232,17 @@ export default function OutageDashboard() {
         outageType: o.outageType || "Internal",
       })) as OutageData[]
 
-      // Sort by start date
       parsed.sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
-
-      console.log(`Loaded ${parsed.length} outages successfully`)
       setOutages(parsed)
       setLastUpdated(new Date())
-
-      if (parsed.length === 0) {
-        console.warn("No outages found in data")
-        toast({
-          title: "No Data",
-          description: "No outages found in the system",
-          variant: "default",
-        })
-      }
-    } catch (e) {
-      console.error("Error loading outages:", e)
-
-      // Fallback to static JSON in development or if API fails
-      try {
-        const parsed = outagesJson.map((o) => ({
-          ...o,
-          startDate: new Date(o.startDate),
-          endDate: new Date(o.endDate),
-          createdAt: o.createdAt ? new Date(o.createdAt) : new Date(),
-          updatedAt: o.updatedAt ? new Date(o.updatedAt) : new Date(),
-          outageType: (o as any).outageType || "Internal",
-        })) as OutageData[]
-
-        parsed.sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
-        setOutages(parsed)
-        setLastUpdated(new Date())
-
-        toast({
-          title: "Fallback Data Loaded",
-          description: "Using static data. API may be unavailable.",
-          variant: "default",
-        })
-      } catch (fallbackError) {
-        console.error("Fallback loading failed:", fallbackError)
-        toast({
-          title: "Error",
-          description: "Failed to load outages. Please try refreshing the page.",
-          variant: "destructive",
-        })
-        setOutages([])
-      }
+    } catch (err) {
+      console.error("Fatal error loading outages:", err)
+      toast({
+        title: "Failed to load outages",
+        description: "Please try again later.",
+        variant: "destructive",
+      })
+      setOutages([])
     } finally {
       setLoading(false)
       setRefreshing(false)
