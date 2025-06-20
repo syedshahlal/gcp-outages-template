@@ -71,9 +71,22 @@ async function sendOutageNotifications(payload: {
 }
 
 async function fetchConfig(type: "environments" | "teams") {
-  const res = await fetch(`/api/config?type=${type}`)
-  if (!res.ok) throw new Error(`Failed to fetch ${type} config`)
-  return await res.json()
+  console.log(`Fetching config for type: ${type}`)
+  const url = `/api/config?type=${type}`
+  console.log(`Making request to: ${url}`)
+
+  const res = await fetch(url)
+  console.log(`Response status: ${res.status}`)
+
+  if (!res.ok) {
+    const errorText = await res.text()
+    console.error(`API error response: ${errorText}`)
+    throw new Error(`Failed to fetch ${type} config: ${res.status} ${res.statusText}`)
+  }
+
+  const data = await res.json()
+  console.log(`Received data for ${type}:`, data)
+  return data
 }
 
 interface Environment {
@@ -176,26 +189,40 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
   useEffect(() => {
     const loadConfig = async () => {
       try {
+        console.log("Starting to load configuration...")
+
         const [envConfig, teamConfig] = await Promise.all([fetchConfig("environments"), fetchConfig("teams")])
 
-        console.log("Loaded environment config:", envConfig)
-        console.log("Loaded team config:", teamConfig)
+        console.log("Raw environment config response:", envConfig)
+        console.log("Raw team config response:", teamConfig)
 
-        setEnvironments(Array.isArray(envConfig.environments) ? envConfig.environments : envConfig)
-        setTeams(Array.isArray(teamConfig.teams) ? teamConfig.teams : teamConfig)
+        const envList = Array.isArray(envConfig.environments) ? envConfig.environments : envConfig
+        const teamList = Array.isArray(teamConfig.teams) ? teamConfig.teams : teamConfig
+
+        console.log("Processed environments:", envList)
+        console.log("Processed teams:", teamList)
+        console.log("Teams count:", teamList.length)
+
+        setEnvironments(envList)
+        setTeams(teamList)
+
+        console.log("Configuration loaded successfully")
       } catch (error) {
         console.error("Failed to load configuration:", error)
+        console.error("Error details:", error.message)
+
         toast({
           title: "Configuration Error",
-          description: "Failed to load environments and teams from configuration files.",
+          description: `Failed to load configuration: ${error.message}`,
           variant: "destructive",
         })
 
-        // Only set empty arrays as fallback - let user know data failed to load
+        // Set empty arrays as fallback
         setEnvironments([])
         setTeams([])
       } finally {
         setLoadingConfig(false)
+        console.log("Configuration loading completed")
       }
     }
 
