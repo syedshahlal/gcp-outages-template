@@ -1,0 +1,32 @@
+/\`\`\`typescript
+// outage-dashboard.tsx
+import EnhancedGanttChart from "@/components/enhanced-gantt-chart"
+
+const OutageDashboard = () => {
+  return (
+    <div>
+      <h1>Outage Dashboard</h1>
+      <EnhancedGanttChart />
+    </div>
+  )
+}
+
+export default OutageDashboard
+\`\`\`
+
+\`\`\`typescript
+// components/enhanced-gantt-chart.tsx
+const EnhancedGanttChart = () => {
+  return (
+    <div>
+      <h2>Enhanced Gantt Chart</h2>
+      {/* Gantt chart implementation here */}
+    </div>
+  )
+}
+
+export default EnhancedGanttChart
+
+// Optional named export so consumers can use either syntax
+export { EnhancedGanttChart }
+\`\`\`
