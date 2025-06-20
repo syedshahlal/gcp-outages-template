@@ -12,7 +12,6 @@
   "dependencies": {
     "@emotion/react": "latest",
     "@emotion/styled": "latest",
-    "@hookform/resolvers": "latest",
     "@mui/material": "latest",
     "@mui/material-pigment-css": "latest",
     "@radix-ui/react-accordion": "latest",
@@ -45,7 +44,6 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "latest",
-    "date-fns": "latest",
     "embla-carousel-react": "latest",
     "fs": "latest",
     "gantt-task-scheduling": "latest",
@@ -66,8 +64,7 @@
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "latest",
-    "xlsx": "latest",
-    "zod": "latest"
+    "xlsx": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",
