@@ -472,7 +472,7 @@ export default function OutageDashboard() {
 
         {/* ------------------------------- Tabs ------------------------------- */}
         <Tabs defaultValue="dashboard" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="dashboard">
               <BarChart3 className="h-4 w-4" />
               Dashboard
@@ -482,12 +482,8 @@ export default function OutageDashboard() {
               Schedule
             </TabsTrigger>
             <TabsTrigger value="metrics">
-              <BarChart3 className="h-4 w-4" />
-              Metrics
-            </TabsTrigger>
-            <TabsTrigger value="report">
               <FileText className="h-4 w-4" />
-              Report
+              Metrics
             </TabsTrigger>
             <TabsTrigger value="email-test">
               <Mail className="h-4 w-4" />
@@ -986,21 +982,8 @@ export default function OutageDashboard() {
             </Tabs>
           </TabsContent>
 
-          {/* --------------------------- METRICS TAB --------------------------- */}
-          <TabsContent value="metrics" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>
-                  <BarChart3 className="h-5 w-5" />
-                  Uptime Metrics
-                </CardTitle>
-              </CardHeader>
-            </Card>
-            <UptimeMetrics />
-          </TabsContent>
-
           {/* --------------------------- REPORT TAB ---------------------------- */}
-          <TabsContent value="report" className="space-y-6">
+          <TabsContent value="metrics" className="space-y-6">
             <InteractiveReport />
           </TabsContent>
 
