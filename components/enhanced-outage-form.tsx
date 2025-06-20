@@ -1083,3 +1083,6 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
     </>
   )
 }
+
+// 👇 ADD THIS RIGHT AFTER THE FUNCTION DEFINITION
+export { EnhancedOutageForm }
