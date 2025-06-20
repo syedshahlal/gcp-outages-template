@@ -13,7 +13,6 @@ import {
   RefreshCw,
   CheckSquare,
   Square,
-  Mail,
   FileText,
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -28,7 +27,6 @@ import { Label } from "@/components/ui/label"
 import { ThemeToggle } from "@/components/theme-toggle"
 import dynamic from "next/dynamic"
 import { useToast } from "@/hooks/use-toast"
-import { EmailTestForm } from "./components/email-test-form"
 import { InteractiveReport } from "./components/interactive-report"
 import { OutageDetailModal } from "./components/outage-detail-modal"
 
@@ -36,13 +34,6 @@ import { OutageDetailModal } from "./components/outage-detail-modal"
 import outagesJson from "@/data/outages.json"
 
 // Dynamically imported heavy components with no SSR
-const UptimeMetrics = dynamic(
-  () => import("./components/uptime-metrics").then((mod) => ({ default: mod.UptimeMetrics })),
-  {
-    ssr: false,
-    loading: () => <div className="h-64 rounded-lg bg-muted animate-pulse" />,
-  },
-)
 const EnhancedOutageForm = dynamic(() => import("./components/enhanced-outage-form"), {
   ssr: false,
   loading: () => <div className="h-96 rounded-lg bg-muted animate-pulse" />,
@@ -202,17 +193,22 @@ export default function OutageDashboard() {
       if (!isRefresh) setLoading(true)
       setRefreshing(isRefresh)
 
-      // Add a small delay for UX
-      await new Promise((r) => setTimeout(r, 300))
+      // In production, fetch from API route instead of static JSON
+      const response = await fetch("/api/outages")
+      if (!response.ok) {
+        throw new Error("Failed to fetch outages from API")
+      }
 
-      // Parse the static JSON data
-      const parsed = outagesJson.map((o) => ({
+      const data = await response.json()
+
+      // Parse the data
+      const parsed = data.map((o: any) => ({
         ...o,
         startDate: new Date(o.startDate),
         endDate: new Date(o.endDate),
         createdAt: o.createdAt ? new Date(o.createdAt) : new Date(),
         updatedAt: o.updatedAt ? new Date(o.updatedAt) : new Date(),
-        outageType: (o as any).outageType || "Internal",
+        outageType: o.outageType || "Internal",
       })) as OutageData[]
 
       // Sort by start date
@@ -232,14 +228,36 @@ export default function OutageDashboard() {
       }
     } catch (e) {
       console.error("Error loading outages:", e)
-      toast({
-        title: "Error",
-        description: "Failed to load outages. Please try refreshing the page.",
-        variant: "destructive",
-      })
 
-      // Set empty array as fallback
-      setOutages([])
+      // Fallback to static JSON in development or if API fails
+      try {
+        const parsed = outagesJson.map((o) => ({
+          ...o,
+          startDate: new Date(o.startDate),
+          endDate: new Date(o.endDate),
+          createdAt: o.createdAt ? new Date(o.createdAt) : new Date(),
+          updatedAt: o.updatedAt ? new Date(o.updatedAt) : new Date(),
+          outageType: (o as any).outageType || "Internal",
+        })) as OutageData[]
+
+        parsed.sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+        setOutages(parsed)
+        setLastUpdated(new Date())
+
+        toast({
+          title: "Fallback Data Loaded",
+          description: "Using static data. API may be unavailable.",
+          variant: "default",
+        })
+      } catch (fallbackError) {
+        console.error("Fallback loading failed:", fallbackError)
+        toast({
+          title: "Error",
+          description: "Failed to load outages. Please try refreshing the page.",
+          variant: "destructive",
+        })
+        setOutages([])
+      }
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -472,7 +490,7 @@ export default function OutageDashboard() {
 
         {/* ------------------------------- Tabs ------------------------------- */}
         <Tabs defaultValue="dashboard" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="dashboard">
               <BarChart3 className="h-4 w-4" />
               Dashboard
@@ -484,10 +502,6 @@ export default function OutageDashboard() {
             <TabsTrigger value="metrics">
               <FileText className="h-4 w-4" />
               Metrics
-            </TabsTrigger>
-            <TabsTrigger value="email-test">
-              <Mail className="h-4 w-4" />
-              Email Test
             </TabsTrigger>
           </TabsList>
 
@@ -982,14 +996,9 @@ export default function OutageDashboard() {
             </Tabs>
           </TabsContent>
 
-          {/* --------------------------- REPORT TAB ---------------------------- */}
+          {/* --------------------------- METRICS TAB ---------------------------- */}
           <TabsContent value="metrics" className="space-y-6">
             <InteractiveReport />
-          </TabsContent>
-
-          {/* --------------------------- EMAIL TEST TAB ------------------------ */}
-          <TabsContent value="email-test" className="space-y-6">
-            <EmailTestForm />
           </TabsContent>
         </Tabs>
 
