@@ -31,8 +31,7 @@ export function ThemeToggle() {
       onClick={() => setTheme(isLight ? "dark" : "light")}
       className="relative w-16 h-8 p-0"
     >
-      <div className="absolute inset-0 flex items-center justify-between px-1">
-        <Sun className="h-3 w-3 text-yellow-500" />
+      <div className="absolute inset-0 flex items-center px-1 justify-stretch        <Sun className="h-3 w-3 text-yellow-500" />
         <Moon className="h-3 w-3 text-blue-500" />
       </div>
       <div
