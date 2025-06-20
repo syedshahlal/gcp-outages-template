@@ -740,6 +740,7 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
               <Popover open={teamDropdownOpen} onOpenChange={setTeamDropdownOpen}>
                 <PopoverTrigger asChild>
                   <Button
+                    type="button"
                     variant="outline"
                     role="combobox"
                     aria-expanded={teamDropdownOpen}
@@ -758,7 +759,13 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
                       <CommandEmpty>No teams found.</CommandEmpty>
                       <CommandGroup>
                         {teams.map((team) => (
-                          <CommandItem key={team.id} onSelect={() => handleTeamToggle(team.id)}>
+                          <CommandItem
+                            key={team.id}
+                            onSelect={(e) => {
+                              e?.preventDefault?.()
+                              handleTeamToggle(team.id)
+                            }}
+                          >
                             <Check
                               className={`mr-2 h-4 w-4 ${
                                 formData.assignees.includes(team.id) ? "opacity-100" : "opacity-0"
@@ -786,7 +793,10 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
                         {team.name}
                         <X
                           className="h-3 w-3 cursor-pointer hover:text-destructive"
-                          onClick={() => handleTeamToggle(teamId)}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            handleTeamToggle(teamId)
+                          }}
                         />
                       </Badge>
                     ) : null
