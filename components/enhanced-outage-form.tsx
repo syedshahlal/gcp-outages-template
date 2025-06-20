@@ -14,18 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
-import {
-  CalendarIcon,
-  Plus,
-  X,
-  Mail,
-  Send,
-  CheckCircle,
-  Clock,
-  Users,
-  RotateCcw,
-  ReplaceAllIcon as SelectAll,
-} from "lucide-react"
+import { CalendarIcon, Plus, X, Mail, Send, CheckCircle, Clock, Users, RotateCcw, ListChecks } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 /* -------------------------------------------------------------------------- */
@@ -687,7 +676,7 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
                     htmlFor="all-environments"
                     className="text-sm cursor-pointer flex items-center gap-2 font-medium"
                   >
-                    <SelectAll className="w-4 h-4" />
+                    <ListChecks className="w-4 h-4" />
                     Select All Environments
                   </Label>
                 </div>
