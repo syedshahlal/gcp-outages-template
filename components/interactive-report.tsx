@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { BarChart3, Download, Calendar, AlertTriangle, TrendingUp, PieChart, FileText } from "lucide-react"
+import { BarChart3, Download, Calendar, AlertTriangle, TrendingUp, PieChart, FileText, Brain } from "lucide-react"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import {
   BarChart,
@@ -44,6 +44,7 @@ import { Progress } from "@/components/ui/progress"
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import outagesRaw from "@/data/outages.json"
+import { MLPredictionsDashboard } from "./ml-predictions-dashboard"
 
 interface ReportData {
   summary: {
@@ -1563,6 +1564,20 @@ ${reportData.upcomingOutages
               <p className="text-sm text-muted-foreground">Avg Users per Outage</p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* ML Predictions Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Brain className="h-5 w-5" />
+            Machine Learning Predictions
+          </CardTitle>
+          <CardDescription>AI-powered forecasting and predictive analytics</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <MLPredictionsDashboard outages={[...currentData.recentOutages, ...currentData.upcomingOutages]} />
         </CardContent>
       </Card>
     </div>
