@@ -60,8 +60,13 @@ export async function parseExcelFile(buffer: ArrayBuffer, fileName: string): Pro
     return parseCSV(text)
   }
 
-  // Excel path – load SheetJS’ browser build on demand
-  const XLSX = await import("xlsx/dist/xlsx.full.mjs")
+  /**
+   * Excel path – load the **browser-only** module that ships with SheetJS.
+   * In v0.19+ the correct file is `xlsx.mjs` at package root.
+   * Using this keeps Node-only shims like `fs` out of the bundle,
+   * fixing the “Can't resolve fs / xlsx.full.mjs” build error.
+   */
+  const XLSX = await import("xlsx/xlsx.mjs")
   const workbook = XLSX.read(buffer, { type: "array" })
   const sheetName = workbook.SheetNames[0]
   const ws = workbook.Sheets[sheetName]
