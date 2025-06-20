@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useMemo, useEffect } from "react"
 import {
   Calendar,
@@ -34,19 +36,22 @@ import { OutageDetailModal } from "./components/outage-detail-modal"
 import outagesJson from "@/data/outages.json"
 
 // Dynamically imported heavy components with no SSR
-const EnhancedOutageForm = dynamic(() => import("./components/enhanced-outage-form"), {
-  ssr: false,
-  loading: () => <div className="h-96 rounded-lg bg-muted animate-pulse" />,
-})
+// EnhancedOutageForm  (uses default OR named export)
+const EnhancedOutageForm = dynamic(
+  () =>
+    import("./components/enhanced-outage-form").then(
+      (mod) => (mod.EnhancedOutageForm ?? mod.default) as React.ComponentType<any>,
+    ),
+  { ssr: false, loading: () => <div className="h-96 rounded-lg bg-muted animate-pulse" /> },
+)
+
+// TabularMultiOutageForm
 const TabularMultiOutageForm = dynamic(
   () =>
-    import("./components/tabular-multi-outage-form").then((mod) => ({
-      default: mod.TabularMultiOutageForm,
-    })),
-  {
-    ssr: false,
-    loading: () => <div className="h-96 rounded-lg bg-muted animate-pulse" />,
-  },
+    import("./components/tabular-multi-outage-form").then(
+      (mod) => (mod.TabularMultiOutageForm ?? mod.default) as React.ComponentType<any>,
+    ),
+  { ssr: false, loading: () => <div className="h-96 rounded-lg bg-muted animate-pulse" /> },
 )
 
 /* -------------------------------------------------------------------------- */
