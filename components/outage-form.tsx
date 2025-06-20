@@ -29,7 +29,7 @@ interface OutageFormData {
   severity: "High" | "Medium" | "Low" | ""
 }
 
-const environments = ["POC", "SBX DEV", "SBX UAT", "PROD"]
+const environments = ["POC", "SBX DEV", "SBX UAT", "SBX Beta", "PROD"]
 const teams = ["Infrastructure Team", "GCP L2 L3 Team", "Tableau Team", "EPAS Team", "EM Team", "Horizon Team"]
 
 export function OutageForm() {

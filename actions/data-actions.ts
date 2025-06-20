@@ -1,12 +1,30 @@
 "use server"
 
-import { writeFile, readFile, mkdir } from "fs/promises"
-import { join } from "path"
-import { existsSync } from "fs"
 import { revalidatePath, revalidateTag } from "next/cache"
-import { cache } from "react"
+import { readFile, writeFile, mkdir } from "fs/promises"
+import { existsSync } from "fs"
+import { join } from "path"
+import * as XLSX from "xlsx"
 
-interface OutageData {
+/* -------------------------------------------------------------------------- */
+/*                            PATH / HELPERS                                  */
+/* -------------------------------------------------------------------------- */
+
+const DATA_PATH = join(process.cwd(), "data")
+const JSON_FILE = join(DATA_PATH, "outages.json")
+const EXCEL_FILE = join(DATA_PATH, "outages.xlsx")
+
+async function ensureDataDir() {
+  if (!existsSync(DATA_PATH)) {
+    await mkdir(DATA_PATH, { recursive: true })
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                TYPES                                       */
+/* -------------------------------------------------------------------------- */
+
+export interface OutageData {
   title: string
   startDate: Date
   endDate: Date
@@ -20,9 +38,10 @@ interface OutageData {
   category?: string
   contactEmail?: string
   estimatedUsers?: number
+  outageType: "Internal" | "External" // New field for categorization
 }
 
-interface StoredOutage extends OutageData {
+export interface StoredOutage extends OutageData {
   id: number
   status: string
   type: string
@@ -30,172 +49,230 @@ interface StoredOutage extends OutageData {
   updatedAt: Date
 }
 
-const DATA_PATH = join(process.cwd(), "data")
-const JSON_FILE = join(DATA_PATH, "outages.json")
+/* -------------------------------------------------------------------------- */
+/*                          READ HELPERS (JSON / XLSX)                        */
+/* -------------------------------------------------------------------------- */
 
-// Ensure data directory exists
-async function ensureDataDir() {
-  if (!existsSync(DATA_PATH)) {
-    await mkdir(DATA_PATH, { recursive: true })
+async function readJSON(): Promise<StoredOutage[]> {
+  await ensureDataDir()
+  if (!existsSync(JSON_FILE)) return []
+
+  const data = await readFile(JSON_FILE, "utf8")
+  const outages: StoredOutage[] = JSON.parse(data)
+  return outages.map((o) => ({
+    ...o,
+    startDate: new Date(o.startDate),
+    endDate: new Date(o.endDate),
+    createdAt: new Date(o.createdAt),
+    updatedAt: new Date(o.updatedAt),
+    outageType: o.outageType || "Internal", // Default to Internal for backward compatibility
+  }))
+}
+
+async function readExcel(): Promise<StoredOutage[]> {
+  await ensureDataDir()
+  if (!existsSync(EXCEL_FILE)) return []
+
+  const buf = await readFile(EXCEL_FILE)
+  const workbook = XLSX.read(buf, { type: "buffer" })
+  const worksheet = workbook.Sheets[workbook.SheetNames[0]]
+  if (!worksheet) return []
+
+  const rows = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet)
+
+  return rows.map((row) => ({
+    id: Number(row.ID) || 0,
+    title: row.Title || "",
+    startDate: new Date(row.StartDate),
+    endDate: new Date(row.EndDate),
+    environments: String(row.Environments || "")
+      .split(",")
+      .filter(Boolean),
+    affectedModels: row.AffectedModels || "",
+    reason: row.Reason || "",
+    detailedImpact: String(row.DetailedImpact || "")
+      .split("|")
+      .filter(Boolean),
+    assignee: row.Assignee || "",
+    severity: (row.Severity || "Low") as "High" | "Medium" | "Low",
+    priority: Number(row.Priority) || 1,
+    category: row.Category || "",
+    contactEmail: row.ContactEmail || "",
+    estimatedUsers: Number(row.EstimatedUsers) || 0,
+    outageType: (row.OutageType || "Internal") as "Internal" | "External",
+    status: row.Status || "Scheduled",
+    type: row.Type || "Planned",
+    createdAt: new Date(row.CreatedAt || Date.now()),
+    updatedAt: new Date(row.UpdatedAt || Date.now()),
+  }))
+}
+
+/* -------------------------------------------------------------------------- */
+/*                             WRITE HELPERS                                  */
+/* -------------------------------------------------------------------------- */
+
+async function writeBoth(outages: StoredOutage[]) {
+  await ensureDataDir()
+
+  // Sort outages by start date (earliest first) before writing
+  const sortedOutages = [...outages].sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+
+  /* ---------- JSON ---------- */
+  await writeFile(JSON_FILE, JSON.stringify(sortedOutages, null, 2))
+
+  /* ---------- XLSX ---------- */
+  const excelRows = sortedOutages.map((o) => ({
+    ID: o.id,
+    Title: o.title,
+    StartDate: o.startDate.toISOString(),
+    EndDate: o.endDate.toISOString(),
+    Environments: o.environments.join(","),
+    AffectedModels: o.affectedModels,
+    Reason: o.reason,
+    DetailedImpact: o.detailedImpact.join("|"),
+    Assignee: o.assignee,
+    Severity: o.severity,
+    Priority: o.priority ?? 1,
+    Category: o.category ?? "",
+    ContactEmail: o.contactEmail ?? "",
+    EstimatedUsers: o.estimatedUsers ?? 0,
+    OutageType: o.outageType,
+    Status: o.status,
+    Type: o.type,
+    CreatedAt: o.createdAt.toISOString(),
+    UpdatedAt: o.updatedAt.toISOString(),
+  }))
+
+  const ws = XLSX.utils.json_to_sheet(excelRows)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, "Outages")
+  const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" })
+  await writeFile(EXCEL_FILE, buf)
+}
+
+/* -------------------------------------------------------------------------- */
+/*                              PUBLIC API                                    */
+/* -------------------------------------------------------------------------- */
+
+export async function getOutages(): Promise<StoredOutage[]> {
+  const json = await readJSON()
+  if (json.length) {
+    // Sort by start date (earliest first) for consistent ordering
+    return json.sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+  }
+
+  const xlsx = await readExcel()
+  return xlsx.sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+}
+
+export async function createOutage(data: OutageData) {
+  const existing = await getOutages()
+  const nextId = existing.length ? Math.max(...existing.map((o) => o.id)) + 1 : 1
+
+  const newOutage: StoredOutage = {
+    ...data,
+    id: nextId,
+    status: "Scheduled",
+    type: "Planned",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }
+
+  const all = [newOutage, ...existing]
+  await writeBoth(all)
+
+  revalidateTag("outages")
+  revalidatePath("/")
+
+  return {
+    success: true,
+    outage: newOutage,
+    message: `Outage "${newOutage.title}" created (ID #${newOutage.id})`,
   }
 }
 
-// Cached data fetching with React 19 cache
-export const getOutages = cache(async (): Promise<StoredOutage[]> => {
-  try {
-    await ensureDataDir()
-    if (!existsSync(JSON_FILE)) {
-      return []
-    }
+export async function createMultipleOutages(rows: OutageData[]) {
+  const existing = await getOutages()
+  let nextId = existing.length ? Math.max(...existing.map((o) => o.id)) + 1 : 1
 
-    const data = await readFile(JSON_FILE, "utf-8")
-    const outages = JSON.parse(data)
+  const newOutages: StoredOutage[] = rows.map((r) => ({
+    ...r,
+    id: nextId++,
+    status: "Scheduled",
+    type: "Planned",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }))
 
-    return outages.map((outage: any) => ({
-      ...outage,
-      startDate: new Date(outage.startDate),
-      endDate: new Date(outage.endDate),
-      createdAt: new Date(outage.createdAt),
-      updatedAt: new Date(outage.updatedAt),
-    }))
-  } catch (error) {
-    console.error("Error reading outages from JSON:", error)
-    return []
-  }
-})
+  await writeBoth([...newOutages, ...existing])
 
-// Write outages to JSON with optimistic updates
-async function writeOutagesToJSON(outages: StoredOutage[]) {
-  try {
-    await ensureDataDir()
-    await writeFile(JSON_FILE, JSON.stringify(outages, null, 2))
-  } catch (error) {
-    console.error("Error writing outages to JSON:", error)
-    throw new Error("Failed to save outage data")
+  revalidateTag("outages")
+  revalidatePath("/")
+
+  return {
+    success: true,
+    outages: newOutages,
+    message: `${newOutages.length} outage${newOutages.length > 1 ? "s" : ""} created`,
   }
 }
 
-// Create outage with enhanced error handling and validation
-export async function createOutage(outageData: OutageData) {
-  try {
-    // Validation
-    if (!outageData.title?.trim()) {
-      throw new Error("Title is required")
-    }
+// New function to generate interactive report data
+export async function generateReportData() {
+  const outages = await getOutages()
+  const now = new Date()
 
-    if (!outageData.startDate || !outageData.endDate) {
-      throw new Error("Start and end dates are required")
-    }
+  // Calculate metrics
+  const totalOutages = outages.length
+  const upcomingOutages = outages.filter((o) => o.startDate > now)
+  const pastOutages = outages.filter((o) => o.endDate < now)
+  const ongoingOutages = outages.filter((o) => o.startDate <= now && o.endDate >= now)
 
-    if (outageData.startDate >= outageData.endDate) {
-      throw new Error("End date must be after start date")
-    }
-
-    const existingOutages = await getOutages()
-
-    const newOutage: StoredOutage = {
-      ...outageData,
-      id: existingOutages.length > 0 ? Math.max(...existingOutages.map((o) => o.id)) + 1 : 1,
-      status: "Scheduled",
-      type: "Planned",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }
-
-    const updatedOutages = [...existingOutages, newOutage]
-    await writeOutagesToJSON(updatedOutages)
-
-    // Revalidate with tags for more granular cache control
-    revalidateTag("outages")
-    revalidatePath("/")
-
-    return {
-      success: true,
-      outage: newOutage,
-      message: `Outage "${newOutage.title}" has been successfully created with ID #${newOutage.id}`,
-    }
-  } catch (error) {
-    console.error("Error creating outage:", error)
-    throw error instanceof Error ? error : new Error("Failed to create outage")
+  const severityBreakdown = {
+    High: outages.filter((o) => o.severity === "High").length,
+    Medium: outages.filter((o) => o.severity === "Medium").length,
+    Low: outages.filter((o) => o.severity === "Low").length,
   }
-}
 
-// Update outage with optimistic updates
-export async function updateOutage(id: number, updates: Partial<OutageData>) {
-  try {
-    const existingOutages = await getOutages()
-    const outageIndex = existingOutages.findIndex((o) => o.id === id)
-
-    if (outageIndex === -1) {
-      throw new Error("Outage not found")
-    }
-
-    // Validation for updates
-    if (updates.startDate && updates.endDate && updates.startDate >= updates.endDate) {
-      throw new Error("End date must be after start date")
-    }
-
-    existingOutages[outageIndex] = {
-      ...existingOutages[outageIndex],
-      ...updates,
-      updatedAt: new Date(),
-    }
-
-    await writeOutagesToJSON(existingOutages)
-    revalidateTag("outages")
-    revalidatePath("/")
-
-    return { success: true, outage: existingOutages[outageIndex] }
-  } catch (error) {
-    console.error("Error updating outage:", error)
-    throw error instanceof Error ? error : new Error("Failed to update outage")
+  const typeBreakdown = {
+    Internal: outages.filter((o) => o.outageType === "Internal").length,
+    External: outages.filter((o) => o.outageType === "External").length,
   }
-}
 
-// Delete outage with confirmation
-export async function deleteOutage(id: number) {
-  try {
-    const existingOutages = await getOutages()
-    const filteredOutages = existingOutages.filter((o) => o.id !== id)
+  const environmentImpact = outages.reduce(
+    (acc, outage) => {
+      outage.environments.forEach((env) => {
+        acc[env] = (acc[env] || 0) + 1
+      })
+      return acc
+    },
+    {} as Record<string, number>,
+  )
 
-    if (filteredOutages.length === existingOutages.length) {
-      throw new Error("Outage not found")
-    }
+  const totalDowntime = outages.reduce((acc, outage) => {
+    const duration = (outage.endDate.getTime() - outage.startDate.getTime()) / (1000 * 60 * 60)
+    return acc + duration
+  }, 0)
 
-    await writeOutagesToJSON(filteredOutages)
-    revalidateTag("outages")
-    revalidatePath("/")
+  const averageDowntime = totalOutages > 0 ? totalDowntime / totalOutages : 0
 
-    return { success: true }
-  } catch (error) {
-    console.error("Error deleting outage:", error)
-    throw error instanceof Error ? error : new Error("Failed to delete outage")
-  }
-}
+  const totalUsersAffected = outages.reduce((acc, outage) => acc + (outage.estimatedUsers || 0), 0)
 
-// Batch operations for better performance
-export async function batchUpdateOutages(updates: Array<{ id: number; data: Partial<OutageData> }>) {
-  try {
-    const existingOutages = await getOutages()
-
-    for (const update of updates) {
-      const index = existingOutages.findIndex((o) => o.id === update.id)
-      if (index !== -1) {
-        existingOutages[index] = {
-          ...existingOutages[index],
-          ...update.data,
-          updatedAt: new Date(),
-        }
-      }
-    }
-
-    await writeOutagesToJSON(existingOutages)
-    revalidateTag("outages")
-    revalidatePath("/")
-
-    return { success: true, updated: updates.length }
-  } catch (error) {
-    console.error("Error batch updating outages:", error)
-    throw error instanceof Error ? error : new Error("Failed to batch update outages")
+  return {
+    summary: {
+      totalOutages,
+      upcomingOutages: upcomingOutages.length,
+      pastOutages: pastOutages.length,
+      ongoingOutages: ongoingOutages.length,
+      totalDowntime: Math.round(totalDowntime),
+      averageDowntime: Math.round(averageDowntime * 10) / 10,
+      totalUsersAffected,
+    },
+    breakdowns: {
+      severity: severityBreakdown,
+      type: typeBreakdown,
+      environment: environmentImpact,
+    },
+    recentOutages: outages.slice(-10).reverse(), // Last 10 outages
+    upcomingOutages: upcomingOutages.slice(0, 10), // Next 10 outages
   }
 }

@@ -6,32 +6,39 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { useToast } from "@/components/ui/use-toast"
-import { Loader2, Mail, Plus, Trash2 } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { Loader2, Mail, Plus, Trash2, CalendarIcon } from "lucide-react"
 import { useState, useTransition } from "react"
-import { createOutage } from "@/actions/outage-actions"
-import { useRouter } from "next/navigation"
+import { createOutage } from "@/actions/data-actions"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { sendOutageNotification, validateEmails } from "@/actions/email-actions"
+import { Badge } from "@/components/ui/badge"
 
-type OutageFormValues = {
-  title: string
-  startDate: Date
-  endDate: Date
-  environments: string[]
-  affectedModels: string
-  reason: string
-  detailedImpact: string[]
-  assignee: string
-  severity: "High" | "Medium" | "Low"
-  priority: number
-  category: string
-  contactEmail: string
-  estimatedUsers: number
+const environments = ["POC", "SBX DEV", "SBX UAT", "SBX Beta", "PROD"]
+const teams = ["Infrastructure Team", "GCP L2 L3 Team", "Tableau Team", "EPAS Team", "EM Team", "Horizon Team"]
+const categories = ["Maintenance", "Security Update", "Infrastructure Upgrade", "Emergency Fix", "Planned Migration"]
+
+const environmentColors = {
+  POC: "bg-blue-600 hover:bg-blue-700 text-white border-blue-600",
+  "SBX DEV": "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600",
+  "SBX UAT": "bg-amber-600 hover:bg-amber-700 text-white border-amber-600",
+  "SBX Beta": "bg-orange-600 hover:bg-orange-700 text-white border-orange-600",
+  PROD: "bg-red-600 hover:bg-red-700 text-white border-red-600",
 }
 
-const EnhancedOutageForm = () => {
+const severityColors = {
+  High: "bg-red-50 border-red-300 text-red-800 dark:bg-red-900/20 dark:border-red-700 dark:text-red-300",
+  Medium:
+    "bg-yellow-50 border-yellow-300 text-yellow-800 dark:bg-yellow-900/20 dark:border-yellow-700 dark:text-yellow-300",
+  Low: "bg-green-50 border-green-300 text-green-800 dark:bg-green-900/20 dark:border-green-700 dark:text-green-300",
+}
+
+interface EnhancedOutageFormProps {
+  onSuccess?: () => void
+}
+
+const EnhancedOutageForm = ({ onSuccess }: EnhancedOutageFormProps) => {
   const [title, setTitle] = useState("")
   const [startDate, setStartDate] = useState("")
   const [startTime, setStartTime] = useState("")
@@ -42,38 +49,61 @@ const EnhancedOutageForm = () => {
   const [reason, setReason] = useState("")
   const [detailedImpact, setDetailedImpact] = useState([""])
   const [assignee, setAssignee] = useState("")
-  const [severity, setSeverity] = useState<"High" | "Medium" | "Low">("")
+  const [severity, setSeverity] = useState<"High" | "Medium" | "Low" | "">("")
   const [priority, setPriority] = useState(1)
   const [category, setCategory] = useState("")
   const [contactEmail, setContactEmail] = useState("")
   const [estimatedUsers, setEstimatedUsers] = useState(0)
+  const [outageType, setOutageType] = useState<"Internal" | "External">("Internal") // New field
   const [isPending, startTransition] = useTransition()
   const { toast } = useToast()
-  const router = useRouter()
 
   const [showEmailDialog, setShowEmailDialog] = useState(false)
   const [emailAddresses, setEmailAddresses] = useState("")
-  const [emailSubject, setEmailSubject] = useState("GCP Outage Notification - New Outage Scheduled")
+  const [emailSubject, setEmailSubject] = useState("GCP Planned Outage Notification - New Outage Scheduled")
   const [emailMessage, setEmailMessage] = useState("")
   const [createdOutage, setCreatedOutage] = useState<any>(null)
   const [emailPreview, setEmailPreview] = useState("")
 
+  const allEnvironmentsSelected = environments.every((env) => selectedEnvironments.includes(env))
+
+  const handleEnvironmentChange = (env: string, checked: boolean) => {
+    if (env === "ALL") {
+      if (checked) {
+        setSelectedEnvironments([...environments])
+      } else {
+        setSelectedEnvironments([])
+      }
+    } else {
+      if (checked) {
+        setSelectedEnvironments([...selectedEnvironments, env])
+      } else {
+        setSelectedEnvironments(selectedEnvironments.filter((e) => e !== env))
+      }
+    }
+  }
+
+  const addImpactItem = () => {
+    setDetailedImpact([...detailedImpact, ""])
+  }
+
+  const removeImpactItem = (index: number) => {
+    if (detailedImpact.length > 1) {
+      setDetailedImpact(detailedImpact.filter((_, i) => i !== index))
+    }
+  }
+
+  const updateImpactItem = (index: number, value: string) => {
+    const newDetailedImpact = [...detailedImpact]
+    newDetailedImpact[index] = value
+    setDetailedImpact(newDetailedImpact)
+  }
+
   const validateForm = () => {
-    if (
-      !title ||
-      !startDate ||
-      !endDate ||
-      selectedEnvironments.length === 0 ||
-      !affectedModels ||
-      !reason ||
-      !assignee ||
-      !severity ||
-      !category ||
-      !contactEmail
-    ) {
+    if (!title || !startDate || !endDate || !severity) {
       toast({
-        title: "Error",
-        description: "Please fill in all required fields.",
+        title: "Validation Error",
+        description: "Please fill in all required fields (Title, Start Date, End Date, Severity).",
         variant: "destructive",
       })
       return false
@@ -100,6 +130,7 @@ const EnhancedOutageForm = () => {
           category,
           contactEmail,
           estimatedUsers,
+          outageType, // Include the new field
         }
 
         const result = await createOutage(outageData)
@@ -110,9 +141,9 @@ const EnhancedOutageForm = () => {
           description: result.message,
         })
 
-        // Show email notification dialog
         setShowEmailDialog(true)
       } catch (error) {
+        console.error("Error creating outage:", error)
         toast({
           title: "Error",
           description: error instanceof Error ? error.message : "Failed to create outage",
@@ -157,17 +188,19 @@ const EnhancedOutageForm = () => {
         recentOutages: [createdOutage],
       })
 
-      setEmailPreview(result.preview)
+      setEmailPreview(result.preview || "")
 
       toast({
         title: "Notifications Sent",
-        description: `Email notifications sent to ${valid.length} recipients`,
+        description: result.message,
       })
 
       setShowEmailDialog(false)
       resetForm()
       setEmailAddresses("")
       setEmailMessage("")
+
+      if (onSuccess) onSuccess()
     } catch (error) {
       toast({
         title: "Error",
@@ -193,201 +226,337 @@ const EnhancedOutageForm = () => {
     setCategory("")
     setContactEmail("")
     setEstimatedUsers(0)
+    setOutageType("Internal")
   }
 
   return (
-    <Card>
+    <Card className="max-w-4xl mx-auto">
       <CardHeader>
-        <CardTitle>Create New Outage</CardTitle>
-        <CardDescription>Fill out the form below to create a new outage.</CardDescription>
+        <CardTitle className="flex items-center gap-2 text-xl">
+          <CalendarIcon className="w-6 h-6" />
+          Schedule New Planned Outage
+        </CardTitle>
+        <CardDescription>
+          Create a new planned outage with detailed impact information. All fields marked with * are required.
+        </CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="title">Title *</Label>
-            <Input type="text" id="title" value={title} onChange={(e) => setTitle(e.target.value)} />
+      <CardContent className="space-y-6">
+        {/* Title and Severity Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label htmlFor="title" className="text-sm font-semibold">
+              Outage Title *
+            </Label>
+            <Input
+              id="title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Outage title"
+              className="h-11"
+              required
+            />
           </div>
-          <div>
-            <Label htmlFor="assignee">Assignee *</Label>
-            <Input type="text" id="assignee" value={assignee} onChange={(e) => setAssignee(e.target.value)} />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label>Start Date *</Label>
-            <Input type="date" id="startDate" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-          </div>
-          <div>
-            <Label>Start Time</Label>
-            <Input type="time" id="startTime" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label>End Date *</Label>
-            <Input type="date" id="endDate" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-          </div>
-          <div>
-            <Label>End Time</Label>
-            <Input type="time" id="endTime" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
-          </div>
-        </div>
-
-        <div>
-          <Label>Environments *</Label>
-          <div className="flex flex-wrap gap-2">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="env-dev"
-                checked={selectedEnvironments.includes("Development")}
-                onCheckedChange={(checked) => {
-                  if (checked) {
-                    setSelectedEnvironments([...selectedEnvironments, "Development"])
-                  } else {
-                    setSelectedEnvironments(selectedEnvironments.filter((env) => env !== "Development"))
-                  }
-                }}
-              />
-              <Label htmlFor="env-dev">Development</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="env-staging"
-                checked={selectedEnvironments.includes("Staging")}
-                onCheckedChange={(checked) => {
-                  if (checked) {
-                    setSelectedEnvironments([...selectedEnvironments, "Staging"])
-                  } else {
-                    setSelectedEnvironments(selectedEnvironments.filter((env) => env !== "Staging"))
-                  }
-                }}
-              />
-              <Label htmlFor="env-staging">Staging</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="env-production"
-                checked={selectedEnvironments.includes("Production")}
-                onCheckedChange={(checked) => {
-                  if (checked) {
-                    setSelectedEnvironments([...selectedEnvironments, "Production"])
-                  } else {
-                    setSelectedEnvironments(selectedEnvironments.filter((env) => env !== "Production"))
-                  }
-                }}
-              />
-              <Label htmlFor="env-production">Production</Label>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <Label htmlFor="affectedModels">Affected Models *</Label>
-          <Input
-            type="text"
-            id="affectedModels"
-            value={affectedModels}
-            onChange={(e) => setAffectedModels(e.target.value)}
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="reason">Reason *</Label>
-          <Textarea id="reason" value={reason} onChange={(e) => setReason(e.target.value)} />
-        </div>
-
-        <div>
-          <Label htmlFor="detailedImpact">Detailed Impact</Label>
-          {detailedImpact.map((impact, index) => (
-            <div key={index} className="flex items-center space-x-2 mb-2">
-              <Textarea
-                value={impact}
-                onChange={(e) => {
-                  const newDetailedImpact = [...detailedImpact]
-                  newDetailedImpact[index] = e.target.value
-                  setDetailedImpact(newDetailedImpact)
-                }}
-                className="flex-grow"
-              />
-              {index > 0 && (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => {
-                    const newDetailedImpact = [...detailedImpact]
-                    newDetailedImpact.splice(index, 1)
-                    setDetailedImpact(newDetailedImpact)
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          ))}
-          <Button variant="outline" onClick={() => setDetailedImpact([...detailedImpact, ""])}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Impact
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <Label htmlFor="severity">Severity *</Label>
+          <div className="space-y-2">
+            <Label htmlFor="severity" className="text-sm font-semibold">
+              Severity *
+            </Label>
             <Select value={severity} onValueChange={(value) => setSeverity(value as "High" | "Medium" | "Low")}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select Severity" />
+              <SelectTrigger className="h-11">
+                <SelectValue placeholder="Select severity" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="High">High</SelectItem>
-                <SelectItem value="Medium">Medium</SelectItem>
-                <SelectItem value="Low">Low</SelectItem>
+                <SelectItem value="High">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                    High Impact
+                  </div>
+                </SelectItem>
+                <SelectItem value="Medium">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                    Medium Impact
+                  </div>
+                </SelectItem>
+                <SelectItem value="Low">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    Low Impact
+                  </div>
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
+        </div>
 
-          <div>
-            <Label htmlFor="priority">Priority</Label>
-            <Input
-              type="number"
-              id="priority"
-              value={priority}
-              onChange={(e) => setPriority(Number.parseInt(e.target.value))}
-            />
+        {/* Date and Time Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold">Start Date & Time *</Label>
+            <div className="flex gap-2">
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="h-11"
+                required
+              />
+              <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="h-11" />
+            </div>
           </div>
-
-          <div>
-            <Label htmlFor="category">Category *</Label>
-            <Input type="text" id="category" value={category} onChange={(e) => setCategory(e.target.value)} />
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold">End Date & Time *</Label>
+            <div className="flex gap-2">
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="h-11"
+                required
+              />
+              <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="h-11" />
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="contactEmail">Contact Email *</Label>
+        {/* Priority, Category, Users, Type Row */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold">Priority</Label>
+            <Select value={priority.toString()} onValueChange={(value) => setPriority(Number.parseInt(value))}>
+              <SelectTrigger className="h-11">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">1 - Critical</SelectItem>
+                <SelectItem value="2">2 - High</SelectItem>
+                <SelectItem value="3">3 - Medium</SelectItem>
+                <SelectItem value="4">4 - Low</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold">Category</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger className="h-11">
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((cat) => (
+                  <SelectItem key={cat} value={cat}>
+                    {cat}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold">Outage Type *</Label>
+            <Select value={outageType} onValueChange={(value) => setOutageType(value as "Internal" | "External")}>
+              <SelectTrigger className="h-11">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Internal">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                    Internal
+                  </div>
+                </SelectItem>
+                <SelectItem value="External">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                    External
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold">Estimated Users Affected</Label>
+            <Input
+              type="number"
+              min="0"
+              value={estimatedUsers}
+              onChange={(e) => setEstimatedUsers(Number.parseInt(e.target.value) || 0)}
+              placeholder="0"
+              className="h-11"
+            />
+          </div>
+        </div>
+
+        {/* Team and Contact Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold">Responsible Team</Label>
+            <Select value={assignee} onValueChange={setAssignee}>
+              <SelectTrigger className="h-11">
+                <SelectValue placeholder="Select team" />
+              </SelectTrigger>
+              <SelectContent>
+                {teams.map((team) => (
+                  <SelectItem key={team} value={team}>
+                    {team}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold">Contact Email</Label>
             <Input
               type="email"
-              id="contactEmail"
               value={contactEmail}
               onChange={(e) => setContactEmail(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label htmlFor="estimatedUsers">Estimated Users</Label>
-            <Input
-              type="number"
-              id="estimatedUsers"
-              value={estimatedUsers}
-              onChange={(e) => setEstimatedUsers(Number.parseInt(e.target.value))}
+              placeholder="team@company.com"
+              className="h-11"
             />
           </div>
         </div>
+
+        {/* Affected Environments */}
+        <div className="space-y-3">
+          <Label className="text-sm font-semibold">Affected Environments</Label>
+          <div className="space-y-3">
+            {/* ALL Option */}
+            <div className="flex items-center space-x-3 p-3 rounded-lg border bg-gray-50 dark:bg-gray-900">
+              <Checkbox
+                id="env-all"
+                checked={allEnvironmentsSelected}
+                onCheckedChange={(checked) => handleEnvironmentChange("ALL", checked as boolean)}
+                className="data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
+              />
+              <Label htmlFor="env-all" className="text-sm font-medium cursor-pointer flex items-center gap-2">
+                <Badge className="bg-purple-600 hover:bg-purple-700 text-white border-purple-600">ALL</Badge>
+                Select all environments
+              </Label>
+            </div>
+
+            {/* Individual Environments */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {environments.map((env) => (
+                <div
+                  key={env}
+                  className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
+                >
+                  <Checkbox
+                    id={`env-${env}`}
+                    checked={selectedEnvironments.includes(env)}
+                    onCheckedChange={(checked) => handleEnvironmentChange(env, checked as boolean)}
+                  />
+                  <Label htmlFor={`env-${env}`} className="text-sm font-medium cursor-pointer flex items-center gap-2">
+                    <Badge className={environmentColors[env as keyof typeof environmentColors]}>{env}</Badge>
+                  </Label>
+                </div>
+              ))}
+            </div>
+
+            {/* Selected Environments Display */}
+            {selectedEnvironments.length > 0 && (
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">
+                  Selected Environments ({selectedEnvironments.length}):
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {selectedEnvironments.map((env) => (
+                    <Badge key={env} className={environmentColors[env as keyof typeof environmentColors]}>
+                      {env}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Affected Models */}
+        <div className="space-y-2">
+          <Label className="text-sm font-semibold">Affected Models</Label>
+          <Input
+            value={affectedModels}
+            onChange={(e) => setAffectedModels(e.target.value)}
+            placeholder="e.g., All models in POC environment"
+            className="h-11"
+          />
+        </div>
+
+        {/* Reason */}
+        <div className="space-y-2">
+          <Label className="text-sm font-semibold">Reason for Outage</Label>
+          <Textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Describe the reason for this planned outage..."
+            rows={4}
+            className="resize-none"
+          />
+        </div>
+
+        {/* Detailed Impact */}
+        <div className="space-y-3">
+          <Label className="text-sm font-semibold">Detailed Impact</Label>
+          <div className="space-y-3">
+            {detailedImpact.map((impact, index) => (
+              <div key={index} className="flex gap-3">
+                <div className="flex-1">
+                  <Input
+                    value={impact}
+                    onChange={(e) => updateImpactItem(index, e.target.value)}
+                    placeholder={`Impact detail ${index + 1}...`}
+                    className="h-11"
+                  />
+                </div>
+                {detailedImpact.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => removeImpactItem(index)}
+                    className="h-11 w-11 flex-shrink-0"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            ))}
+            <Button type="button" variant="outline" onClick={addImpactItem} className="flex items-center gap-2 h-11">
+              <Plus className="w-4 h-4" />
+              Add Impact Detail
+            </Button>
+          </div>
+        </div>
+
+        {/* Severity and Type Preview */}
+        {(severity || outageType) && (
+          <div className={`p-4 rounded-lg border-2 ${severityColors[severity] || "bg-gray-50 border-gray-300"}`}>
+            <div className="flex items-center gap-2 font-medium">
+              <div
+                className={`w-3 h-3 rounded-full ${
+                  severity === "High" ? "bg-red-500" : severity === "Medium" ? "bg-yellow-500" : "bg-green-500"
+                }`}
+              ></div>
+              {severity} Impact {outageType} Outage Preview
+            </div>
+            <div className="text-sm mt-1 opacity-90">
+              This {outageType.toLowerCase()} outage will be classified as {severity.toLowerCase()} impact affecting{" "}
+              {selectedEnvironments.length} environment{selectedEnvironments.length !== 1 ? "s" : ""}.
+            </div>
+          </div>
+        )}
       </CardContent>
-      <CardFooter>
-        <Button disabled={isPending} onClick={handleSubmit}>
-          {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Create Outage
+
+      <CardFooter className="flex justify-end gap-3">
+        <Button variant="outline" onClick={resetForm} disabled={isPending}>
+          Reset Form
+        </Button>
+        <Button onClick={handleSubmit} disabled={isPending} className="min-w-32">
+          {isPending ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Creating...
+            </>
+          ) : (
+            "Create Outage"
+          )}
         </Button>
       </CardFooter>
 
@@ -400,7 +569,7 @@ const EnhancedOutageForm = () => {
               Send Outage Notification
             </DialogTitle>
             <DialogDescription>
-              Send email notification about the newly created outage with detailed information and updated schedule.
+              Send email notification about the newly created outage. Emails will be sent from sr.shahlal@gmail.com.
             </DialogDescription>
           </DialogHeader>
 
