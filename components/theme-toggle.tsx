@@ -16,7 +16,7 @@ export function ThemeToggle() {
 
   if (!mounted) {
     return (
-      <Button variant="outline" size="sm" disabled className="w-16 h-8">
+      <Button variant="outline" size="sm" disabled className="w-10 h-10 p-0 rounded-lg">
         <Sun className="h-4 w-4" />
       </Button>
     )
@@ -29,17 +29,9 @@ export function ThemeToggle() {
       variant="outline"
       size="sm"
       onClick={() => setTheme(isLight ? "dark" : "light")}
-      className="relative w-16 h-8 p-0"
+      className="w-10 h-10 p-0 rounded-lg border-2 hover:bg-accent hover:text-accent-foreground transition-all duration-200 hover:scale-105 active:scale-95"
     >
-      <div className="absolute inset-0 flex items-center justify-between px-1">
-        <Sun className="h-3 w-3 text-yellow-500" />
-        <Moon className="h-3 w-3 text-blue-500" />
-      </div>
-      <div
-        className={`absolute top-1 w-6 h-6 bg-white dark:bg-gray-800 rounded-full shadow-md transition-transform duration-200 ${
-          isLight ? "left-1" : "left-9"
-        }`}
-      />
+      {isLight ? <Sun className="h-4 w-4 text-amber-500" /> : <Moon className="h-4 w-4 text-blue-400" />}
       <span className="sr-only">Toggle theme</span>
     </Button>
   )
