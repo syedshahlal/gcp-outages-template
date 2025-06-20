@@ -19,6 +19,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Activity, Target, Zap, Shield, Timer, FileDown, Presentation, Globe } from "lucide-react"
+import { Input } from "@/components/ui/input"
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import outagesRaw from "@/data/outages.json"
@@ -71,6 +72,24 @@ export function InteractiveReport() {
     environment: "all",
     outageType: "all",
     assignee: "all",
+    timeRange: "all", // Add this new filter
+  })
+
+  // Add time range options
+  const timeRangeOptions = [
+    { value: "all", label: "All Time" },
+    { value: "last7days", label: "Last 7 Days" },
+    { value: "last30days", label: "Last 30 Days" },
+    { value: "last3months", label: "Last 3 Months" },
+    { value: "last6months", label: "Last 6 Months" },
+    { value: "lastyear", label: "Last Year" },
+    { value: "ytd", label: "Year to Date" },
+    { value: "custom", label: "Custom Range" },
+  ]
+
+  const [customTimeRange, setCustomTimeRange] = useState({
+    start: "",
+    end: "",
   })
 
   const [filteredData, setFilteredData] = useState<ReportData | null>(null)
@@ -154,6 +173,49 @@ export function InteractiveReport() {
 
     if (filters.assignee !== "all") {
       filtered = filtered.filter((outage) => outage.assignee === filters.assignee)
+    }
+
+    // Add time range filtering
+    if (filters.timeRange !== "all") {
+      const now = new Date()
+      let startDate: Date
+      let endDate = now
+
+      switch (filters.timeRange) {
+        case "last7days":
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+          break
+        case "last30days":
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+          break
+        case "last3months":
+          startDate = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate())
+          break
+        case "last6months":
+          startDate = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate())
+          break
+        case "lastyear":
+          startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000)
+          break
+        case "ytd":
+          startDate = new Date(now.getFullYear(), 0, 1)
+          break
+        case "custom":
+          if (customTimeRange.start && customTimeRange.end) {
+            startDate = new Date(customTimeRange.start)
+            endDate = new Date(customTimeRange.end)
+          } else {
+            startDate = new Date(0) // Default to all time if custom range not set
+          }
+          break
+        default:
+          startDate = new Date(0)
+      }
+
+      filtered = filtered.filter((outage) => {
+        const outageDate = new Date(outage.startDate)
+        return outageDate >= startDate && outageDate <= endDate
+      })
     }
 
     // Recalculate metrics based on filtered data
@@ -506,7 +568,7 @@ ${reportData.upcomingOutages
             <CardTitle>Filters & Analytics Controls</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <div>
                 <Label htmlFor="severity-filter">Severity</Label>
                 <Select value={filters.severity} onValueChange={(value) => setFilters({ ...filters, severity: value })}>
@@ -578,6 +640,51 @@ ${reportData.upcomingOutages
                 </Select>
               </div>
 
+              <div>
+                <Label htmlFor="time-range-filter">Time Range</Label>
+                <Select
+                  value={filters.timeRange}
+                  onValueChange={(value) => setFilters({ ...filters, timeRange: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Time" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {timeRangeOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Custom Time Range Inputs */}
+              {filters.timeRange === "custom" && (
+                <div className="col-span-full">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-background border border-border rounded-lg">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Start Date</Label>
+                      <Input
+                        type="date"
+                        value={customTimeRange.start}
+                        onChange={(e) => setCustomTimeRange((prev) => ({ ...prev, start: e.target.value }))}
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">End Date</Label>
+                      <Input
+                        type="date"
+                        value={customTimeRange.end}
+                        onChange={(e) => setCustomTimeRange((prev) => ({ ...prev, end: e.target.value }))}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-end">
                 <Button
                   onClick={() =>
@@ -587,6 +694,7 @@ ${reportData.upcomingOutages
                       environment: "all",
                       outageType: "all",
                       assignee: "all",
+                      timeRange: "all", // Add this
                     })
                   }
                   variant="outline"
