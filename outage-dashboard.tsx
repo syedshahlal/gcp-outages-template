@@ -43,8 +43,11 @@ const EnhancedOutageForm = dynamic(() => import("./components/enhanced-outage-fo
   loading: () => <div className="h-96 rounded-lg bg-muted animate-pulse" />,
 })
 const TabularMultiOutageForm = dynamic(
-  () => import("./components/tabular-multi-outage-form").then((mod) => ({ default: mod.TabularMultiOutageForm })),
-  { ssr: false, loading: () => <div className="h-96 rounded-lg bg-muted animate-pulse" />,\
+  () =>
+    import("./components/tabular-multi-outage-form").then((mod) => ({
+      default: mod.TabularMultiOutageForm,
+    })),
+  { ssr: false, loading: () => <div className="h-96 rounded-lg bg-muted animate-pulse" /> },
 )
 
 /* -------------------------------------------------------------------------- */
