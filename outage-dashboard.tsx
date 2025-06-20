@@ -27,13 +27,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ThemeToggle } from "@/components/theme-toggle"
 import dynamic from "next/dynamic"
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import outagesJson from "@/data/outages.json"
 import { useToast } from "@/hooks/use-toast"
 import { EmailTestForm } from "./components/email-test-form"
 import { InteractiveReport } from "./components/interactive-report"
 import { OutageDetailModal } from "./components/outage-detail-modal"
-
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import outagesJson from "@/data/outages.json"
 
 // Dynamically imported heavy components
 const UptimeMetrics = dynamic(
@@ -185,8 +184,7 @@ export default function OutageDashboard() {
   const fetchOutages = async () => {
     try {
       setRefreshing(true)
-      // simulate network delay so the spinner isn’t instantaneous
-      await new Promise((r) => setTimeout(r, 300))
+      await new Promise((r) => setTimeout(r, 300)) // small spinner delay
 
       const parsed = outagesJson.map((o) => ({
         ...o,
@@ -211,6 +209,11 @@ export default function OutageDashboard() {
 
   useEffect(() => {
     if (mounted) fetchOutages()
+  }, [mounted])
+  useEffect(() => {
+    if (!mounted) return
+    const id = setInterval(() => fetchOutages(true), 3e4)
+    return () => clearInterval(id)
   }, [mounted])
 
   /* ------------------------------- Derived ------------------------------ */

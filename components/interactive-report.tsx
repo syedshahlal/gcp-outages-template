@@ -75,11 +75,14 @@ export function InteractiveReport() {
 
   const [filteredData, setFilteredData] = useState<ReportData | null>(null)
 
-  const loadReportData = () => {
-    try {
-      setLoading(true)
+  useEffect(() => {
+    loadReportData()
+  }, [])
 
-      // Convert ISO strings → Date instances
+  const loadReportData = () => {
+    setLoading(true)
+    try {
+      // Re-hydrate date fields
       const outages = outagesRaw.map((o) => ({
         ...o,
         startDate: new Date(o.startDate),
@@ -87,35 +90,26 @@ export function InteractiveReport() {
       }))
 
       const now = new Date()
-      const totalOutages = outages.length
       const upcoming = outages.filter((o) => o.startDate > now)
       const past = outages.filter((o) => o.endDate < now)
       const ongoing = outages.filter((o) => o.startDate <= now && o.endDate >= now)
 
       const sum = <T,>(arr: T[], fn: (v: T) => number) => arr.reduce((a, b) => a + fn(b), 0)
-
       const totalDowntime = sum(outages, (o) => (+o.endDate - +o.startDate) / 36e5)
-      const avgDowntime = totalOutages ? totalDowntime / totalOutages : 0
+      const avgDowntime = outages.length ? totalDowntime / outages.length : 0
       const usersAffected = sum(outages, (o: any) => o.estimatedUsers || 0)
 
       const countBy = <K extends keyof (typeof outages)[0]>(arr: any[], key: K) =>
         arr.reduce<Record<string, number>>((acc, o) => {
           const val = o[key]
-          if (Array.isArray(val)) {
-            val.forEach((v) => (acc[v] = (acc[v] || 0) + 1))
-          } else {
-            acc[val as string] = (acc[val as string] || 0) + 1
-          }
+          if (Array.isArray(val)) val.forEach((v) => (acc[v] = (acc[v] || 0) + 1))
+          else acc[val as string] = (acc[val as string] || 0) + 1
           return acc
         }, {})
 
-      const severity = countBy(outages, "severity")
-      const type = countBy(outages, "outageType")
-      const environment = countBy(outages, "environments")
-
       const data = {
         summary: {
-          totalOutages,
+          totalOutages: outages.length,
           upcomingOutages: upcoming.length,
           pastOutages: past.length,
           ongoingOutages: ongoing.length,
@@ -123,26 +117,25 @@ export function InteractiveReport() {
           averageDowntime: Math.round(avgDowntime * 10) / 10,
           totalUsersAffected: usersAffected,
         },
-        breakdowns: { severity, type, environment },
+        breakdowns: {
+          severity: countBy(outages, "severity"),
+          type: countBy(outages, "outageType"),
+          environment: countBy(outages, "environments"),
+        },
         recentOutages: outages.slice(-10).reverse(),
         upcomingOutages: upcoming.slice(0, 10),
-      }
+      } as ReportData
 
-      setReportData(data as any)
-      setFilteredData(null) // reset filters on reload
+      setReportData(data)
+      setFilteredData(null)
       setError(null)
-    } catch (err) {
-      console.error(err)
+    } catch (e) {
+      console.error(e)
       setError("Failed to load report data")
     } finally {
       setLoading(false)
     }
   }
-
-  useEffect(() => {
-    loadReportData()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   const applyFilters = (data: ReportData) => {
     let filtered = [...data.recentOutages, ...data.upcomingOutages]
