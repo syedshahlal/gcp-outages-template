@@ -215,7 +215,9 @@ export default function OutageDashboard() {
             : `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/api/outages`
         const resp = await fetch(base, { cache: "no-store" })
         if (resp.ok) {
-          data = await resp.json()
+          const json = await resp.json()
+          // The API can return either an array or an object { outages: [...] }
+          data = Array.isArray(json) ? json : (json?.outages ?? [])
         } else {
           console.warn("API responded but not OK:", resp.status)
         }
@@ -225,7 +227,7 @@ export default function OutageDashboard() {
 
       if (!data) {
         console.info("Using bundled outages.json fallback (preview/runtime without API)")
-        data = outagesJson
+        data = Array.isArray(outagesJson) ? outagesJson : (outagesJson?.outages ?? [])
       }
 
       const parsed = data.map((o: any) => ({
