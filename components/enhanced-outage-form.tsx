@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,7 +14,18 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
-import { CalendarIcon, Plus, X, Mail, Send, CheckCircle, Clock, Users } from "lucide-react"
+import {
+  CalendarIcon,
+  Plus,
+  X,
+  Mail,
+  Send,
+  CheckCircle,
+  Clock,
+  Users,
+  RotateCcw,
+  ReplaceAllIcon as SelectAll,
+} from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 /* -------------------------------------------------------------------------- */
@@ -51,6 +62,26 @@ async function sendOutageNotifications(payload: {
   return (await res.json()) as { success: boolean; message: string }
 }
 
+async function fetchConfig(type: "environments" | "teams") {
+  const res = await fetch(`/api/config?type=${type}`)
+  if (!res.ok) throw new Error(`Failed to fetch ${type} config`)
+  return await res.json()
+}
+
+interface Environment {
+  id: string
+  name: string
+  color: string
+  description: string
+}
+
+interface Team {
+  id: string
+  name: string
+  email: string
+  description: string
+}
+
 interface OutageFormData {
   title: string
   startDate: string
@@ -61,7 +92,7 @@ interface OutageFormData {
   affectedModels: string
   reason: string
   detailedImpact: string[]
-  assignee: string
+  assignees: string[] // Changed from assignee to assignees (multiple)
   severity: "High" | "Medium" | "Low" | ""
   category: string
   contactEmail: string
@@ -73,8 +104,6 @@ interface EnhancedOutageFormProps {
   onSuccess?: () => void
 }
 
-const environments = ["POC", "SBX DEV", "SBX UAT", "SBX Beta", "PROD"]
-const teams = ["Infrastructure Team", "GCP L2 L3 Team", "Tableau Team", "EPAS Team", "EM Team", "Horizon Team"]
 const categories = [
   "Maintenance",
   "Security Update",
@@ -87,14 +116,6 @@ const categories = [
   "Capacity Expansion",
   "Other",
 ]
-
-const environmentColors: Record<string, string> = {
-  POC: "bg-blue-500",
-  "SBX DEV": "bg-green-500",
-  "SBX UAT": "bg-yellow-500",
-  "SBX Beta": "bg-orange-500",
-  PROD: "bg-red-500",
-}
 
 const severityColors: Record<string, string> = {
   High: "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800",
@@ -119,6 +140,11 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
   const [emailMessage, setEmailMessage] = useState("")
   const [sendingEmail, setSendingEmail] = useState(false)
 
+  // Configuration data
+  const [environments, setEnvironments] = useState<Environment[]>([])
+  const [teams, setTeams] = useState<Team[]>([])
+  const [loadingConfig, setLoadingConfig] = useState(true)
+
   const [formData, setFormData] = useState<OutageFormData>({
     title: "",
     startDate: "",
@@ -129,7 +155,7 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
     affectedModels: "",
     reason: "",
     detailedImpact: [""],
-    assignee: "",
+    assignees: [], // Changed to array
     severity: "",
     category: "",
     contactEmail: "",
@@ -137,16 +163,116 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
     outageType: "",
   })
 
-  const handleEnvironmentChange = (env: string, checked: boolean) => {
+  // Load configuration data on component mount
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const [envConfig, teamConfig] = await Promise.all([fetchConfig("environments"), fetchConfig("teams")])
+
+        setEnvironments(envConfig.environments || [])
+        setTeams(teamConfig.teams || [])
+      } catch (error) {
+        console.error("Failed to load configuration:", error)
+        toast({
+          title: "Configuration Error",
+          description: "Failed to load environments and teams. Using defaults.",
+          variant: "destructive",
+        })
+
+        // Fallback to hardcoded values
+        setEnvironments([
+          { id: "poc", name: "POC", color: "bg-blue-500", description: "Proof of Concept Environment" },
+          { id: "sbx-dev", name: "SBX DEV", color: "bg-green-500", description: "Sandbox Development Environment" },
+          {
+            id: "sbx-uat",
+            name: "SBX UAT",
+            color: "bg-yellow-500",
+            description: "Sandbox User Acceptance Testing Environment",
+          },
+          { id: "sbx-beta", name: "SBX Beta", color: "bg-orange-500", description: "Sandbox Beta Environment" },
+          { id: "prod", name: "PROD", color: "bg-red-500", description: "Production Environment" },
+        ])
+        setTeams([
+          {
+            id: "infrastructure",
+            name: "Infrastructure Team",
+            email: "infrastructure@company.com",
+            description: "Manages core infrastructure and platform services",
+          },
+          {
+            id: "gcp-l2-l3",
+            name: "GCP L2 L3 Team",
+            email: "gcp-support@company.com",
+            description: "Google Cloud Platform Level 2 and Level 3 support",
+          },
+          {
+            id: "tableau",
+            name: "Tableau Team",
+            email: "tableau@company.com",
+            description: "Business Intelligence and Analytics platform team",
+          },
+          {
+            id: "epas",
+            name: "EPAS Team",
+            email: "epas@company.com",
+            description: "Enterprise PostgreSQL Advanced Server team",
+          },
+          { id: "em", name: "EM Team", email: "em@company.com", description: "Engineering Management team" },
+          {
+            id: "horizon",
+            name: "Horizon Team",
+            email: "horizon@company.com",
+            description: "Horizon platform and services team",
+          },
+        ])
+      } finally {
+        setLoadingConfig(false)
+      }
+    }
+
+    loadConfig()
+  }, [toast])
+
+  const handleEnvironmentChange = (envId: string, checked: boolean) => {
+    if (envId === "all") {
+      if (checked) {
+        // Select all environments
+        setFormData((prev) => ({
+          ...prev,
+          environments: environments.map((env) => env.id),
+        }))
+      } else {
+        // Deselect all environments
+        setFormData((prev) => ({
+          ...prev,
+          environments: [],
+        }))
+      }
+    } else {
+      if (checked) {
+        setFormData((prev) => ({
+          ...prev,
+          environments: [...prev.environments, envId],
+        }))
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          environments: prev.environments.filter((e) => e !== envId),
+        }))
+      }
+    }
+  }
+
+  const handleTeamChange = (teamId: string, checked: boolean) => {
     if (checked) {
       setFormData((prev) => ({
         ...prev,
-        environments: [...prev.environments, env],
+        assignees: [...prev.assignees, teamId],
       }))
     } else {
       setFormData((prev) => ({
         ...prev,
-        environments: prev.environments.filter((e) => e !== env),
+        assignees: prev.assignees.filter((t) => t !== teamId),
       }))
     }
   }
@@ -172,6 +298,30 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
     }))
   }
 
+  const clearAllForm = () => {
+    setFormData({
+      title: "",
+      startDate: "",
+      startTime: "",
+      endDate: "",
+      endTime: "",
+      environments: [],
+      affectedModels: "",
+      reason: "",
+      detailedImpact: [""],
+      assignees: [],
+      severity: "",
+      category: "",
+      contactEmail: "",
+      estimatedUsers: 0,
+      outageType: "",
+    })
+    toast({
+      title: "Form Cleared",
+      description: "All form fields have been reset.",
+    })
+  }
+
   const formatDateTime = (date: string, time: string) => {
     return new Date(`${date}T${time || "00:00"}`).toLocaleString("en-US", {
       weekday: "short",
@@ -190,6 +340,11 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
     const days = Math.floor(hours / 24)
     return days ? `${days} d ${hours % 24} h` : `${hours} h`
   }
+
+  const getEnvironmentById = (id: string) => environments.find((env) => env.id === id)
+  const getTeamById = (id: string) => teams.find((team) => team.id === id)
+
+  const isAllEnvironmentsSelected = environments.length > 0 && formData.environments.length === environments.length
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -216,19 +371,29 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
       }
 
       // Create the outage data
+      const selectedEnvironmentNames = formData.environments.map((envId) => {
+        const env = getEnvironmentById(envId)
+        return env ? env.name : envId
+      })
+
+      const selectedTeamNames = formData.assignees.map((teamId) => {
+        const team = getTeamById(teamId)
+        return team ? team.name : teamId
+      })
+
       const outageData = {
         title: formData.title,
         startDate: new Date(`${formData.startDate}T${formData.startTime || "00:00"}`),
         endDate: new Date(`${formData.endDate}T${formData.endTime || "23:59"}`),
-        environments: formData.environments,
+        environments: selectedEnvironmentNames,
         affectedModels: formData.affectedModels,
         reason: formData.reason,
         detailedImpact: formData.detailedImpact.filter((item) => item.trim() !== ""),
-        assignee: formData.assignee,
+        assignee: selectedTeamNames.join(", "), // Convert array to string for backend compatibility
         severity: formData.severity as "High" | "Medium" | "Low",
       }
 
-      const result = await createOutage(outageData) // now uses fetch helper
+      const result = await createOutage(outageData)
 
       if (result.success) {
         const newOutage = {
@@ -237,11 +402,18 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
           contactEmail: formData.contactEmail,
           estimatedUsers: formData.estimatedUsers,
           outageType: formData.outageType,
+          assignees: selectedTeamNames, // Keep array for display
         }
 
         setCreatedOutage(newOutage)
 
-        // Pre-populate email fields
+        // Pre-populate email fields with team emails
+        const teamEmails = formData.assignees
+          .map((teamId) => getTeamById(teamId)?.email)
+          .filter(Boolean)
+          .join(", ")
+
+        setEmailRecipients(teamEmails)
         setEmailSubject(`GCP Planned Outage Notification - ${formData.title}`)
         setEmailMessage(
           `A new planned outage has been scheduled:\n\n${formData.title}\n\nPlease review the details in the dashboard.`,
@@ -323,23 +495,7 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
   }
 
   const resetForm = () => {
-    setFormData({
-      title: "",
-      startDate: "",
-      startTime: "",
-      endDate: "",
-      endTime: "",
-      environments: [],
-      affectedModels: "",
-      reason: "",
-      detailedImpact: [""],
-      assignee: "",
-      severity: "",
-      category: "",
-      contactEmail: "",
-      estimatedUsers: 0,
-      outageType: "",
-    })
+    clearAllForm()
     setCreatedOutage(null)
     setEmailRecipients("")
     setEmailSubject("")
@@ -355,17 +511,44 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
     })
   }
 
+  if (loadingConfig) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center p-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p>Loading configuration...</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <>
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CalendarIcon className="w-5 h-5" />
-            Schedule New Outage
-          </CardTitle>
-          <CardDescription>
-            Create a new planned outage with detailed impact information and notification options
-          </CardDescription>
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <CalendarIcon className="w-5 h-5" />
+                Schedule New Outage
+              </CardTitle>
+              <CardDescription>
+                Create a new planned outage with detailed impact information and notification options
+              </CardDescription>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={clearAllForm}
+              className="flex items-center gap-2"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Clear All
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -492,52 +675,94 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
             {/* Environments */}
             <div className="space-y-2">
               <Label>Affected Environments *</Label>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                {environments.map((env) => (
-                  <div key={env} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={env}
-                      checked={formData.environments.includes(env)}
-                      onCheckedChange={(checked) => handleEnvironmentChange(env, checked as boolean)}
-                    />
-                    <Label htmlFor={env} className="text-sm cursor-pointer flex items-center gap-2">
-                      <div className={`w-3 h-3 rounded-full ${environmentColors[env]}`} />
-                      {env}
-                    </Label>
-                  </div>
-                ))}
+              <div className="space-y-3">
+                {/* Select All Option */}
+                <div className="flex items-center space-x-2 p-2 bg-muted/50 rounded-md">
+                  <Checkbox
+                    id="all-environments"
+                    checked={isAllEnvironmentsSelected}
+                    onCheckedChange={(checked) => handleEnvironmentChange("all", checked as boolean)}
+                  />
+                  <Label
+                    htmlFor="all-environments"
+                    className="text-sm cursor-pointer flex items-center gap-2 font-medium"
+                  >
+                    <SelectAll className="w-4 h-4" />
+                    Select All Environments
+                  </Label>
+                </div>
+
+                {/* Individual Environments */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {environments.map((env) => (
+                    <div key={env.id} className="flex items-center space-x-2 p-2 border rounded-md">
+                      <Checkbox
+                        id={env.id}
+                        checked={formData.environments.includes(env.id)}
+                        onCheckedChange={(checked) => handleEnvironmentChange(env.id, checked as boolean)}
+                      />
+                      <Label htmlFor={env.id} className="text-sm cursor-pointer flex items-center gap-2 flex-1">
+                        <div className={`w-3 h-3 rounded-full ${env.color}`} />
+                        <div>
+                          <div className="font-medium">{env.name}</div>
+                          <div className="text-xs text-muted-foreground">{env.description}</div>
+                        </div>
+                      </Label>
+                    </div>
+                  ))}
+                </div>
               </div>
+
               {formData.environments.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {formData.environments.map((env) => (
-                    <Badge key={env} className={`${environmentColors[env]} text-white`}>
-                      {env}
-                    </Badge>
-                  ))}
+                  {formData.environments.map((envId) => {
+                    const env = getEnvironmentById(envId)
+                    return env ? (
+                      <Badge key={envId} className={`${env.color} text-white`}>
+                        {env.name}
+                      </Badge>
+                    ) : null
+                  })}
                 </div>
               )}
             </div>
 
-            {/* Team, Models, and Contact */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="assignee">Responsible Team</Label>
-                <Select
-                  value={formData.assignee}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, assignee: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select team" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {teams.map((team) => (
-                      <SelectItem key={team} value={team}>
-                        {team}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {/* Responsible Teams */}
+            <div className="space-y-2">
+              <Label>Responsible Teams</Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {teams.map((team) => (
+                  <div key={team.id} className="flex items-center space-x-2 p-2 border rounded-md">
+                    <Checkbox
+                      id={team.id}
+                      checked={formData.assignees.includes(team.id)}
+                      onCheckedChange={(checked) => handleTeamChange(team.id, checked as boolean)}
+                    />
+                    <Label htmlFor={team.id} className="text-sm cursor-pointer flex-1">
+                      <div className="font-medium">{team.name}</div>
+                      <div className="text-xs text-muted-foreground">{team.description}</div>
+                      <div className="text-xs text-blue-600">{team.email}</div>
+                    </Label>
+                  </div>
+                ))}
               </div>
+
+              {formData.assignees.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {formData.assignees.map((teamId) => {
+                    const team = getTeamById(teamId)
+                    return team ? (
+                      <Badge key={teamId} variant="secondary">
+                        {team.name}
+                      </Badge>
+                    ) : null
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Contact and Users */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="contactEmail">Contact Email</Label>
                 <Input
@@ -618,7 +843,11 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
             </div>
 
             {/* Submit Button */}
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={clearAllForm}>
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Clear All
+              </Button>
               <Button type="submit" disabled={isSubmitting} size="lg">
                 {isSubmitting ? "Creating..." : "Create Outage"}
               </Button>
@@ -676,18 +905,21 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
                       {calculateDuration(formData.startDate, formData.startTime, formData.endDate, formData.endTime)}
                     </div>
                     <div>
-                      <strong>Team:</strong> {createdOutage.assignee || "Not assigned"}
+                      <strong>Teams:</strong> {createdOutage.assignees?.join(", ") || "Not assigned"}
                     </div>
                   </div>
 
                   <div>
                     <strong>Environments:</strong>
                     <div className="flex flex-wrap gap-1 mt-1">
-                      {createdOutage.environments.map((env: string) => (
-                        <Badge key={env} className={`${environmentColors[env]} text-white text-xs`}>
-                          {env}
-                        </Badge>
-                      ))}
+                      {createdOutage.environments.map((envName: string) => {
+                        const env = environments.find((e) => e.name === envName)
+                        return (
+                          <Badge key={envName} className={`${env?.color || "bg-gray-500"} text-white text-xs`}>
+                            {envName}
+                          </Badge>
+                        )
+                      })}
                     </div>
                   </div>
 
@@ -723,7 +955,9 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
                   placeholder="Enter email addresses separated by commas (e.g., user1@company.com, user2@company.com)"
                   rows={3}
                 />
-                <p className="text-xs text-muted-foreground">Separate multiple email addresses with commas</p>
+                <p className="text-xs text-muted-foreground">
+                  Separate multiple email addresses with commas. Team emails are pre-populated based on selected teams.
+                </p>
               </div>
 
               <div className="space-y-2">

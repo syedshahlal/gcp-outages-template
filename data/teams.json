@@ -1,0 +1,52 @@
+{
+  "teams": [
+    {
+      "id": "infrastructure",
+      "name": "Infrastructure Team",
+      "email": "infrastructure@company.com",
+      "description": "Manages core infrastructure and platform services"
+    },
+    {
+      "id": "gcp-l2-l3",
+      "name": "GCP L2 L3 Team",
+      "email": "gcp-support@company.com",
+      "description": "Google Cloud Platform Level 2 and Level 3 support"
+    },
+    {
+      "id": "tableau",
+      "name": "Tableau Team",
+      "email": "tableau@company.com",
+      "description": "Business Intelligence and Analytics platform team"
+    },
+    {
+      "id": "epas",
+      "name": "EPAS Team",
+      "email": "epas@company.com",
+      "description": "Enterprise PostgreSQL Advanced Server team"
+    },
+    {
+      "id": "em",
+      "name": "EM Team",
+      "email": "em@company.com",
+      "description": "Engineering Management team"
+    },
+    {
+      "id": "horizon",
+      "name": "Horizon Team",
+      "email": "horizon@company.com",
+      "description": "Horizon platform and services team"
+    },
+    {
+      "id": "security",
+      "name": "Security Team",
+      "email": "security@company.com",
+      "description": "Information Security and Compliance team"
+    },
+    {
+      "id": "devops",
+      "name": "DevOps Team",
+      "email": "devops@company.com",
+      "description": "Development Operations and CI/CD team"
+    }
+  ]
+}

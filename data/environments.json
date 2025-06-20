@@ -1,0 +1,34 @@
+{
+  "environments": [
+    {
+      "id": "poc",
+      "name": "POC",
+      "color": "bg-blue-500",
+      "description": "Proof of Concept Environment"
+    },
+    {
+      "id": "sbx-dev",
+      "name": "SBX DEV",
+      "color": "bg-green-500",
+      "description": "Sandbox Development Environment"
+    },
+    {
+      "id": "sbx-uat",
+      "name": "SBX UAT",
+      "color": "bg-yellow-500",
+      "description": "Sandbox User Acceptance Testing Environment"
+    },
+    {
+      "id": "sbx-beta",
+      "name": "SBX Beta",
+      "color": "bg-orange-500",
+      "description": "Sandbox Beta Environment"
+    },
+    {
+      "id": "prod",
+      "name": "PROD",
+      "color": "bg-red-500",
+      "description": "Production Environment"
+    }
+  ]
+}
