@@ -15,9 +15,41 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { CalendarIcon, Plus, X, Mail, Send, CheckCircle, Clock, Users } from "lucide-react"
-import { createOutage } from "../actions/outage-actions"
-import { sendOutageNotifications } from "../actions/email-actions"
 import { useToast } from "@/hooks/use-toast"
+
+/* -------------------------------------------------------------------------- */
+/*                         Client-side helpers (API fetch)                    */
+/* -------------------------------------------------------------------------- */
+
+async function createOutage(data: any) {
+  const res = await fetch("/api/outages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) throw new Error("Failed to create outage")
+  return (await res.json()) as {
+    success: boolean
+    outage: any
+    message: string
+  }
+}
+
+async function sendOutageNotifications(payload: {
+  recipientEmails: string[]
+  subject: string
+  message: string
+  dashboardUrl: string
+  recentOutages: any[]
+}) {
+  const res = await fetch("/api/notify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) throw new Error("Failed to send email")
+  return (await res.json()) as { success: boolean; message: string }
+}
 
 interface OutageFormData {
   title: string
@@ -196,7 +228,7 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
         severity: formData.severity as "High" | "Medium" | "Low",
       }
 
-      const result = await createOutage(outageData)
+      const result = await createOutage(outageData) // now uses fetch helper
 
       if (result.success) {
         const newOutage = {
