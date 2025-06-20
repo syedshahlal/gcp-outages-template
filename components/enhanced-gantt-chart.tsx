@@ -217,3 +217,4 @@ const EnhancedGanttChart = () => {
 }
 
 export default EnhancedGanttChart
+export { EnhancedGanttChart }
