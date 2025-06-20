@@ -59,7 +59,7 @@ const TabularMultiOutageForm = dynamic(
 /* -------------------------------------------------------------------------- */
 
 interface OutageData {
-  id: number
+  id: number | string
   title: string
   startDate: Date
   endDate: Date
@@ -198,12 +198,14 @@ export default function OutageDashboard() {
       if (!isRefresh) setLoading(true)
       setRefreshing(isRefresh)
 
+      console.log("Fetching outages...")
+
       // Give the UI a tiny delay for nicer spinners
       await new Promise((r) => setTimeout(r, 300))
 
       /* ----------------------------------------------------------
        * 1) Try the API route first (only works in prod / dev-server)
-       * 2) If that fails (e.g. next-lite preview) fall back to the
+       * 2) If that fails (e.g. Next.js preview) fall back to the
        *    embedded JSON so the page still renders.
        * ---------------------------------------------------------- */
       let data: any[] | null = null
@@ -213,35 +215,51 @@ export default function OutageDashboard() {
           typeof window !== "undefined"
             ? `${window.location.origin}/api/outages`
             : `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/api/outages`
+
+        console.log("Fetching from API:", base)
         const resp = await fetch(base, { cache: "no-store" })
+        console.log("API response status:", resp.status)
+
         if (resp.ok) {
           const json = await resp.json()
+          console.log("API response data:", json)
           // The API can return either an array or an object { outages: [...] }
           data = Array.isArray(json) ? json : (json?.outages ?? [])
         } else {
           console.warn("API responded but not OK:", resp.status)
         }
-      } catch {
-        /* network / runtime error - ignore – we’ll fall back */
+      } catch (apiError) {
+        console.warn("API fetch failed:", apiError)
+        /* network / runtime error - ignore – we'll fall back */
       }
 
-      if (!data) {
+      if (!data || data.length === 0) {
         console.info("Using bundled outages.json fallback (preview/runtime without API)")
         data = Array.isArray(outagesJson) ? outagesJson : (outagesJson?.outages ?? [])
       }
 
+      console.log("Raw data before processing:", data)
+
       const parsed = data.map((o: any) => ({
         ...o,
+        id: o.id || Math.random().toString(36).substr(2, 9), // Ensure ID exists
         startDate: new Date(o.startDate),
         endDate: new Date(o.endDate),
         createdAt: o.createdAt ? new Date(o.createdAt) : new Date(),
         updatedAt: o.updatedAt ? new Date(o.updatedAt) : new Date(),
         outageType: o.outageType || "Internal",
+        environments: Array.isArray(o.environments) ? o.environments : [],
+        detailedImpact: Array.isArray(o.detailedImpact) ? o.detailedImpact : [],
       })) as OutageData[]
+
+      console.log("Parsed outages:", parsed)
+      console.log("Outages count:", parsed.length)
 
       parsed.sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
       setOutages(parsed)
       setLastUpdated(new Date())
+
+      console.log("Outages set in state, count:", parsed.length)
     } catch (err) {
       console.error("Fatal error loading outages:", err)
       toast({
@@ -257,7 +275,7 @@ export default function OutageDashboard() {
   }
 
   useEffect(() => {
-    if (mounted && outages.length === 0) {
+    if (mounted) {
       console.log("Component mounted, fetching outages...")
       fetchOutages()
     }
@@ -381,21 +399,50 @@ export default function OutageDashboard() {
     return { start, end }
   }
 
-  const filters = outages.filter((o) => {
-    let dateMatch = true
+  const filters = useMemo(() => {
+    console.log("Applying filters...")
+    console.log("Total outages before filtering:", outages.length)
+    console.log("Selected month:", selectedMonth)
+    console.log("Environment filter:", envFilter)
+    console.log("Search term:", search)
+    console.log("Use custom range:", useCustomRange)
+    console.log("Custom date range:", customDateRange)
 
-    if (useCustomRange && customDateRange.start && customDateRange.end) {
-      const outageStart = o.startDate.toISOString().split("T")[0]
-      dateMatch = outageStart >= customDateRange.start && outageStart <= customDateRange.end
-    } else if (selectedMonth) {
-      dateMatch = o.startDate.toISOString().startsWith(selectedMonth)
-    }
+    const filtered = outages.filter((o) => {
+      let dateMatch = true
 
-    const envMatch = o.environments.some((e) => envFilter.includes(e))
-    const txt = (o.title + o.assignee + (o.category ?? "")).toLowerCase()
-    const searchMatch = txt.includes(search.toLowerCase())
-    return dateMatch && envMatch && searchMatch
-  })
+      if (useCustomRange && customDateRange.start && customDateRange.end) {
+        const outageStart = o.startDate.toISOString().split("T")[0]
+        dateMatch = outageStart >= customDateRange.start && outageStart <= customDateRange.end
+        console.log(
+          `Custom range filter for ${o.title}: ${dateMatch} (${outageStart} between ${customDateRange.start} and ${customDateRange.end})`,
+        )
+      } else if (selectedMonth) {
+        const outageMonth = o.startDate.toISOString().substring(0, 7) // YYYY-MM format
+        dateMatch = outageMonth === selectedMonth
+        console.log(`Month filter for ${o.title}: ${dateMatch} (${outageMonth} === ${selectedMonth})`)
+      }
+
+      const envMatch = o.environments.some((e) => envFilter.includes(e))
+      console.log(`Environment filter for ${o.title}: ${envMatch} (${o.environments} intersects ${envFilter})`)
+
+      const txt = (o.title + o.assignee + (o.category ?? "")).toLowerCase()
+      const searchMatch = search === "" || txt.includes(search.toLowerCase())
+      console.log(`Search filter for ${o.title}: ${searchMatch}`)
+
+      const finalMatch = dateMatch && envMatch && searchMatch
+      console.log(`Final match for ${o.title}: ${finalMatch}`)
+
+      return finalMatch
+    })
+
+    console.log("Filtered outages count:", filtered.length)
+    return filtered
+  }, [outages, selectedMonth, envFilter, search, useCustomRange, customDateRange])
+
+  useEffect(() => {
+    console.log("Filters changed, filtered count:", filters.length)
+  }, [filters])
 
   filters.sort((a, b) => {
     if (sortBy === "severity")
@@ -613,6 +660,7 @@ export default function OutageDashboard() {
                     <Select
                       value={selectedMonth}
                       onValueChange={(val) => {
+                        console.log("Month filter changed to:", val)
                         setSelectedMonth(val)
                         setUseCustomRange(false)
                       }}
@@ -637,7 +685,10 @@ export default function OutageDashboard() {
                     <Checkbox
                       id="custom-range"
                       checked={useCustomRange}
-                      onCheckedChange={setUseCustomRange}
+                      onCheckedChange={(checked) => {
+                        console.log("Custom range toggled:", checked)
+                        setUseCustomRange(checked as boolean)
+                      }}
                       className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                     />
                     <Label htmlFor="custom-range" className="cursor-pointer font-medium flex items-center gap-2">
@@ -652,7 +703,10 @@ export default function OutageDashboard() {
                         <Input
                           type="date"
                           value={customDateRange.start}
-                          onChange={(e) => setCustomDateRange((prev) => ({ ...prev, start: e.target.value }))}
+                          onChange={(e) => {
+                            console.log("Custom start date changed:", e.target.value)
+                            setCustomDateRange((prev) => ({ ...prev, start: e.target.value }))
+                          }}
                           className="w-full"
                         />
                       </div>
@@ -661,7 +715,10 @@ export default function OutageDashboard() {
                         <Input
                           type="date"
                           value={customDateRange.end}
-                          onChange={(e) => setCustomDateRange((prev) => ({ ...prev, end: e.target.value }))}
+                          onChange={(e) => {
+                            console.log("Custom end date changed:", e.target.value)
+                            setCustomDateRange((prev) => ({ ...prev, end: e.target.value }))
+                          }}
                           className="w-full"
                         />
                       </div>
@@ -790,6 +847,9 @@ export default function OutageDashboard() {
                   <CardDescription>
                     {range.start.toLocaleDateString()} – {range.end.toLocaleDateString()}
                     {!useCustomRange && !filters.length && " (Default 2-week view from upcoming outages)"}
+                    <span className="ml-2 text-sm">
+                      Showing {filters.length} of {outages.length} outages
+                    </span>
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -874,7 +934,8 @@ export default function OutageDashboard() {
                   ) : !filters.length ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <p>No outages match your filters</p>
-                      <p className="text-sm mt-2">Showing default 2-week timeline view</p>
+                      <p className="text-sm mt-2">Total outages available: {outages.length}</p>
+                      <p className="text-sm">Try adjusting your month or environment filters</p>
                     </div>
                   ) : (
                     filters.map((o) => (
@@ -917,7 +978,7 @@ export default function OutageDashboard() {
                             style={ganttPos(o.startDate, o.endDate)}
                             onClick={() => setDetail(o)}
                             onMouseEnter={(e) => {
-                              setHover(o.id)
+                              setHover(Number(o.id))
                               setTooltip({ o, x: e.clientX, y: e.clientY, v: true })
                             }}
                             onMouseLeave={() => {
@@ -946,7 +1007,10 @@ export default function OutageDashboard() {
                   {loading ? (
                     [...Array(3)].map((_, i) => <div key={i} className="h-20 rounded bg-muted animate-pulse mb-4" />)
                   ) : !filters.length ? (
-                    <div className="text-center py-8 text-muted-foreground">No outages match your filters</div>
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p>No outages match your filters</p>
+                      <p className="text-sm mt-2">Total outages available: {outages.length}</p>
+                    </div>
                   ) : (
                     filters.map((o) => (
                       <div
