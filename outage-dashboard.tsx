@@ -197,26 +197,49 @@ export default function OutageDashboard() {
     return () => window.removeEventListener("resize", onResize)
   }, [])
 
-  const fetchOutages = async () => {
+  const fetchOutages = async (isRefresh = false) => {
     try {
-      setRefreshing(true)
-      await new Promise((r) => setTimeout(r, 300)) // small spinner delay
+      if (!isRefresh) setLoading(true)
+      setRefreshing(isRefresh)
 
+      // Add a small delay for UX
+      await new Promise((r) => setTimeout(r, 300))
+
+      // Parse the static JSON data
       const parsed = outagesJson.map((o) => ({
         ...o,
         startDate: new Date(o.startDate),
         endDate: new Date(o.endDate),
-        createdAt: o.createdAt ? new Date(o.createdAt) : undefined,
-        updatedAt: o.updatedAt ? new Date(o.updatedAt) : undefined,
+        createdAt: o.createdAt ? new Date(o.createdAt) : new Date(),
+        updatedAt: o.updatedAt ? new Date(o.updatedAt) : new Date(),
         outageType: (o as any).outageType || "Internal",
       })) as OutageData[]
 
+      // Sort by start date
       parsed.sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+
+      console.log(`Loaded ${parsed.length} outages successfully`)
       setOutages(parsed)
       setLastUpdated(new Date())
+
+      if (parsed.length === 0) {
+        console.warn("No outages found in data")
+        toast({
+          title: "No Data",
+          description: "No outages found in the system",
+          variant: "default",
+        })
+      }
     } catch (e) {
-      console.error(e)
-      toast({ title: "Error", description: "Failed loading outages", variant: "destructive" })
+      console.error("Error loading outages:", e)
+      toast({
+        title: "Error",
+        description: "Failed to load outages. Please try refreshing the page.",
+        variant: "destructive",
+      })
+
+      // Set empty array as fallback
+      setOutages([])
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -224,14 +247,26 @@ export default function OutageDashboard() {
   }
 
   useEffect(() => {
-    if (mounted) fetchOutages()
+    if (mounted && outages.length === 0) {
+      console.log("Component mounted, fetching outages...")
+      fetchOutages()
+    }
   }, [mounted])
 
   useEffect(() => {
-    if (!mounted) return
-    const id = setInterval(fetchOutages, 30000)
-    return () => clearInterval(id)
-  }, [mounted])
+    if (!mounted || outages.length === 0) return
+
+    console.log("Setting up auto-refresh interval")
+    const id = setInterval(() => {
+      console.log("Auto-refreshing outages...")
+      fetchOutages(true)
+    }, 30000)
+
+    return () => {
+      console.log("Clearing auto-refresh interval")
+      clearInterval(id)
+    }
+  }, [mounted, outages.length])
 
   /* ------------------------------- Derived ------------------------------ */
 
@@ -423,7 +458,7 @@ export default function OutageDashboard() {
           <div className="flex justify-center items-center gap-4">
             <h1 className="text-2xl sm:text-3xl font-bold">GCP Planned Outages Dashboard</h1>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={fetchOutages} disabled={refreshing}>
+              <Button variant="outline" size="sm" onClick={() => fetchOutages(true)} disabled={refreshing}>
                 <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
                 {refreshing ? "Refreshing…" : "Refresh"}
               </Button>
@@ -943,10 +978,10 @@ export default function OutageDashboard() {
                 <TabsTrigger value="multiple">Multiple</TabsTrigger>
               </TabsList>
               <TabsContent value="single" className="mt-6">
-                <EnhancedOutageForm onSuccess={fetchOutages} />
+                <EnhancedOutageForm onSuccess={() => fetchOutages(true)} />
               </TabsContent>
               <TabsContent value="multiple" className="mt-6">
-                <TabularMultiOutageForm onSuccess={fetchOutages} />
+                <TabularMultiOutageForm onSuccess={() => fetchOutages(true)} />
               </TabsContent>
             </Tabs>
           </TabsContent>
