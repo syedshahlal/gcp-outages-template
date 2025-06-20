@@ -14,8 +14,24 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
-import { CalendarIcon, Plus, X, Mail, Send, CheckCircle, Clock, Users, RotateCcw, ListChecks } from "lucide-react"
+import {
+  CalendarIcon,
+  Plus,
+  X,
+  Mail,
+  Send,
+  CheckCircle,
+  Clock,
+  Users,
+  RotateCcw,
+  ListChecks,
+  AlertTriangle,
+  ChevronDown,
+  Check,
+} from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 
 /* -------------------------------------------------------------------------- */
 /*                         Client-side helpers (API fetch)                    */
@@ -27,7 +43,10 @@ async function createOutage(data: any) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   })
-  if (!res.ok) throw new Error("Failed to create outage")
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ message: "Unknown error" }))
+    throw new Error(errorData.message || "Failed to create outage")
+  }
   return (await res.json()) as {
     success: boolean
     outage: any
@@ -128,6 +147,7 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
   const [emailSubject, setEmailSubject] = useState("")
   const [emailMessage, setEmailMessage] = useState("")
   const [sendingEmail, setSendingEmail] = useState(false)
+  const [teamDropdownOpen, setTeamDropdownOpen] = useState(false)
 
   // Configuration data
   const [environments, setEnvironments] = useState<Environment[]>([])
@@ -252,18 +272,13 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
     }
   }
 
-  const handleTeamChange = (teamId: string, checked: boolean) => {
-    if (checked) {
-      setFormData((prev) => ({
-        ...prev,
-        assignees: [...prev.assignees, teamId],
-      }))
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        assignees: prev.assignees.filter((t) => t !== teamId),
-      }))
-    }
+  const handleTeamToggle = (teamId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      assignees: prev.assignees.includes(teamId)
+        ? prev.assignees.filter((id) => id !== teamId)
+        : [...prev.assignees, teamId],
+    }))
   }
 
   const addImpactItem = () => {
@@ -382,6 +397,8 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
         severity: formData.severity as "High" | "Medium" | "Low",
       }
 
+      console.log("Submitting outage data:", outageData)
+
       const result = await createOutage(outageData)
 
       if (result.success) {
@@ -422,9 +439,10 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
         }
       }
     } catch (error) {
+      console.error("Error creating outage:", error)
       toast({
         title: "Error",
-        description: "Failed to create outage. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to create outage. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -716,33 +734,60 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
               )}
             </div>
 
-            {/* Responsible Teams */}
+            {/* Responsible Teams - Multi-select Dropdown */}
             <div className="space-y-2">
               <Label>Responsible Teams</Label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {teams.map((team) => (
-                  <div key={team.id} className="flex items-center space-x-2 p-2 border rounded-md">
-                    <Checkbox
-                      id={team.id}
-                      checked={formData.assignees.includes(team.id)}
-                      onCheckedChange={(checked) => handleTeamChange(team.id, checked as boolean)}
-                    />
-                    <Label htmlFor={team.id} className="text-sm cursor-pointer flex-1">
-                      <div className="font-medium">{team.name}</div>
-                      <div className="text-xs text-muted-foreground">{team.description}</div>
-                      <div className="text-xs text-blue-600">{team.email}</div>
-                    </Label>
-                  </div>
-                ))}
-              </div>
+              <Popover open={teamDropdownOpen} onOpenChange={setTeamDropdownOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={teamDropdownOpen}
+                    className="w-full justify-between"
+                  >
+                    {formData.assignees.length === 0
+                      ? "Select teams..."
+                      : `${formData.assignees.length} team${formData.assignees.length > 1 ? "s" : ""} selected`}
+                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0">
+                  <Command>
+                    <CommandInput placeholder="Search teams..." />
+                    <CommandList>
+                      <CommandEmpty>No teams found.</CommandEmpty>
+                      <CommandGroup>
+                        {teams.map((team) => (
+                          <CommandItem key={team.id} onSelect={() => handleTeamToggle(team.id)}>
+                            <Check
+                              className={`mr-2 h-4 w-4 ${
+                                formData.assignees.includes(team.id) ? "opacity-100" : "opacity-0"
+                              }`}
+                            />
+                            <div className="flex-1">
+                              <div className="font-medium">{team.name}</div>
+                              <div className="text-xs text-muted-foreground">{team.description}</div>
+                              <div className="text-xs text-blue-600">{team.email}</div>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
 
               {formData.assignees.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
                   {formData.assignees.map((teamId) => {
                     const team = getTeamById(teamId)
                     return team ? (
-                      <Badge key={teamId} variant="secondary">
+                      <Badge key={teamId} variant="secondary" className="flex items-center gap-1">
                         {team.name}
+                        <X
+                          className="h-3 w-3 cursor-pointer hover:text-destructive"
+                          onClick={() => handleTeamToggle(teamId)}
+                        />
                       </Badge>
                     ) : null
                   })}
@@ -800,19 +845,41 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
               />
             </div>
 
-            {/* Detailed Impact */}
-            <div className="space-y-2">
-              <Label>Detailed Impact</Label>
-              <div className="space-y-2">
+            {/* Critical Impact Assessment */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-orange-500" />
+                <Label className="text-base font-semibold">Critical Impact Assessment</Label>
+              </div>
+              <Alert className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/20">
+                <AlertTriangle className="h-4 w-4 text-orange-600" />
+                <AlertDescription className="text-orange-800 dark:text-orange-200">
+                  <strong>Important:</strong> Please provide detailed impact information to help stakeholders understand
+                  the scope and severity of this outage.
+                </AlertDescription>
+              </Alert>
+
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Detailed Impact Items</Label>
                 {formData.detailedImpact.map((impact, index) => (
                   <div key={index} className="flex gap-2">
-                    <Input
-                      value={impact}
-                      onChange={(e) => updateImpactItem(index, e.target.value)}
-                      placeholder={`Impact detail ${index + 1}...`}
-                    />
+                    <div className="flex-1">
+                      <Textarea
+                        value={impact}
+                        onChange={(e) => updateImpactItem(index, e.target.value)}
+                        placeholder={`Impact detail ${index + 1}: Describe specific systems, users, or processes affected...`}
+                        rows={2}
+                        className="resize-none"
+                      />
+                    </div>
                     {formData.detailedImpact.length > 1 && (
-                      <Button type="button" variant="outline" size="icon" onClick={() => removeImpactItem(index)}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => removeImpactItem(index)}
+                        className="shrink-0 mt-1"
+                      >
                         <X className="w-4 h-4" />
                       </Button>
                     )}
