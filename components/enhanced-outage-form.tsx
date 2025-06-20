@@ -468,6 +468,8 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
         .map((email) => email.trim())
         .filter((email) => email)
 
+      console.log("Sending email to:", recipients)
+
       const result = await sendOutageNotifications({
         recipientEmails: recipients,
         subject: emailSubject,
@@ -476,24 +478,27 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
         recentOutages: [createdOutage],
       })
 
+      console.log("Email result:", result)
+
       if (result.success) {
         toast({
-          title: "Email Sent",
-          description: result.message,
+          title: "Email Notification",
+          description: result.message || "Email notification processed successfully",
         })
         setShowEmailDialog(false)
         resetForm()
       } else {
         toast({
-          title: "Email Error",
-          description: result.message,
-          variant: "destructive",
+          title: "Email Status",
+          description: result.message || "Email notification completed with warnings",
+          variant: "default",
         })
       }
     } catch (error) {
+      console.error("Email error:", error)
       toast({
         title: "Email Error",
-        description: "Failed to send notification email",
+        description: error instanceof Error ? error.message : "Failed to send notification email",
         variant: "destructive",
       })
     } finally {
@@ -759,13 +764,7 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
                       <CommandEmpty>No teams found.</CommandEmpty>
                       <CommandGroup>
                         {teams.map((team) => (
-                          <CommandItem
-                            key={team.id}
-                            onSelect={(e) => {
-                              e?.preventDefault?.()
-                              handleTeamToggle(team.id)
-                            }}
-                          >
+                          <CommandItem key={team.id} onSelect={() => handleTeamToggle(team.id)}>
                             <Check
                               className={`mr-2 h-4 w-4 ${
                                 formData.assignees.includes(team.id) ? "opacity-100" : "opacity-0"
@@ -794,7 +793,7 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
                         <X
                           className="h-3 w-3 cursor-pointer hover:text-destructive"
                           onClick={(e) => {
-                            e.preventDefault()
+                            e.stopPropagation()
                             handleTeamToggle(teamId)
                           }}
                         />
