@@ -44,7 +44,7 @@ const EnhancedOutageForm = dynamic(() => import("./components/enhanced-outage-fo
 })
 const TabularMultiOutageForm = dynamic(
   () => import("./components/tabular-multi-outage-form").then((mod) => ({ default: mod.TabularMultiOutageForm })),
-  { ssr: false, loading: () => <div className="h-96 rounded-lg bg-muted animate-pulse" /> },
+  { ssr: false, loading: () => <div className="h-96 rounded-lg bg-muted animate-pulse" />,\
 )
 
 /* -------------------------------------------------------------------------- */
@@ -573,27 +573,37 @@ export default function OutageDashboard() {
                 </div>
 
                 {/* Custom Date Range */}
-                <div className="space-y-2 border-t pt-4">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="custom-range" checked={useCustomRange} onCheckedChange={setUseCustomRange} />
-                    <Label htmlFor="custom-range">Use Custom Date Range (Override Month Filter)</Label>
+                <div className="space-y-3 border-t pt-4">
+                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/50 border border-border">
+                    <Checkbox
+                      id="custom-range"
+                      checked={useCustomRange}
+                      onCheckedChange={setUseCustomRange}
+                      className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                    />
+                    <Label htmlFor="custom-range" className="cursor-pointer font-medium flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Use Custom Date Range (Override Month Filter)
+                    </Label>
                   </div>
                   {useCustomRange && (
-                    <div className="flex gap-4">
-                      <div>
-                        <Label>Start Date</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-background border border-border rounded-lg">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Start Date</Label>
                         <Input
                           type="date"
                           value={customDateRange.start}
                           onChange={(e) => setCustomDateRange((prev) => ({ ...prev, start: e.target.value }))}
+                          className="w-full"
                         />
                       </div>
-                      <div>
-                        <Label>End Date</Label>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">End Date</Label>
                         <Input
                           type="date"
                           value={customDateRange.end}
                           onChange={(e) => setCustomDateRange((prev) => ({ ...prev, end: e.target.value }))}
+                          className="w-full"
                         />
                       </div>
                     </div>
@@ -601,53 +611,87 @@ export default function OutageDashboard() {
                 </div>
 
                 {/* Environment checkboxes */}
-                <div className="space-y-2">
-                  <Label>Environments</Label>
-                  <div className="grid grid-cols-2 sm:flex gap-2">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="all"
-                        checked={allSelected}
-                        ref={(el) => {
-                          if (el) el.indeterminate = someSelected
-                        }}
-                        onCheckedChange={(c) => setEnvFilter(c ? [...ENVIRONMENTS] : [])}
-                      />
-                      <Label htmlFor="all" className="cursor-pointer flex items-center gap-1">
-                        {allSelected ? <CheckSquare className="w-3 h-3" /> : <Square className="w-3 h-3" />}All
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Environments</Label>
+                  <div className="space-y-3">
+                    {/* Select All toggle */}
+                    <div className="flex items-center space-x-3 p-2 rounded-lg bg-muted/50">
+                      <div className="relative">
+                        <Checkbox
+                          id="all"
+                          checked={allSelected}
+                          ref={(el) => {
+                            if (el) el.indeterminate = someSelected
+                          }}
+                          onCheckedChange={(c) => setEnvFilter(c ? [...ENVIRONMENTS] : [])}
+                          className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                        />
+                      </div>
+                      <Label htmlFor="all" className="cursor-pointer flex items-center gap-2 font-medium">
+                        {allSelected ? (
+                          <CheckSquare className="w-4 h-4 text-primary" />
+                        ) : (
+                          <Square className="w-4 h-4 text-muted-foreground" />
+                        )}
+                        Select All Environments
                       </Label>
                     </div>
-                    {ENVIRONMENTS.map((env) => (
-                      <div key={env} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={env}
-                          checked={envFilter.includes(env)}
-                          onCheckedChange={(c) => {
-                            setEnvFilter(c ? [...envFilter, env] : envFilter.filter((e) => e !== env))
-                          }}
-                        />
-                        <Label htmlFor={env} className="cursor-pointer">
-                          {env}
-                        </Label>
-                      </div>
-                    ))}
+
+                    {/* Individual environment toggles */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {ENVIRONMENTS.map((env) => (
+                        <div
+                          key={env}
+                          className="flex items-center space-x-3 p-2 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+                        >
+                          <Checkbox
+                            id={env}
+                            checked={envFilter.includes(env)}
+                            onCheckedChange={(c) => {
+                              setEnvFilter(c ? [...envFilter, env] : envFilter.filter((e) => e !== env))
+                            }}
+                            className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                          />
+                          <Label htmlFor={env} className="cursor-pointer flex items-center gap-2 flex-1">
+                            <div
+                              className={`w-3 h-3 rounded-full ${environmentColors[env as keyof typeof environmentColors]}`}
+                            />
+                            <span className="font-medium">{env}</span>
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
                 {/* View toggles / reset / Generate Report */}
                 <div className="flex flex-col sm:flex-row justify-between gap-4 border-t pt-4">
-                  <div className="flex items-center gap-2">
-                    <Label>View</Label>
-                    <Button
-                      size="sm"
-                      variant={view === "timeline" ? "default" : "outline"}
-                      onClick={() => setView("timeline")}
-                    >
-                      Timeline
-                    </Button>
-                    <Button size="sm" variant={view === "list" ? "default" : "outline"} onClick={() => setView("list")}>
-                      List
-                    </Button>
+                  <div className="flex items-center gap-3">
+                    <Label className="text-sm font-medium">View</Label>
+                    <div className="relative inline-flex bg-muted rounded-lg p-1">
+                      <button
+                        className={`relative px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                          view === "timeline"
+                            ? "bg-background text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                        onClick={() => setView("timeline")}
+                      >
+                        <Calendar className="h-4 w-4 mr-2 inline" />
+                        Timeline
+                      </button>
+                      <button
+                        className={`relative px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                          view === "list"
+                            ? "bg-background text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                        onClick={() => setView("list")}
+                      >
+                        <Server className="h-4 w-4 mr-2 inline" />
+                        List
+                      </button>
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     {/* Show Generate Report button only when filters are applied */}
