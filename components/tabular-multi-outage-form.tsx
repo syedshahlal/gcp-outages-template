@@ -32,7 +32,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { parseExcelFile } from "@/actions/excel-actions"
+import { parseExcelFile } from "@/lib/parse-excel"
 
 // Types and interfaces
 interface Environment {
@@ -289,7 +289,7 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
 
     try {
       const buffer = await file.arrayBuffer()
-      const importedData = await parseExcelFile(buffer)
+      const importedData = await parseExcelFile(buffer, file.name)
 
       // Transform imported data to match our row format
       const newRows: OutageRow[] = importedData.map((data) => {
