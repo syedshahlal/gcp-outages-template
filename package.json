@@ -10,6 +10,11 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@emotion/react": "latest",
+    "@emotion/styled": "latest",
+    "@hookform/resolvers": "latest",
+    "@mui/material": "latest",
+    "@mui/material-pigment-css": "latest",
     "@radix-ui/react-accordion": "latest",
     "@radix-ui/react-alert-dialog": "latest",
     "@radix-ui/react-aspect-ratio": "latest",
@@ -42,6 +47,7 @@
     "cmdk": "latest",
     "embla-carousel-react": "latest",
     "fs": "latest",
+    "gantt-task-scheduling": "latest",
     "input-otp": "latest",
     "jspdf": "latest",
     "lucide-react": "^0.454.0",
@@ -59,7 +65,8 @@
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "latest",
-    "xlsx": "latest"
+    "xlsx": "latest",
+    "zod": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",
