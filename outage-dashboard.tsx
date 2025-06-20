@@ -59,23 +59,28 @@ interface Team {
 // Fetch functions
 async function fetchOutages(): Promise<StoredOutage[]> {
   try {
-    console.log("Fetching outages from API...")
     const res = await fetch("/api/outages", {
       cache: "no-store",
-      headers: {
-        "Cache-Control": "no-cache",
-      },
+      headers: { "Cache-Control": "no-cache" },
     })
 
-    if (!res.ok) {
-      console.error("Failed to fetch outages:", res.status, res.statusText)
-      throw new Error(`Failed to fetch outages: ${res.status}`)
+    let data: any
+
+    if (res.ok) {
+      data = await res.json()
+    } else {
+      // API failed (e.g. read-only FS in preview) – fall back to bundled JSON
+      console.warn("API returned", res.status, "- falling back to outages.json")
+      const fallback = await import("@/data/outages.json")
+      data = fallback.default ?? fallback
     }
 
-    const data = await res.json()
+    const outagesArr = Array.isArray(data.outages) ? data.outages : data
+
+    console.log("Fetching outages from API...")
     console.log("Raw API response:", data)
 
-    const outages = Array.isArray(data.outages) ? data.outages : []
+    const outages = Array.isArray(outagesArr) ? outagesArr : []
     console.log("Parsed outages:", outages.length)
 
     // Transform dates from strings to Date objects
