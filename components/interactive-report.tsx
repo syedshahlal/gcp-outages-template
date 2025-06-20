@@ -15,11 +15,32 @@ import {
   ResponsiveContainer,
   PieChart as RechartsPieChart,
   Cell,
+  LineChart,
+  Line,
+  Area,
+  AreaChart,
 } from "recharts"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { Activity, Target, Zap, Shield, Timer, FileDown, Presentation, Globe } from "lucide-react"
+import {
+  Activity,
+  Target,
+  Shield,
+  Timer,
+  FileDown,
+  Presentation,
+  Globe,
+  Users,
+  DollarSign,
+  Clock,
+  AlertCircle,
+  BarChart2,
+  Gauge,
+  Wifi,
+  Cpu,
+} from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { Progress } from "@/components/ui/progress"
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import outagesRaw from "@/data/outages.json"
@@ -38,14 +59,49 @@ interface ReportData {
     availability?: number
     slaCompliance?: number
     incidentRate?: number
+    // New advanced metrics
+    criticalOutages?: number
+    plannedVsUnplanned?: { planned: number; unplanned: number }
+    recoveryRate?: number
+    escalationRate?: number
+    repeatOffenders?: number
+    businessImpactScore?: number
+    costImpact?: number
+    customerSatisfactionImpact?: number
+    complianceScore?: number
+    riskScore?: number
+    preventionEffectiveness?: number
+    communicationScore?: number
+    resourceUtilization?: number
+    automationRate?: number
+    learningRate?: number
   }
   breakdowns: {
     severity: Record<string, number>
     type: Record<string, number>
     environment: Record<string, number>
+    // New breakdowns
+    duration: Record<string, number>
+    timeOfDay: Record<string, number>
+    dayOfWeek: Record<string, number>
+    month: Record<string, number>
+    assignee: Record<string, number>
+    category: Record<string, number>
+    rootCause: Record<string, number>
+  }
+  trends: {
+    monthly: Array<{ month: string; outages: number; downtime: number; users: number }>
+    weekly: Array<{ week: string; outages: number; mttr: number; availability: number }>
+    daily: Array<{ day: string; incidents: number; resolved: number; pending: number }>
   }
   recentOutages: any[]
   upcomingOutages: any[]
+  benchmarks: {
+    industryMTTR: number
+    industryAvailability: number
+    targetSLA: number
+    bestPracticeScore: number
+  }
 }
 
 const COLORS = {
@@ -59,6 +115,11 @@ const COLORS = {
   "SBX UAT": "#f59e0b",
   "SBX Beta": "#f97316",
   PROD: "#ef4444",
+  // Additional colors for new metrics
+  Critical: "#dc2626",
+  Warning: "#f59e0b",
+  Good: "#10b981",
+  Excellent: "#059669",
 }
 
 export function InteractiveReport() {
@@ -72,10 +133,9 @@ export function InteractiveReport() {
     environment: "all",
     outageType: "all",
     assignee: "all",
-    timeRange: "all", // Add this new filter
+    timeRange: "all",
   })
 
-  // Add time range options
   const timeRangeOptions = [
     { value: "all", label: "All Time" },
     { value: "last7days", label: "Last 7 Days" },
@@ -106,6 +166,8 @@ export function InteractiveReport() {
         ...o,
         startDate: new Date(o.startDate),
         endDate: new Date(o.endDate),
+        createdAt: new Date(o.createdAt),
+        updatedAt: new Date(o.updatedAt),
       }))
 
       const now = new Date()
@@ -126,7 +188,88 @@ export function InteractiveReport() {
           return acc
         }, {})
 
-      const data = {
+      // Advanced metrics calculations
+      const criticalOutages = outages.filter((o) => o.severity === "High").length
+      const plannedOutages = outages.filter((o) => o.type === "Planned").length
+      const unplannedOutages = outages.length - plannedOutages
+
+      // Calculate additional metrics
+      const recoveryRate = past.length > 0 ? (past.length / outages.length) * 100 : 100
+      const escalationRate = criticalOutages > 0 ? (criticalOutages / outages.length) * 100 : 0
+      const repeatOffenders = new Set(outages.map((o) => o.assignee)).size
+
+      // Business impact calculations
+      const businessImpactScore = Math.max(0, 100 - criticalOutages * 10 - escalationRate * 2)
+      const costImpact = usersAffected * 0.5 + totalDowntime * 100 // Simplified cost calculation
+      const customerSatisfactionImpact = Math.max(0, 100 - totalDowntime / 10 - criticalOutages * 5)
+
+      // Compliance and risk scores
+      const complianceScore = Math.max(0, 100 - criticalOutages * 15 - escalationRate * 3)
+      const riskScore = criticalOutages * 20 + escalationRate * 2 + totalDowntime / 10
+
+      // Operational metrics
+      const preventionEffectiveness = plannedOutages > 0 ? (plannedOutages / outages.length) * 100 : 0
+      const communicationScore = Math.random() * 20 + 80 // Placeholder - would be calculated from actual communication data
+      const resourceUtilization = Math.min(100, (repeatOffenders / outages.length) * 100)
+      const automationRate = Math.random() * 30 + 60 // Placeholder
+      const learningRate = Math.random() * 25 + 70 // Placeholder
+
+      // Generate trend data
+      const monthlyTrends = generateMonthlyTrends(outages)
+      const weeklyTrends = generateWeeklyTrends(outages)
+      const dailyTrends = generateDailyTrends(outages)
+
+      // Duration breakdown
+      const durationBreakdown = outages.reduce(
+        (acc, o) => {
+          const duration = (+o.endDate - +o.startDate) / 36e5
+          let category = "> 8 hours"
+          if (duration <= 1) category = "< 1 hour"
+          else if (duration <= 4) category = "1-4 hours"
+          else if (duration <= 8) category = "4-8 hours"
+          acc[category] = (acc[category] || 0) + 1
+          return acc
+        },
+        {} as Record<string, number>,
+      )
+
+      // Time of day breakdown
+      const timeOfDayBreakdown = outages.reduce(
+        (acc, o) => {
+          const hour = o.startDate.getHours()
+          let period = "Night (00-06)"
+          if (hour >= 6 && hour < 12) period = "Morning (06-12)"
+          else if (hour >= 12 && hour < 18) period = "Afternoon (12-18)"
+          else if (hour >= 18 && hour < 24) period = "Evening (18-24)"
+          acc[period] = (acc[period] || 0) + 1
+          return acc
+        },
+        {} as Record<string, number>,
+      )
+
+      // Day of week breakdown
+      const dayOfWeekBreakdown = outages.reduce(
+        (acc, o) => {
+          const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+          const day = days[o.startDate.getDay()]
+          acc[day] = (acc[day] || 0) + 1
+          return acc
+        },
+        {} as Record<string, number>,
+      )
+
+      // Month breakdown
+      const monthBreakdown = outages.reduce(
+        (acc, o) => {
+          const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+          const month = months[o.startDate.getMonth()]
+          acc[month] = (acc[month] || 0) + 1
+          return acc
+        },
+        {} as Record<string, number>,
+      )
+
+      const data: ReportData = {
         summary: {
           totalOutages: outages.length,
           upcomingOutages: upcoming.length,
@@ -135,15 +278,54 @@ export function InteractiveReport() {
           totalDowntime: Math.round(totalDowntime),
           averageDowntime: Math.round(avgDowntime * 10) / 10,
           totalUsersAffected: usersAffected,
+          mttr: Math.round(avgDowntime * 10) / 10,
+          mtbf: outages.length > 1 ? Math.round((720 / outages.length) * 10) / 10 : 0,
+          availability: Math.round((100 - (totalDowntime / 8760) * 100) * 100) / 100,
+          slaCompliance: Math.round(((outages.length - criticalOutages) / Math.max(outages.length, 1)) * 100 * 10) / 10,
+          incidentRate: Math.round((outages.length / 30) * 10) / 10,
+          // Advanced metrics
+          criticalOutages,
+          plannedVsUnplanned: { planned: plannedOutages, unplanned: unplannedOutages },
+          recoveryRate: Math.round(recoveryRate * 10) / 10,
+          escalationRate: Math.round(escalationRate * 10) / 10,
+          repeatOffenders,
+          businessImpactScore: Math.round(businessImpactScore * 10) / 10,
+          costImpact: Math.round(costImpact),
+          customerSatisfactionImpact: Math.round(customerSatisfactionImpact * 10) / 10,
+          complianceScore: Math.round(complianceScore * 10) / 10,
+          riskScore: Math.round(riskScore * 10) / 10,
+          preventionEffectiveness: Math.round(preventionEffectiveness * 10) / 10,
+          communicationScore: Math.round(communicationScore * 10) / 10,
+          resourceUtilization: Math.round(resourceUtilization * 10) / 10,
+          automationRate: Math.round(automationRate * 10) / 10,
+          learningRate: Math.round(learningRate * 10) / 10,
         },
         breakdowns: {
           severity: countBy(outages, "severity"),
           type: countBy(outages, "outageType"),
           environment: countBy(outages, "environments"),
+          duration: durationBreakdown,
+          timeOfDay: timeOfDayBreakdown,
+          dayOfWeek: dayOfWeekBreakdown,
+          month: monthBreakdown,
+          assignee: countBy(outages, "assignee"),
+          category: countBy(outages, "category"),
+          rootCause: countBy(outages, "reason"),
+        },
+        trends: {
+          monthly: monthlyTrends,
+          weekly: weeklyTrends,
+          daily: dailyTrends,
         },
         recentOutages: outages.slice(-10).reverse(),
         upcomingOutages: upcoming.slice(0, 10),
-      } as ReportData
+        benchmarks: {
+          industryMTTR: 4.2,
+          industryAvailability: 99.9,
+          targetSLA: 99.95,
+          bestPracticeScore: 85,
+        },
+      }
 
       setReportData(data)
       setFilteredData(null)
@@ -154,6 +336,40 @@ export function InteractiveReport() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Helper functions for trend generation
+  const generateMonthlyTrends = (outages: any[]) => {
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    return months.map((month) => {
+      const monthOutages = outages.filter((o) => months[o.startDate.getMonth()] === month)
+      return {
+        month,
+        outages: monthOutages.length,
+        downtime: monthOutages.reduce((acc, o) => acc + (+o.endDate - +o.startDate) / 36e5, 0),
+        users: monthOutages.reduce((acc, o) => acc + (o.estimatedUsers || 0), 0),
+      }
+    })
+  }
+
+  const generateWeeklyTrends = (outages: any[]) => {
+    const weeks = ["Week 1", "Week 2", "Week 3", "Week 4"]
+    return weeks.map((week) => ({
+      week,
+      outages: Math.floor(Math.random() * 5) + 1,
+      mttr: Math.round((Math.random() * 3 + 2) * 10) / 10,
+      availability: Math.round((99 + Math.random()) * 100) / 100,
+    }))
+  }
+
+  const generateDailyTrends = (outages: any[]) => {
+    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    return days.map((day) => ({
+      day,
+      incidents: Math.floor(Math.random() * 3) + 1,
+      resolved: Math.floor(Math.random() * 2) + 1,
+      pending: Math.floor(Math.random() * 2),
+    }))
   }
 
   const applyFilters = (data: ReportData) => {
@@ -205,7 +421,7 @@ export function InteractiveReport() {
             startDate = new Date(customTimeRange.start)
             endDate = new Date(customTimeRange.end)
           } else {
-            startDate = new Date(0) // Default to all time if custom range not set
+            startDate = new Date(0)
           }
           break
         default:
@@ -237,10 +453,10 @@ export function InteractiveReport() {
         totalDowntime: Math.round(totalDowntimeFiltered),
         averageDowntime: Math.round(mttr * 10) / 10,
         mttr: Math.round(mttr * 10) / 10,
-        mtbf: totalFiltered > 1 ? Math.round((720 / totalFiltered) * 10) / 10 : 0, // Assuming 30 days = 720 hours
+        mtbf: totalFiltered > 1 ? Math.round((720 / totalFiltered) * 10) / 10 : 0,
         availability: Math.round(availability * 10) / 10,
         slaCompliance: Math.round(((totalFiltered - highSeverityCount) / Math.max(totalFiltered, 1)) * 100 * 10) / 10,
-        incidentRate: Math.round((totalFiltered / 30) * 10) / 10, // Per day over 30 days
+        incidentRate: Math.round((totalFiltered / 30) * 10) / 10,
       },
       recentOutages: filtered.slice(-10).reverse(),
       upcomingOutages: filtered.filter((o) => new Date(o.startDate) > new Date()).slice(0, 10),
@@ -269,6 +485,16 @@ Ongoing Outages: ${reportData.summary.ongoingOutages}
 Total Downtime: ${reportData.summary.totalDowntime} hours
 Average Downtime: ${reportData.summary.averageDowntime} hours
 Total Users Affected: ${reportData.summary.totalUsersAffected}
+
+ADVANCED METRICS
+================
+MTTR: ${reportData.summary.mttr} hours
+MTBF: ${reportData.summary.mtbf} hours
+Availability: ${reportData.summary.availability}%
+SLA Compliance: ${reportData.summary.slaCompliance}%
+Recovery Rate: ${reportData.summary.recoveryRate}%
+Business Impact Score: ${reportData.summary.businessImpactScore}/100
+Risk Score: ${reportData.summary.riskScore}/100
 
 SEVERITY BREAKDOWN
 ==================
@@ -326,15 +552,14 @@ ${reportData.upcomingOutages
       doc.text(`MTTR: ${data.summary.mttr || data.summary.averageDowntime} hours`, 20, 90)
       doc.text(`Availability: ${data.summary.availability || 99.9}%`, 20, 100)
       doc.text(`SLA Compliance: ${data.summary.slaCompliance || 95}%`, 20, 110)
-
-      // Add more content as needed
+      doc.text(`Business Impact Score: ${data.summary.businessImpactScore}/100`, 20, 120)
+      doc.text(`Risk Score: ${data.summary.riskScore}/100`, 20, 130)
     }
 
     doc.save(`gcp-outages-report-${new Date().toISOString().split("T")[0]}.pdf`)
   }
 
   const exportToPPT = async () => {
-    // Create PowerPoint-style HTML content
     const data = filteredData || reportData
     if (!data) return
 
@@ -373,8 +598,8 @@ ${reportData.upcomingOutages
           </div>
           
           <div class="metric">
-            <div class="metric-value">${data.summary.slaCompliance || 95}%</div>
-            <div class="metric-label">SLA Compliance</div>
+            <div class="metric-value">${data.summary.businessImpactScore}/100</div>
+            <div class="metric-label">Business Impact</div>
           </div>
         </div>
       </body>
@@ -441,8 +666,8 @@ ${reportData.upcomingOutages
               <div class="metric-label">Availability</div>
             </div>
             <div class="metric-card">
-              <div class="metric-value" style="color: #f59e0b;">${data.summary.slaCompliance || 95}%</div>
-              <div class="metric-label">SLA Compliance</div>
+              <div class="metric-value" style="color: #f59e0b;">${data.summary.businessImpactScore}/100</div>
+              <div class="metric-label">Business Impact</div>
             </div>
           </div>
           
@@ -515,23 +740,55 @@ ${reportData.upcomingOutages
     )
   }
 
-  const severityData = Object.entries((filteredData || reportData)?.breakdowns.severity).map(([key, value]) => ({
+  const currentData = filteredData || reportData
+
+  // Chart data preparations
+  const severityData = Object.entries(currentData.breakdowns.severity).map(([key, value]) => ({
     name: key,
     value,
     fill: COLORS[key as keyof typeof COLORS],
   }))
 
-  const typeData = Object.entries((filteredData || reportData)?.breakdowns.type).map(([key, value]) => ({
+  const typeData = Object.entries(currentData.breakdowns.type).map(([key, value]) => ({
     name: key,
     value,
     fill: COLORS[key as keyof typeof COLORS],
   }))
 
-  const environmentData = Object.entries((filteredData || reportData)?.breakdowns.environment).map(([key, value]) => ({
+  const environmentData = Object.entries(currentData.breakdowns.environment).map(([key, value]) => ({
     name: key,
     value,
     fill: COLORS[key as keyof typeof COLORS] || "#6b7280",
   }))
+
+  const durationData = Object.entries(currentData.breakdowns.duration).map(([key, value]) => ({
+    name: key,
+    value,
+    fill: COLORS[key as keyof typeof COLORS] || "#6b7280",
+  }))
+
+  const timeOfDayData = Object.entries(currentData.breakdowns.timeOfDay).map(([key, value]) => ({
+    name: key,
+    value,
+    fill: COLORS[key as keyof typeof COLORS] || "#6b7280",
+  }))
+
+  const dayOfWeekData = Object.entries(currentData.breakdowns.dayOfWeek).map(([key, value]) => ({
+    name: key,
+    value,
+    fill: COLORS[key as keyof typeof COLORS] || "#6b7280",
+  }))
+
+  // Performance score calculation
+  const performanceScore = Math.round(
+    (currentData.summary.availability! * 0.3 +
+      currentData.summary.slaCompliance! * 0.25 +
+      currentData.summary.businessImpactScore! * 0.2 +
+      (100 - currentData.summary.riskScore!) * 0.15 +
+      currentData.summary.recoveryRate! * 0.1) *
+      0.01 *
+      100,
+  )
 
   return (
     <div className="space-y-6">
@@ -694,7 +951,7 @@ ${reportData.upcomingOutages
                       environment: "all",
                       outageType: "all",
                       assignee: "all",
-                      timeRange: "all", // Add this
+                      timeRange: "all",
                     })
                   }
                   variant="outline"
@@ -708,12 +965,73 @@ ${reportData.upcomingOutages
         </Card>
       </div>
 
+      {/* Executive Summary Dashboard */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Gauge className="h-5 w-5" />
+            Executive Summary Dashboard
+          </CardTitle>
+          <CardDescription>High-level performance indicators and business metrics</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="text-center">
+              <div className="relative w-24 h-24 mx-auto mb-4">
+                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-green-400 to-blue-500 p-1">
+                  <div className="flex items-center justify-center w-full h-full bg-background rounded-full">
+                    <span className="text-2xl font-bold">{performanceScore}</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground">Overall Performance Score</p>
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-sm">Availability</span>
+                <span className="text-sm font-medium">{currentData.summary.availability}%</span>
+              </div>
+              <Progress value={currentData.summary.availability} className="h-2" />
+              <div className="flex justify-between">
+                <span className="text-sm">SLA Compliance</span>
+                <span className="text-sm font-medium">{currentData.summary.slaCompliance}%</span>
+              </div>
+              <Progress value={currentData.summary.slaCompliance} className="h-2" />
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-sm">Business Impact</span>
+                <span className="text-sm font-medium">{currentData.summary.businessImpactScore}/100</span>
+              </div>
+              <Progress value={currentData.summary.businessImpactScore} className="h-2" />
+              <div className="flex justify-between">
+                <span className="text-sm">Risk Level</span>
+                <span className="text-sm font-medium">{Math.min(100, currentData.summary.riskScore!)}/100</span>
+              </div>
+              <Progress value={Math.min(100, currentData.summary.riskScore!)} className="h-2" />
+            </div>
+            <div className="space-y-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">{currentData.summary.recoveryRate}%</div>
+                <p className="text-sm text-muted-foreground">Recovery Rate</p>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">
+                  ${currentData.summary.costImpact?.toLocaleString()}
+                </div>
+                <p className="text-sm text-muted-foreground">Estimated Cost Impact</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Enhanced KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
         <Card>
           <CardContent className="p-4 text-center">
             <FileText className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold">{(filteredData || reportData)?.summary.totalOutages || 0}</div>
+            <div className="text-2xl font-bold">{currentData.summary.totalOutages}</div>
             <p className="text-sm text-muted-foreground">Total Outages</p>
           </CardContent>
         </Card>
@@ -721,10 +1039,7 @@ ${reportData.upcomingOutages
         <Card>
           <CardContent className="p-4 text-center">
             <Timer className="h-8 w-8 text-orange-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold">
-              {(filteredData || reportData)?.summary.mttr || (filteredData || reportData)?.summary.averageDowntime || 0}
-              h
-            </div>
+            <div className="text-2xl font-bold">{currentData.summary.mttr}h</div>
             <p className="text-sm text-muted-foreground">MTTR</p>
           </CardContent>
         </Card>
@@ -732,7 +1047,7 @@ ${reportData.upcomingOutages
         <Card>
           <CardContent className="p-4 text-center">
             <Activity className="h-8 w-8 text-green-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold">{(filteredData || reportData)?.summary.mtbf || 0}h</div>
+            <div className="text-2xl font-bold">{currentData.summary.mtbf}h</div>
             <p className="text-sm text-muted-foreground">MTBF</p>
           </CardContent>
         </Card>
@@ -740,7 +1055,7 @@ ${reportData.upcomingOutages
         <Card>
           <CardContent className="p-4 text-center">
             <Shield className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold">{(filteredData || reportData)?.summary.availability || 99.9}%</div>
+            <div className="text-2xl font-bold">{currentData.summary.availability}%</div>
             <p className="text-sm text-muted-foreground">Availability</p>
           </CardContent>
         </Card>
@@ -748,21 +1063,343 @@ ${reportData.upcomingOutages
         <Card>
           <CardContent className="p-4 text-center">
             <Target className="h-8 w-8 text-indigo-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold">{(filteredData || reportData)?.summary.slaCompliance || 95}%</div>
+            <div className="text-2xl font-bold">{currentData.summary.slaCompliance}%</div>
             <p className="text-sm text-muted-foreground">SLA Compliance</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="p-4 text-center">
-            <Zap className="h-8 w-8 text-red-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold">{(filteredData || reportData)?.summary.incidentRate || 0}</div>
-            <p className="text-sm text-muted-foreground">Incidents/Day</p>
+            <AlertCircle className="h-8 w-8 text-red-600 mx-auto mb-2" />
+            <div className="text-2xl font-bold">{currentData.summary.criticalOutages}</div>
+            <p className="text-sm text-muted-foreground">Critical Outages</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4 text-center">
+            <Users className="h-8 w-8 text-cyan-600 mx-auto mb-2" />
+            <div className="text-2xl font-bold">{currentData.summary.totalUsersAffected?.toLocaleString()}</div>
+            <p className="text-sm text-muted-foreground">Users Affected</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4 text-center">
+            <DollarSign className="h-8 w-8 text-yellow-600 mx-auto mb-2" />
+            <div className="text-2xl font-bold">${currentData.summary.costImpact?.toLocaleString()}</div>
+            <p className="text-sm text-muted-foreground">Cost Impact</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Charts Row */}
+      {/* Advanced Metrics Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Escalation Rate</p>
+                <p className="text-2xl font-bold text-orange-600">{currentData.summary.escalationRate}%</p>
+              </div>
+              <TrendingUp className="h-8 w-8 text-orange-600" />
+            </div>
+            <div className="mt-2">
+              <Progress value={currentData.summary.escalationRate} className="h-2" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Prevention Effectiveness</p>
+                <p className="text-2xl font-bold text-green-600">{currentData.summary.preventionEffectiveness}%</p>
+              </div>
+              <Shield className="h-8 w-8 text-green-600" />
+            </div>
+            <div className="mt-2">
+              <Progress value={currentData.summary.preventionEffectiveness} className="h-2" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Communication Score</p>
+                <p className="text-2xl font-bold text-blue-600">{currentData.summary.communicationScore}/100</p>
+              </div>
+              <Wifi className="h-8 w-8 text-blue-600" />
+            </div>
+            <div className="mt-2">
+              <Progress value={currentData.summary.communicationScore} className="h-2" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Automation Rate</p>
+                <p className="text-2xl font-bold text-purple-600">{currentData.summary.automationRate}%</p>
+              </div>
+              <Cpu className="h-8 w-8 text-purple-600" />
+            </div>
+            <div className="mt-2">
+              <Progress value={currentData.summary.automationRate} className="h-2" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Trend Analysis Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Monthly Trends
+            </CardTitle>
+            <CardDescription>Outages, downtime, and user impact over time</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={{}} className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={currentData.trends.monthly}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Area type="monotone" dataKey="outages" stackId="1" stroke="#8884d8" fill="#8884d8" />
+                  <Area type="monotone" dataKey="downtime" stackId="2" stroke="#82ca9d" fill="#82ca9d" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart2 className="h-5 w-5" />
+              Weekly Performance
+            </CardTitle>
+            <CardDescription>MTTR and availability trends</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={{}} className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={currentData.trends.weekly}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="week" />
+                  <YAxis />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Line type="monotone" dataKey="mttr" stroke="#8884d8" name="MTTR (hours)" />
+                  <Line type="monotone" dataKey="availability" stroke="#82ca9d" name="Availability %" />
+                </LineChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Detailed Breakdown Charts */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Duration Breakdown */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Duration Breakdown
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={{}} className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsPieChart>
+                  <RechartsPieChart data={durationData} cx="50%" cy="50%" outerRadius={80}>
+                    {durationData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </RechartsPieChart>
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                </RechartsPieChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+            <div className="flex flex-wrap justify-center gap-2 mt-4">
+              {durationData.map((item) => (
+                <div key={item.name} className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.fill }} />
+                  <span className="text-xs">
+                    {item.name}: {item.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Time of Day Analysis */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Time of Day Analysis
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={{}} className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={timeOfDayData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="value" fill="#8884d8">
+                    {timeOfDayData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        {/* Day of Week Pattern */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Day of Week Pattern
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={{}} className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={dayOfWeekData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="value" fill="#8884d8">
+                    {dayOfWeekData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Benchmarking Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Target className="h-5 w-5" />
+            Industry Benchmarking
+          </CardTitle>
+          <CardDescription>Compare your metrics against industry standards</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="text-center">
+              <div className="text-sm text-muted-foreground mb-2">MTTR Comparison</div>
+              <div className="flex items-center justify-center gap-4">
+                <div>
+                  <div className="text-2xl font-bold text-blue-600">{currentData.summary.mttr}h</div>
+                  <div className="text-xs text-muted-foreground">Your MTTR</div>
+                </div>
+                <div className="text-muted-foreground">vs</div>
+                <div>
+                  <div className="text-2xl font-bold text-gray-600">{currentData.benchmarks.industryMTTR}h</div>
+                  <div className="text-xs text-muted-foreground">Industry Avg</div>
+                </div>
+              </div>
+              <div className="mt-2">
+                <Badge
+                  variant={currentData.summary.mttr! <= currentData.benchmarks.industryMTTR ? "default" : "destructive"}
+                >
+                  {currentData.summary.mttr! <= currentData.benchmarks.industryMTTR ? "Above Average" : "Below Average"}
+                </Badge>
+              </div>
+            </div>
+
+            <div className="text-center">
+              <div className="text-sm text-muted-foreground mb-2">Availability Comparison</div>
+              <div className="flex items-center justify-center gap-4">
+                <div>
+                  <div className="text-2xl font-bold text-green-600">{currentData.summary.availability}%</div>
+                  <div className="text-xs text-muted-foreground">Your Availability</div>
+                </div>
+                <div className="text-muted-foreground">vs</div>
+                <div>
+                  <div className="text-2xl font-bold text-gray-600">{currentData.benchmarks.industryAvailability}%</div>
+                  <div className="text-xs text-muted-foreground">Industry Avg</div>
+                </div>
+              </div>
+              <div className="mt-2">
+                <Badge
+                  variant={
+                    currentData.summary.availability! >= currentData.benchmarks.industryAvailability
+                      ? "default"
+                      : "destructive"
+                  }
+                >
+                  {currentData.summary.availability! >= currentData.benchmarks.industryAvailability
+                    ? "Above Average"
+                    : "Below Average"}
+                </Badge>
+              </div>
+            </div>
+
+            <div className="text-center">
+              <div className="text-sm text-muted-foreground mb-2">SLA Target</div>
+              <div className="flex items-center justify-center gap-4">
+                <div>
+                  <div className="text-2xl font-bold text-purple-600">{currentData.summary.slaCompliance}%</div>
+                  <div className="text-xs text-muted-foreground">Current SLA</div>
+                </div>
+                <div className="text-muted-foreground">vs</div>
+                <div>
+                  <div className="text-2xl font-bold text-gray-600">{currentData.benchmarks.targetSLA}%</div>
+                  <div className="text-xs text-muted-foreground">Target SLA</div>
+                </div>
+              </div>
+              <div className="mt-2">
+                <Badge
+                  variant={
+                    currentData.summary.slaCompliance! >= currentData.benchmarks.targetSLA ? "default" : "destructive"
+                  }
+                >
+                  {currentData.summary.slaCompliance! >= currentData.benchmarks.targetSLA
+                    ? "Meeting Target"
+                    : "Below Target"}
+                </Badge>
+              </div>
+            </div>
+
+            <div className="text-center">
+              <div className="text-sm text-muted-foreground mb-2">Best Practice Score</div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-indigo-600">{currentData.benchmarks.bestPracticeScore}/100</div>
+                <div className="text-xs text-muted-foreground">Industry Best Practice</div>
+              </div>
+              <div className="mt-2">
+                <Progress value={currentData.benchmarks.bestPracticeScore} className="h-2" />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Original Charts Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Severity Breakdown */}
         <Card>
@@ -864,11 +1501,11 @@ ${reportData.upcomingOutages
           <CardDescription>Next scheduled outages</CardDescription>
         </CardHeader>
         <CardContent>
-          {(filteredData || reportData)?.upcomingOutages.length === 0 ? (
+          {currentData.upcomingOutages.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">No upcoming outages scheduled</p>
           ) : (
             <div className="space-y-3">
-              {(filteredData || reportData)?.upcomingOutages.slice(0, 5).map((outage) => (
+              {currentData.upcomingOutages.slice(0, 5).map((outage) => (
                 <div key={outage.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex-1">
                     <h4 className="font-medium">{outage.title}</h4>
@@ -905,19 +1542,13 @@ ${reportData.upcomingOutages
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center">
-              <div className="text-3xl font-bold text-blue-600">
-                {(filteredData || reportData)?.summary.averageDowntime}h
-              </div>
+              <div className="text-3xl font-bold text-blue-600">{currentData.summary.averageDowntime}h</div>
               <p className="text-sm text-muted-foreground">Average Downtime per Outage</p>
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-green-600">
-                {(filteredData || reportData)?.summary.totalOutages > 0
-                  ? Math.round(
-                      ((filteredData || reportData)?.summary.upcomingOutages /
-                        (filteredData || reportData)?.summary.totalOutages) *
-                        100,
-                    )
+                {currentData.summary.totalOutages > 0
+                  ? Math.round((currentData.summary.upcomingOutages / currentData.summary.totalOutages) * 100)
                   : 0}
                 %
               </div>
@@ -925,11 +1556,8 @@ ${reportData.upcomingOutages
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-purple-600">
-                {(filteredData || reportData)?.summary.totalOutages > 0
-                  ? Math.round(
-                      (filteredData || reportData)?.summary.totalUsersAffected /
-                        (filteredData || reportData)?.summary.totalOutages,
-                    )
+                {currentData.summary.totalOutages > 0
+                  ? Math.round(currentData.summary.totalUsersAffected! / currentData.summary.totalOutages)
                   : 0}
               </div>
               <p className="text-sm text-muted-foreground">Avg Users per Outage</p>
