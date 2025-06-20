@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   Calendar,
   Server,
@@ -27,7 +27,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ThemeToggle } from "@/components/theme-toggle"
 import dynamic from "next/dynamic"
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import outagesJson from "@/data/outages.json"
 import { useToast } from "@/hooks/use-toast"
 import { EmailTestForm } from "./components/email-test-form"
@@ -35,19 +34,16 @@ import { InteractiveReport } from "./components/interactive-report"
 import { OutageDetailModal } from "./components/outage-detail-modal"
 
 // Dynamically imported heavy components
-const UptimeMetrics = dynamic(
-  () => import("./components/uptime-metrics").then((mod) => ({ default: mod.UptimeMetrics })),
-  { ssr: false, loading: () => <div className="h-64 rounded-lg bg-muted animate-pulse" /> },
-)
+const UptimeMetrics = dynamic(() => import("./components/uptime-metrics").then((m) => ({ default: m.UptimeMetrics })), {
+  ssr: false,
+  loading: () => <div className="h-64 rounded-lg bg-muted animate-pulse" />,
+})
 const EnhancedOutageForm = dynamic(() => import("./components/enhanced-outage-form"), {
   ssr: false,
   loading: () => <div className="h-96 rounded-lg bg-muted animate-pulse" />,
 })
 const TabularMultiOutageForm = dynamic(
-  () =>
-    import("./components/tabular-multi-outage-form").then((mod) => ({
-      default: mod.TabularMultiOutageForm,
-    })),
+  () => import("./components/tabular-multi-outage-form").then((m) => ({ default: m.TabularMultiOutageForm })),
   { ssr: false, loading: () => <div className="h-96 rounded-lg bg-muted animate-pulse" /> },
 )
 
@@ -68,11 +64,11 @@ interface OutageData {
   status: string
   type: string
   severity: "High" | "Medium" | "Low"
+  outageType?: "Internal" | "External"
+  estimatedUsers?: number
   priority?: number
   category?: string
   contactEmail?: string
-  estimatedUsers?: number
-  outageType?: "Internal" | "External"
   createdAt?: Date
   updatedAt?: Date
 }
@@ -181,40 +177,23 @@ export default function OutageDashboard() {
     return () => window.removeEventListener("resize", onResize)
   }, [])
 
-  const fetchOutages = async () => {
+  // Load data from bundled JSON (no server round-trip, no fs)
+  const loadOutages = () => {
     try {
-      setRefreshing(true)
-      await new Promise((r) => setTimeout(r, 300)) // small spinner delay
-
       const parsed = outagesJson.map((o) => ({
         ...o,
         startDate: new Date(o.startDate),
         endDate: new Date(o.endDate),
-        createdAt: o.createdAt ? new Date(o.createdAt) : undefined,
-        updatedAt: o.updatedAt ? new Date(o.updatedAt) : undefined,
-        outageType: (o as any).outageType || "Internal",
       })) as OutageData[]
-
       parsed.sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
       setOutages(parsed)
-      setLastUpdated(new Date())
     } catch (e) {
       console.error(e)
-      toast({ title: "Error", description: "Failed loading outages", variant: "destructive" })
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
+      toast({ title: "Error", description: "Failed to load outages", variant: "destructive" })
     }
   }
 
-  useEffect(() => {
-    if (mounted) fetchOutages()
-  }, [mounted])
-  useEffect(() => {
-    if (!mounted) return
-    const id = setInterval(() => fetchOutages(true), 3e4)
-    return () => clearInterval(id)
-  }, [mounted])
+  useEffect(loadOutages, [])
 
   /* ------------------------------- Derived ------------------------------ */
 
@@ -406,7 +385,7 @@ export default function OutageDashboard() {
           <div className="flex justify-center items-center gap-4">
             <h1 className="text-2xl sm:text-3xl font-bold">GCP Planned Outages Dashboard</h1>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => fetchOutages(true)} disabled={refreshing}>
+              <Button variant="outline" size="sm" onClick={() => loadOutages()} disabled={refreshing}>
                 <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
                 {refreshing ? "Refreshing…" : "Refresh"}
               </Button>
@@ -926,10 +905,10 @@ export default function OutageDashboard() {
                 <TabsTrigger value="multiple">Multiple</TabsTrigger>
               </TabsList>
               <TabsContent value="single" className="mt-6">
-                <EnhancedOutageForm onSuccess={fetchOutages} />
+                <EnhancedOutageForm onSuccess={loadOutages} />
               </TabsContent>
               <TabsContent value="multiple" className="mt-6">
-                <TabularMultiOutageForm onSuccess={fetchOutages} />
+                <TabularMultiOutageForm onSuccess={loadOutages} />
               </TabsContent>
             </Tabs>
           </TabsContent>
