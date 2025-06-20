@@ -750,6 +750,7 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
                     role="combobox"
                     aria-expanded={teamDropdownOpen}
                     className="w-full justify-between"
+                    onClick={() => setTeamDropdownOpen(!teamDropdownOpen)}
                   >
                     {formData.assignees.length === 0
                       ? "Select teams..."
@@ -757,14 +758,22 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
                     <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-full p-0">
+                <PopoverContent className="w-full p-0" align="start">
                   <Command>
                     <CommandInput placeholder="Search teams..." />
                     <CommandList>
                       <CommandEmpty>No teams found.</CommandEmpty>
                       <CommandGroup>
                         {teams.map((team) => (
-                          <CommandItem key={team.id} onSelect={() => handleTeamToggle(team.id)}>
+                          <CommandItem
+                            key={team.id}
+                            value={team.id}
+                            onSelect={(value) => {
+                              console.log("Team selected:", value, team.name)
+                              handleTeamToggle(team.id)
+                            }}
+                            className="cursor-pointer"
+                          >
                             <Check
                               className={`mr-2 h-4 w-4 ${
                                 formData.assignees.includes(team.id) ? "opacity-100" : "opacity-0"
@@ -790,13 +799,17 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
                     return team ? (
                       <Badge key={teamId} variant="secondary" className="flex items-center gap-1">
                         {team.name}
-                        <X
-                          className="h-3 w-3 cursor-pointer hover:text-destructive"
+                        <button
+                          type="button"
                           onClick={(e) => {
                             e.stopPropagation()
+                            console.log("Removing team:", team.name)
                             handleTeamToggle(teamId)
                           }}
-                        />
+                          className="ml-1 hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
                       </Badge>
                     ) : null
                   })}
