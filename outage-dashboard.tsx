@@ -413,9 +413,13 @@ export default function OutageDashboard() {
 
       if (useCustomRange && customDateRange.start && customDateRange.end) {
         const outageStart = o.startDate.toISOString().split("T")[0]
-        dateMatch = outageStart >= customDateRange.start && outageStart <= customDateRange.end
+        const outageEnd = o.endDate.toISOString().split("T")[0]
+        dateMatch =
+          (outageStart >= customDateRange.start && outageStart <= customDateRange.end) ||
+          (outageEnd >= customDateRange.start && outageEnd <= customDateRange.end) ||
+          (outageStart <= customDateRange.start && outageEnd >= customDateRange.end)
         console.log(
-          `Custom range filter for ${o.title}: ${dateMatch} (${outageStart} between ${customDateRange.start} and ${customDateRange.end})`,
+          `Custom range filter for ${o.title}: ${dateMatch} (${outageStart}-${outageEnd} overlaps ${customDateRange.start}-${customDateRange.end})`,
         )
       } else if (selectedMonth) {
         const outageMonth = o.startDate.toISOString().substring(0, 7) // YYYY-MM format
@@ -423,7 +427,7 @@ export default function OutageDashboard() {
         console.log(`Month filter for ${o.title}: ${dateMatch} (${outageMonth} === ${selectedMonth})`)
       }
 
-      const envMatch = o.environments.some((e) => envFilter.includes(e))
+      const envMatch = o.environments.length === 0 || o.environments.some((e) => envFilter.includes(e))
       console.log(`Environment filter for ${o.title}: ${envMatch} (${o.environments} intersects ${envFilter})`)
 
       const txt = (o.title + o.assignee + (o.category ?? "")).toLowerCase()
@@ -437,6 +441,10 @@ export default function OutageDashboard() {
     })
 
     console.log("Filtered outages count:", filtered.length)
+    console.log(
+      "Filtered outages:",
+      filtered.map((o) => ({ title: o.title, start: o.startDate.toISOString().substring(0, 7) })),
+    )
     return filtered
   }, [outages, selectedMonth, envFilter, search, useCustomRange, customDateRange])
 
@@ -452,24 +460,33 @@ export default function OutageDashboard() {
   })
 
   const range = useMemo(() => {
+    console.log("Calculating range for", filters.length, "filtered outages")
+
     if (!filters.length) {
-      return getDefaultTwoWeekRange()
+      const defaultRange = getDefaultTwoWeekRange()
+      console.log("Using default range:", defaultRange)
+      return defaultRange
     }
 
     if (useCustomRange && customDateRange.start && customDateRange.end) {
       const start = new Date(customDateRange.start)
       const end = new Date(customDateRange.end)
-      return { start, end, days: Math.ceil((end.getTime() - start.getTime()) / 864e5) }
+      const days = Math.ceil((end.getTime() - start.getTime()) / 864e5)
+      console.log("Using custom range:", { start, end, days })
+      return { start, end, days }
     }
 
     const s = Math.min(...filters.map((o) => o.startDate.getTime()))
     const e = Math.max(...filters.map((o) => o.endDate.getTime()))
-    const start = new Date(s),
-      end = new Date(e)
+    const start = new Date(s)
+    const end = new Date(e)
     start.setDate(start.getDate() - 1)
     end.setDate(end.getDate() + 1)
-    return { start, end, days: Math.ceil((end.getTime() - start.getTime()) / 864e5) }
-  }, [filters, useCustomRange, customDateRange, outages])
+    const days = Math.ceil((end.getTime() - start.getTime()) / 864e5)
+
+    console.log("Calculated range from filtered data:", { start, end, days })
+    return { start, end, days }
+  }, [filters, useCustomRange, customDateRange])
 
   const ganttPos = (s: Date, e: Date) => {
     const pct = (v: number) => (v / (range.end.getTime() - range.start.getTime())) * 100
