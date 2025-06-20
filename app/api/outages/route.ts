@@ -1,3 +1,6 @@
+// Ensure we can use fs & other Node APIs
+export const runtime = "nodejs"
+
 import { NextResponse } from "next/server"
 import { getOutages, createOutage } from "@/actions/data-actions"
 
