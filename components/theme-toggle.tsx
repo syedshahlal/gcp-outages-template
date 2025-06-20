@@ -29,16 +29,37 @@ export function ThemeToggle() {
       variant="outline"
       size="sm"
       onClick={() => setTheme(isLight ? "dark" : "light")}
-      className="relative w-16 h-8 p-0"
+      className="relative h-9 w-20 p-1 bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700"
     >
-      <div className="absolute inset-0 flex items-center px-1 justify-stretch        <Sun className="h-3 w-3 text-yellow-500" />
-        <Moon className="h-3 w-3 text-blue-500" />
+      {/* Background capsule */}
+      <div className="absolute inset-1 flex items-center justify-between px-1">
+        {/* Light mode section */}
+        <div
+          className={`flex items-center justify-center w-7 h-7 rounded-full transition-all duration-200 ${
+            isLight ? "bg-white dark:bg-gray-900 shadow-sm" : "bg-transparent"
+          }`}
+        >
+          <Sun
+            className={`h-4 w-4 transition-colors duration-200 ${
+              isLight ? "text-yellow-500" : "text-gray-400 dark:text-gray-500"
+            }`}
+          />
+        </div>
+
+        {/* Dark mode section */}
+        <div
+          className={`flex items-center justify-center w-7 h-7 rounded-full transition-all duration-200 ${
+            !isLight ? "bg-white dark:bg-gray-900 shadow-sm" : "bg-transparent"
+          }`}
+        >
+          <Moon
+            className={`h-4 w-4 transition-colors duration-200 ${
+              !isLight ? "text-blue-500" : "text-gray-400 dark:text-gray-500"
+            }`}
+          />
+        </div>
       </div>
-      <div
-        className={`absolute top-1 w-6 h-6 bg-white dark:bg-gray-800 rounded-full shadow-md transition-transform duration-200 ${
-          isLight ? "left-1" : "left-9"
-        }`}
-      />
+
       <span className="sr-only">Toggle theme</span>
     </Button>
   )
