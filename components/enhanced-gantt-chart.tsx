@@ -1,15 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Gantt } from "gantt-task-scheduling"
-import "gantt-task-scheduling/dist/style.css"
+import { Gantt, ViewMode, type Task as GanttTask } from "gantt-task-react"
+import "gantt-task-react/dist/index.css"
 
-interface Task {
-  id: string
-  name: string
-  start: string
-  end: string
-  progress: number
+interface Task extends GanttTask {
   dependencies: string[]
 }
 
@@ -21,7 +16,7 @@ interface Outage {
 
 const EnhancedGanttChart = () => {
   const [tasks, setTasks] = useState<Task[]>([])
-  const [viewMode, setViewMode] = useState<"Day" | "Week" | "Month">("Week")
+  const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.Week)
   const [outages, setOutages] = useState<Outage[]>([])
 
   useEffect(() => {
@@ -54,12 +49,12 @@ const EnhancedGanttChart = () => {
   return (
     <div>
       <div>
-        <button onClick={() => handleViewModeChange("Day")}>Day</button>
-        <button onClick={() => handleViewModeChange("Week")}>Week</button>
-        <button onClick={() => handleViewModeChange("Month")}>Month</button>
+        <button onClick={() => setViewMode(ViewMode.Day)}>Day</button>
+        <button onClick={() => setViewMode(ViewMode.Week)}>Week</button>
+        <button onClick={() => setViewMode(ViewMode.Month)}>Month</button>
       </div>
       <div style={{ height: "500px" }}>
-        <Gantt tasks={tasks} viewMode={viewMode} onTaskChange={handleTaskChange} outages={outages} />
+        <Gantt tasks={tasks} viewMode={viewMode} onDateChange={handleTaskChange} />
       </div>
     </div>
   )
