@@ -158,8 +158,8 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
       try {
         const [envConfig, teamConfig] = await Promise.all([fetchConfig("environments"), fetchConfig("teams")])
 
-        setEnvironments(envConfig.environments || [])
-        setTeams(teamConfig.teams || [])
+        setEnvironments(Array.isArray(envConfig.environments) ? envConfig.environments : envConfig)
+        setTeams(Array.isArray(teamConfig.teams) ? teamConfig.teams : teamConfig)
       } catch (error) {
         console.error("Failed to load configuration:", error)
         toast({
