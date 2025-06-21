@@ -9,13 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Calendar, Clock, Filter, Search, Users, AlertTriangle, BarChart3, TrendingUp, RefreshCw } from "lucide-react"
+import { Calendar, Clock, Filter, Search, AlertTriangle, BarChart3, TrendingUp, RefreshCw } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { EnhancedOutageForm } from "@/components/enhanced-outage-form"
 import { TabularMultiOutageForm } from "@/components/tabular-multi-outage-form"
-import { EnhancedGanttChart } from "@/components/enhanced-gantt-chart"
 import { InteractiveReport } from "@/components/interactive-report"
 import { UptimeMetrics } from "@/components/uptime-metrics"
 
@@ -346,11 +344,10 @@ export default function OutageDashboard() {
       </div>
 
       <Tabs defaultValue="dashboard" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="schedule-single">Schedule (Single)</TabsTrigger>
           <TabsTrigger value="schedule-multiple">Schedule (Multiple)</TabsTrigger>
-          <TabsTrigger value="gantt">Gantt Chart</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
 
@@ -486,16 +483,18 @@ export default function OutageDashboard() {
             </CardContent>
           </Card>
 
-          {/* Timeline View */}
+          {/* Enhanced Gantt Timeline View */}
           <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <Calendar className="w-5 h-5" />
-                    Outage Timeline
+                    Outage Timeline & Gantt Chart
                   </CardTitle>
-                  <CardDescription>Visual timeline of scheduled outages</CardDescription>
+                  <CardDescription>
+                    Interactive timeline with Gantt visualization ({filters.length} outages)
+                  </CardDescription>
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -531,63 +530,138 @@ export default function OutageDashboard() {
                   </AlertDescription>
                 </Alert>
               ) : (
-                <ScrollArea className="w-full">
-                  <div className="min-w-[800px] space-y-4">
-                    {/* Timeline Header */}
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <span>
-                        Timeline: {range.start.toLocaleDateString()} - {range.end.toLocaleDateString()}
-                      </span>
-                      <span>{filters.length} outages</span>
-                    </div>
+                <div className="space-y-6">
+                  {/* Timeline Header with Dates */}
+                  <div className="hidden sm:block">
+                    <div className="flex">
+                      <div className="w-96 pr-4 flex items-center justify-center">
+                        <h3 className="text-lg font-semibold text-center">Planned Outages</h3>
+                      </div>
+                      <div className="flex-1 relative bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
+                        {/* Month headers */}
+                        <div className="h-8 flex border-b border-gray-300 dark:border-gray-600">
+                          {(() => {
+                            const months: { [key: string]: { start: number; width: number; name: string } } = {}
+                            const totalDays = Math.min(
+                              Math.ceil((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24)),
+                              31,
+                            )
 
-                    {/* Timeline Items */}
-                    <div className="space-y-3">
-                      {filters
-                        .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
-                        .map((outage) => (
-                          <div
-                            key={outage.id}
-                            className="flex items-center gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                          >
-                            <div className="flex-shrink-0">
+                            // Calculate month spans
+                            for (let i = 0; i < totalDays; i++) {
+                              const currentDate = new Date(range.start)
+                              currentDate.setDate(currentDate.getDate() + i)
+                              const monthKey = currentDate.toLocaleDateString("en-US", {
+                                month: "long",
+                                year: "numeric",
+                              })
+
+                              if (!months[monthKey]) {
+                                months[monthKey] = { start: i, width: 1, name: monthKey }
+                              } else {
+                                months[monthKey].width++
+                              }
+                            }
+
+                            return Object.entries(months).map(([monthKey, data]) => (
                               <div
-                                className={`w-4 h-4 rounded-full ${
-                                  outage.severity === "High"
-                                    ? "bg-red-500"
-                                    : outage.severity === "Medium"
-                                      ? "bg-yellow-500"
-                                      : "bg-green-500"
-                                }`}
-                              />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h4 className="font-medium truncate">{outage.title}</h4>
-                                <Badge
-                                  variant={
-                                    outage.severity === "High"
-                                      ? "destructive"
-                                      : outage.severity === "Medium"
-                                        ? "default"
-                                        : "secondary"
-                                  }
+                                key={monthKey}
+                                className="flex items-center justify-center text-sm font-semibold text-gray-700 dark:text-gray-300 border-r border-gray-300 dark:border-gray-600 last:border-r-0"
+                                style={{
+                                  width: `${(data.width / totalDays) * 100}%`,
+                                  minWidth: "60px",
+                                }}
+                              >
+                                {data.name}
+                              </div>
+                            ))
+                          })()}
+                        </div>
+
+                        {/* Days grid */}
+                        <div className="h-12 flex">
+                          {Array.from(
+                            {
+                              length: Math.min(
+                                Math.ceil((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24)),
+                                31,
+                              ),
+                            },
+                            (_, i) => {
+                              const currentDate = new Date(range.start)
+                              currentDate.setDate(currentDate.getDate() + i)
+                              const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6
+                              const isToday = currentDate.toDateString() === new Date().toDateString()
+
+                              return (
+                                <div
+                                  key={i}
+                                  className={`flex-1 flex flex-col items-center justify-center text-xs font-medium border-r border-gray-300 dark:border-gray-600 last:border-r-0 min-w-0 py-1 ${
+                                    isWeekend ? "bg-gray-200 dark:bg-gray-700" : ""
+                                  } ${isToday ? "bg-blue-100 dark:bg-blue-900" : ""}`}
                                 >
-                                  {outage.severity}
-                                </Badge>
-                                <Badge variant="outline">{outage.status}</Badge>
-                              </div>
-                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                <div className="flex items-center gap-1">
-                                  <Clock className="w-3 h-3" />
-                                  {outage.startDate.toLocaleDateString()} - {outage.endDate.toLocaleDateString()}
+                                  <div
+                                    className={`${isWeekend ? "text-red-600 dark:text-red-400" : ""} ${isToday ? "font-bold text-blue-600 dark:text-blue-400" : ""}`}
+                                  >
+                                    {currentDate.getDate()}
+                                  </div>
+                                  <div className="text-gray-400 dark:text-gray-500 text-xs">
+                                    {currentDate.toLocaleDateString("en-US", { weekday: "short" })}
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-1">
-                                  <Users className="w-3 h-3" />
-                                  {outage.assignee || "Unassigned"}
+                              )
+                            },
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Gantt Chart Rows */}
+                  <div className="space-y-2">
+                    {filters
+                      .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+                      .map((outage) => {
+                        const totalMs = range.end.getTime() - range.start.getTime()
+                        const startMs = outage.startDate.getTime() - range.start.getTime()
+                        const durationMs = outage.endDate.getTime() - outage.startDate.getTime()
+
+                        const startPercent = (startMs / totalMs) * 100
+                        const widthPercent = (durationMs / totalMs) * 100
+
+                        const ganttPosition = {
+                          left: `${Math.max(0, startPercent)}%`,
+                          width: `${Math.max(2, widthPercent)}%`,
+                        }
+
+                        const getDuration = (start: Date, end: Date) => {
+                          const hours = Math.floor((end.getTime() - start.getTime()) / 3.6e6)
+                          const days = Math.floor(hours / 24)
+                          return days ? `${days}d ${hours % 24}h` : `${hours}h`
+                        }
+
+                        return (
+                          <div key={outage.id} className="flex items-start gap-2 hover:bg-muted/50 rounded p-2">
+                            {/* Outage Info */}
+                            <div className="w-full sm:w-96">
+                              <div className="flex justify-between items-center">
+                                <h4 className="font-medium text-sm">{outage.title}</h4>
+                                <div className="flex gap-1">
+                                  <Badge
+                                    variant={
+                                      outage.severity === "High"
+                                        ? "destructive"
+                                        : outage.severity === "Medium"
+                                          ? "default"
+                                          : "secondary"
+                                    }
+                                  >
+                                    {outage.severity}
+                                  </Badge>
+                                  {outage.outageType && <Badge variant="outline">{outage.outageType}</Badge>}
                                 </div>
                               </div>
-                              <div className="flex flex-wrap gap-1 mt-2">
+                              <div className="flex flex-wrap gap-1 mt-1">
                                 {outage.environments.map((env) => {
                                   const envConfig = environments.find((e) => e.name === env)
                                   return (
@@ -600,12 +674,98 @@ export default function OutageDashboard() {
                                   )
                                 })}
                               </div>
+                              <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                {outage.startDate.toLocaleDateString("en-US", {
+                                  weekday: "short",
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}{" "}
+                                →{" "}
+                                {outage.endDate.toLocaleDateString("en-US", {
+                                  weekday: "short",
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Assigned to: {outage.assignee || "Unassigned"}
+                              </div>
+                            </div>
+
+                            {/* Gantt Bar */}
+                            <div className="flex-1 hidden sm:block relative h-14 bg-muted rounded overflow-hidden">
+                              <div
+                                className={`absolute top-2 h-10 rounded flex items-center px-3 text-white text-xs font-medium cursor-pointer shadow-lg transition-transform hover:scale-105 ${
+                                  outage.severity === "High"
+                                    ? "bg-gradient-to-r from-red-500 to-red-600"
+                                    : outage.severity === "Medium"
+                                      ? "bg-gradient-to-r from-yellow-500 to-yellow-600"
+                                      : "bg-gradient-to-r from-green-500 to-green-600"
+                                }`}
+                                style={ganttPosition}
+                                title={`${outage.title} - ${getDuration(outage.startDate, outage.endDate)}`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <Clock className="w-3 h-3 flex-shrink-0" />
+                                  <span className="truncate">{getDuration(outage.startDate, outage.endDate)}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Mobile View */}
+                            <div className="sm:hidden w-full">
+                              <div className="text-xs text-muted-foreground">
+                                Duration: {getDuration(outage.startDate, outage.endDate)}
+                              </div>
                             </div>
                           </div>
-                        ))}
+                        )
+                      })}
+                  </div>
+
+                  {/* Legend */}
+                  <div className="mt-6 pt-4 border-t">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="font-medium mb-2">Severity Levels</h4>
+                        <div className="flex flex-wrap gap-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 bg-gradient-to-r from-red-500 to-red-600 rounded"></div>
+                            <span className="text-sm">High Impact</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 bg-gradient-to-r from-yellow-500 to-yellow-600 rounded"></div>
+                            <span className="text-sm">Medium Impact</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 bg-gradient-to-r from-green-500 to-green-600 rounded"></div>
+                            <span className="text-sm">Low Impact</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="font-medium mb-2">Environments</h4>
+                        <div className="flex flex-wrap gap-3">
+                          {environments.map((env) => (
+                            <div key={env.id} className="flex items-center gap-1">
+                              <div className={`w-3 h-3 ${env.color} rounded`}></div>
+                              <span className="text-sm">{env.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-4 text-xs text-gray-500">
+                      <p>• Weekend days are highlighted in gray</p>
+                      <p>• Today is highlighted in blue</p>
+                      <p>• Hover over Gantt bars for detailed information</p>
                     </div>
                   </div>
-                </ScrollArea>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -679,10 +839,6 @@ export default function OutageDashboard() {
 
         <TabsContent value="schedule-multiple">
           <TabularMultiOutageForm onSuccess={handleFormSuccess} />
-        </TabsContent>
-
-        <TabsContent value="gantt">
-          <EnhancedGanttChart />
         </TabsContent>
 
         <TabsContent value="reports">
