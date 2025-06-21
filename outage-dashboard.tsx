@@ -580,53 +580,80 @@ export default function OutageDashboard() {
             </div>
 
             {/* ---- Stats ---- */}
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               <Card>
-                <CardContent className="text-center p-3">
-                  <div className="text-2xl font-bold text-red-600">
-                    {filters.filter((o) => o.severity === "High").length}
+                <CardContent className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Total Outages</p>
+                    <div className="text-2xl font-bold">{filters.length}</div>
                   </div>
-                  <p className="text-sm">High</p>
+                  <BarChart3 className="h-8 w-8 text-blue-500" />
                 </CardContent>
               </Card>
+
               <Card>
-                <CardContent className="text-center p-3">
-                  <div className="text-2xl font-bold text-yellow-600">
-                    {filters.filter((o) => o.severity === "Medium").length}
+                <CardContent className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">High Severity</p>
+                    <div className="text-2xl font-bold text-red-600">
+                      {filters.filter((o) => o.severity === "High").length}
+                    </div>
                   </div>
-                  <p className="text-sm">Medium</p>
+                  <AlertTriangle className="h-8 w-8 text-red-500" />
                 </CardContent>
               </Card>
+
               <Card>
-                <CardContent className="text-center p-3">
-                  <div className="text-2xl font-bold text-green-600">
-                    {filters.filter((o) => o.severity === "Low").length}
+                <CardContent className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Scheduled</p>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {
+                        filters.filter((o) => {
+                          const now = new Date()
+                          return o.startDate > now
+                        }).length
+                      }
+                    </div>
                   </div>
-                  <p className="text-sm">Low</p>
+                  <Calendar className="h-8 w-8 text-blue-500" />
                 </CardContent>
               </Card>
+
               <Card>
-                <CardContent className="text-center p-3">
-                  <div className="text-2xl font-bold text-purple-600">
-                    {filters.filter((o) => o.outageType === "Internal").length}
+                <CardContent className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Upcoming</p>
+                    <div className="text-2xl font-bold text-orange-600">
+                      {
+                        filters.filter((o) => {
+                          const now = new Date()
+                          const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+                          return o.startDate >= now && o.startDate <= nextWeek
+                        }).length
+                      }
+                    </div>
                   </div>
-                  <p className="text-sm">Internal</p>
+                  <Calendar className="h-8 w-8 text-orange-500" />
                 </CardContent>
               </Card>
+
               <Card>
-                <CardContent className="text-center p-3">
-                  <div className="text-2xl font-bold text-blue-600">
-                    {filters.filter((o) => o.outageType === "External").length}
+                <CardContent className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">This Month</p>
+                    <div className="text-2xl font-bold text-green-600">
+                      {
+                        filters.filter((o) => {
+                          const now = new Date()
+                          const currentMonth = now.getMonth()
+                          const currentYear = now.getFullYear()
+                          return o.startDate.getMonth() === currentMonth && o.startDate.getFullYear() === currentYear
+                        }).length
+                      }
+                    </div>
                   </div>
-                  <p className="text-sm">External</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="text-center p-3">
-                  <div className="text-2xl font-bold text-orange-600">
-                    {filters.reduce((a, o) => a + (o.estimatedUsers || 0), 0).toLocaleString()}
-                  </div>
-                  <p className="text-sm">Users</p>
+                  <BarChart3 className="h-8 w-8 text-green-500" />
                 </CardContent>
               </Card>
             </div>
