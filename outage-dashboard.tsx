@@ -138,6 +138,80 @@ const diffLabel = (start: Date, end: Date) => {
   return days ? `${days} d ${hours % 24} h` : `${hours} h`
 }
 
+// Add these helper functions after the existing helper functions
+const applyQuickFilter = (
+  filterType: string,
+  setEnvFilter: React.Dispatch<React.SetStateAction<string[]>>,
+  setSearch: React.Dispatch<React.SetStateAction<string>>,
+  setSortBy: React.Dispatch<React.SetStateAction<"date" | "severity" | "team">>,
+  setUseCustomRange: React.Dispatch<React.SetStateAction<boolean>>,
+  setCustomDateRange: React.Dispatch<React.SetStateAction<{ start: string; end: string }>>,
+  setSeverityFilter: React.Dispatch<React.SetStateAction<string[]>>,
+  setSelectedMonth: React.Dispatch<React.SetStateAction<string>>,
+) => {
+  const now = new Date()
+  const { toast } = useToast()
+
+  switch (filterType) {
+    case "high-severity":
+      setSeverityFilter(["High"])
+      toast({
+        title: "Filtered by High Severity",
+        description: "Showing only high severity outages",
+      })
+      break
+    case "scheduled":
+      // Filter to show future outages
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+      setCustomDateRange({
+        start: now.toISOString().split("T")[0],
+        end: nextMonth.toISOString().split("T")[0],
+      })
+      setUseCustomRange(true)
+      toast({
+        title: "Filtered by Scheduled",
+        description: "Showing scheduled outages from today onwards",
+      })
+      break
+    case "upcoming":
+      // Filter to show next 7 days
+      const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+      setCustomDateRange({
+        start: now.toISOString().split("T")[0],
+        end: nextWeek.toISOString().split("T")[0],
+      })
+      setUseCustomRange(true)
+      toast({
+        title: "Filtered by Upcoming",
+        description: "Showing outages in the next 7 days",
+      })
+      break
+    case "this-month":
+      // Filter to current month
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+      setSelectedMonth(currentMonth)
+      setUseCustomRange(false)
+      toast({
+        title: "Filtered by This Month",
+        description: "Showing outages for current month",
+      })
+      break
+    case "total":
+      // Reset all filters
+      setEnvFilter([...ENVIRONMENTS])
+      setSearch("")
+      setSortBy("date")
+      setUseCustomRange(false)
+      setCustomDateRange({ start: "", end: "" })
+      setSeverityFilter([])
+      toast({
+        title: "Showing All Outages",
+        description: "All filters have been reset",
+      })
+      break
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 /*                            Main Dashboard Component                         */
 /* -------------------------------------------------------------------------- */
@@ -171,6 +245,9 @@ export default function OutageDashboard() {
     end: "",
   })
   const [useCustomRange, setUseCustomRange] = useState(false)
+
+  // Add severity filter state
+  const [severityFilter, setSeverityFilter] = useState<string[]>([])
 
   /* ---------------------------- Side Effects ---------------------------- */
 
@@ -434,7 +511,10 @@ export default function OutageDashboard() {
       const searchMatch = search === "" || txt.includes(search.toLowerCase())
       console.log(`Search filter for ${o.title}: ${searchMatch}`)
 
-      const finalMatch = dateMatch && envMatch && searchMatch
+      // Update the filters logic to include severity
+      const severityMatch = severityFilter.length === 0 || severityFilter.includes(o.severity)
+
+      const finalMatch = dateMatch && envMatch && searchMatch && severityMatch
       console.log(`Final match for ${o.title}: ${finalMatch}`)
 
       return finalMatch
@@ -446,7 +526,7 @@ export default function OutageDashboard() {
       filtered.map((o) => ({ title: o.title, start: o.startDate.toISOString().substring(0, 7) })),
     )
     return filtered
-  }, [outages, selectedMonth, envFilter, search, useCustomRange, customDateRange])
+  }, [outages, selectedMonth, envFilter, search, useCustomRange, customDateRange, severityFilter])
 
   useEffect(() => {
     console.log("Filters changed, filtered count:", filters.length)
@@ -577,85 +657,6 @@ export default function OutageDashboard() {
                     </AlertDescription>
                   </Alert>
                 ))}
-            </div>
-
-            {/* ---- Stats ---- */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-              <Card>
-                <CardContent className="flex items-center justify-between p-4">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Outages</p>
-                    <div className="text-2xl font-bold">{filters.length}</div>
-                  </div>
-                  <BarChart3 className="h-8 w-8 text-blue-500" />
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="flex items-center justify-between p-4">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">High Severity</p>
-                    <div className="text-2xl font-bold text-red-600">
-                      {filters.filter((o) => o.severity === "High").length}
-                    </div>
-                  </div>
-                  <AlertTriangle className="h-8 w-8 text-red-500" />
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="flex items-center justify-between p-4">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Scheduled</p>
-                    <div className="text-2xl font-bold text-blue-600">
-                      {
-                        filters.filter((o) => {
-                          const now = new Date()
-                          return o.startDate > now
-                        }).length
-                      }
-                    </div>
-                  </div>
-                  <Calendar className="h-8 w-8 text-blue-500" />
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="flex items-center justify-between p-4">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Upcoming</p>
-                    <div className="text-2xl font-bold text-orange-600">
-                      {
-                        filters.filter((o) => {
-                          const now = new Date()
-                          const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
-                          return o.startDate >= now && o.startDate <= nextWeek
-                        }).length
-                      }
-                    </div>
-                  </div>
-                  <Calendar className="h-8 w-8 text-orange-500" />
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="flex items-center justify-between p-4">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">This Month</p>
-                    <div className="text-2xl font-bold text-green-600">
-                      {
-                        filters.filter((o) => {
-                          const now = new Date()
-                          const currentMonth = now.getMonth()
-                          const currentYear = now.getFullYear()
-                          return o.startDate.getMonth() === currentMonth && o.startDate.getFullYear() === currentYear
-                        }).length
-                      }
-                    </div>
-                  </div>
-                  <BarChart3 className="h-8 w-8 text-green-500" />
-                </CardContent>
-              </Card>
             </div>
 
             {/* ---- Filters card ---- */}
@@ -870,6 +871,7 @@ export default function OutageDashboard() {
                         setSortBy("date")
                         setUseCustomRange(false)
                         setCustomDateRange({ start: "", end: "" })
+                        setSeverityFilter([])
                       }}
                     >
                       <RotateCcw className="h-4 w-4 mr-2" />
@@ -879,6 +881,160 @@ export default function OutageDashboard() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* ---- Clickable Stats (moved below filters) ---- */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              <Card
+                className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-blue-500"
+                onClick={() =>
+                  applyQuickFilter(
+                    "total",
+                    setEnvFilter,
+                    setSearch,
+                    setSortBy,
+                    setUseCustomRange,
+                    setCustomDateRange,
+                    setSeverityFilter,
+                    setSelectedMonth,
+                  )
+                }
+              >
+                <CardContent className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Total Outages</p>
+                    <div className="text-2xl font-bold">{filters.length}</div>
+                    <p className="text-xs text-blue-600 font-medium">Click to show all</p>
+                  </div>
+                  <BarChart3 className="h-8 w-8 text-blue-500" />
+                </CardContent>
+              </Card>
+
+              <Card
+                className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-red-500"
+                onClick={() =>
+                  applyQuickFilter(
+                    "high-severity",
+                    setEnvFilter,
+                    setSearch,
+                    setSortBy,
+                    setUseCustomRange,
+                    setCustomDateRange,
+                    setSeverityFilter,
+                    setSelectedMonth,
+                  )
+                }
+              >
+                <CardContent className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">High Severity</p>
+                    <div className="text-2xl font-bold text-red-600">
+                      {filters.filter((o) => o.severity === "High").length}
+                    </div>
+                    <p className="text-xs text-red-600 font-medium">Click to filter</p>
+                  </div>
+                  <AlertTriangle className="h-8 w-8 text-red-500" />
+                </CardContent>
+              </Card>
+
+              <Card
+                className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-blue-500"
+                onClick={() =>
+                  applyQuickFilter(
+                    "scheduled",
+                    setEnvFilter,
+                    setSearch,
+                    setSortBy,
+                    setUseCustomRange,
+                    setCustomDateRange,
+                    setSeverityFilter,
+                    setSelectedMonth,
+                  )
+                }
+              >
+                <CardContent className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Scheduled</p>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {
+                        filters.filter((o) => {
+                          const now = new Date()
+                          return o.startDate > now
+                        }).length
+                      }
+                    </div>
+                    <p className="text-xs text-blue-600 font-medium">Click to filter</p>
+                  </div>
+                  <Calendar className="h-8 w-8 text-blue-500" />
+                </CardContent>
+              </Card>
+
+              <Card
+                className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-orange-500"
+                onClick={() =>
+                  applyQuickFilter(
+                    "upcoming",
+                    setEnvFilter,
+                    setSearch,
+                    setSortBy,
+                    setUseCustomRange,
+                    setCustomDateRange,
+                    setSeverityFilter,
+                    setSelectedMonth,
+                  )
+                }
+              >
+                <CardContent className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Upcoming</p>
+                    <div className="text-2xl font-bold text-orange-600">
+                      {
+                        filters.filter((o) => {
+                          const now = new Date()
+                          const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+                          return o.startDate >= now && o.startDate <= nextWeek
+                        }).length
+                      }
+                    </div>
+                    <p className="text-xs text-orange-600 font-medium">Click to filter</p>
+                  </div>
+                  <Calendar className="h-8 w-8 text-orange-500" />
+                </CardContent>
+              </Card>
+
+              <Card
+                className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-green-500"
+                onClick={() =>
+                  applyQuickFilter(
+                    "this-month",
+                    setEnvFilter,
+                    setSearch,
+                    setSortBy,
+                    setUseCustomRange,
+                    setCustomDateRange,
+                    setSeverityFilter,
+                    setSelectedMonth,
+                  )
+                }
+              >
+                <CardContent className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">This Month</p>
+                    <div className="text-2xl font-bold text-green-600">
+                      {
+                        filters.filter((o) => {
+                          const now = new Date()
+                          const currentMonth = now.getMonth()
+                          const currentYear = now.getFullYear()
+                          return o.startDate.getMonth() === currentMonth && o.startDate.getFullYear() === currentYear
+                        }).length
+                      }
+                    </div>
+                    <p className="text-xs text-green-600 font-medium">Click to filter</p>
+                  </div>
+                  <BarChart3 className="h-8 w-8 text-green-500" />
+                </CardContent>
+              </Card>
+            </div>
 
             {/* ---- Timeline / List ---- */}
             {view === "timeline" ? (
