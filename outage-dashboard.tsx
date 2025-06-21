@@ -148,66 +148,45 @@ const applyQuickFilter = (
   setCustomDateRange: React.Dispatch<React.SetStateAction<{ start: string; end: string }>>,
   setSeverityFilter: React.Dispatch<React.SetStateAction<string[]>>,
   setSelectedMonth: React.Dispatch<React.SetStateAction<string>>,
+  toast: (opts: { title: string; description?: string }) => void, // 👈 add toast param
 ) => {
   const now = new Date()
-  const { toast } = useToast()
 
   switch (filterType) {
     case "high-severity":
       setSeverityFilter(["High"])
-      toast({
-        title: "Filtered by High Severity",
-        description: "Showing only high severity outages",
-      })
+      toast({ title: "Filtered by High Severity", description: "Showing only high severity outages" })
       break
     case "scheduled":
-      // Filter to show future outages
-      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
       setCustomDateRange({
         start: now.toISOString().split("T")[0],
-        end: nextMonth.toISOString().split("T")[0],
+        end: new Date(now.getFullYear(), now.getMonth() + 6, 1).toISOString().split("T")[0],
       })
       setUseCustomRange(true)
-      toast({
-        title: "Filtered by Scheduled",
-        description: "Showing scheduled outages from today onwards",
-      })
+      toast({ title: "Filtered by Scheduled", description: "Showing scheduled outages from today onwards" })
       break
     case "upcoming":
-      // Filter to show next 7 days
-      const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
       setCustomDateRange({
         start: now.toISOString().split("T")[0],
-        end: nextWeek.toISOString().split("T")[0],
+        end: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
       })
       setUseCustomRange(true)
-      toast({
-        title: "Filtered by Upcoming",
-        description: "Showing outages in the next 7 days",
-      })
+      toast({ title: "Filtered by Upcoming", description: "Showing outages in the next 7 days" })
       break
     case "this-month":
-      // Filter to current month
-      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
-      setSelectedMonth(currentMonth)
+      setSelectedMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`)
       setUseCustomRange(false)
-      toast({
-        title: "Filtered by This Month",
-        description: "Showing outages for current month",
-      })
+      toast({ title: "Filtered by This Month", description: "Showing outages for current month" })
       break
     case "total":
-      // Reset all filters
+    default:
       setEnvFilter([...ENVIRONMENTS])
       setSearch("")
       setSortBy("date")
       setUseCustomRange(false)
       setCustomDateRange({ start: "", end: "" })
       setSeverityFilter([])
-      toast({
-        title: "Showing All Outages",
-        description: "All filters have been reset",
-      })
+      toast({ title: "Showing All Outages", description: "All filters have been reset" })
       break
   }
 }
@@ -896,6 +875,7 @@ export default function OutageDashboard() {
                     setCustomDateRange,
                     setSeverityFilter,
                     setSelectedMonth,
+                    toast,
                   )
                 }
               >
@@ -921,6 +901,7 @@ export default function OutageDashboard() {
                     setCustomDateRange,
                     setSeverityFilter,
                     setSelectedMonth,
+                    toast,
                   )
                 }
               >
@@ -948,6 +929,7 @@ export default function OutageDashboard() {
                     setCustomDateRange,
                     setSeverityFilter,
                     setSelectedMonth,
+                    toast,
                   )
                 }
               >
@@ -980,6 +962,7 @@ export default function OutageDashboard() {
                     setCustomDateRange,
                     setSeverityFilter,
                     setSelectedMonth,
+                    toast,
                   )
                 }
               >
@@ -1013,6 +996,7 @@ export default function OutageDashboard() {
                     setCustomDateRange,
                     setSeverityFilter,
                     setSelectedMonth,
+                    toast,
                   )
                 }
               >
