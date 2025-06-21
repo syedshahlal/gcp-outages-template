@@ -10,7 +10,17 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Calendar, Clock, Filter, Search, AlertTriangle, BarChart3, TrendingUp, RefreshCw } from "lucide-react"
+import {
+  Calendar,
+  Clock,
+  Filter,
+  Search,
+  AlertTriangle,
+  BarChart3,
+  TrendingUp,
+  RefreshCw,
+  CalendarDays,
+} from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { EnhancedOutageForm } from "@/components/enhanced-outage-form"
 import { TabularMultiOutageForm } from "@/components/tabular-multi-outage-form"
@@ -353,7 +363,7 @@ export default function OutageDashboard() {
 
         <TabsContent value="dashboard" className="space-y-6">
           {/* Quick Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
@@ -390,6 +400,25 @@ export default function OutageDashboard() {
                     </p>
                   </div>
                   <Clock className="w-8 h-8 text-blue-500" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Upcoming</p>
+                    <p className="text-2xl font-bold text-orange-600">
+                      {
+                        outages.filter((o) => {
+                          const now = new Date()
+                          return o.startDate > now
+                        }).length
+                      }
+                    </p>
+                  </div>
+                  <CalendarDays className="w-8 h-8 text-orange-500" />
                 </div>
               </CardContent>
             </Card>
