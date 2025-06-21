@@ -16,6 +16,7 @@ import {
   CheckSquare,
   Square,
   FileText,
+  Globe,
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -27,10 +28,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { TimezoneSelector } from "@/components/timezone-selector"
 import dynamic from "next/dynamic"
 import { useToast } from "@/hooks/use-toast"
 import { InteractiveReport } from "./components/interactive-report"
 import { OutageDetailModal } from "./components/outage-detail-modal"
+import { getUserTimezone, formatTimelineDate, getTimezoneAbbreviation, formatDetailedDate } from "@/lib/timezone-utils"
 
 // Import JSON data statically to avoid SSR issues
 import outagesJson from "@/data/outages.json"
@@ -148,7 +151,7 @@ const applyQuickFilter = (
   setCustomDateRange: React.Dispatch<React.SetStateAction<{ start: string; end: string }>>,
   setSeverityFilter: React.Dispatch<React.SetStateAction<string[]>>,
   setSelectedMonth: React.Dispatch<React.SetStateAction<string>>,
-  toast: (opts: { title: string; description?: string }) => void, // 👈 add toast param
+  toast: (opts: { title: string; description?: string }) => void,
 ) => {
   const now = new Date()
 
@@ -228,10 +231,16 @@ export default function OutageDashboard() {
   // Add severity filter state
   const [severityFilter, setSeverityFilter] = useState<string[]>([])
 
+  // Add timezone state
+  const [selectedTimezone, setSelectedTimezone] = useState<string>("")
+
   /* ---------------------------- Side Effects ---------------------------- */
 
   useEffect(() => {
     setMounted(true)
+
+    // Initialize timezone
+    setSelectedTimezone(getUserTimezone())
 
     // Initialize month options and selected month
     const options = getMonthOptions()
@@ -381,6 +390,7 @@ export default function OutageDashboard() {
     const reportContent = `
   GCP Planned Outages - Filtered Report
   Generated: ${new Date().toLocaleString()}
+  Timezone: ${selectedTimezone} (${getTimezoneAbbreviation(selectedTimezone)})
   Filters Applied: Month=${monthOptions.find((m) => m.value === selectedMonth)?.label}, Environments=${envFilter.join(", ")}, Search="${search}"
   
   SUMMARY
@@ -400,8 +410,8 @@ export default function OutageDashboard() {
     .map(
       (o) => `
   ${o.title} (#${o.id})
-  - Start: ${fmt(o.startDate)}
-  - End: ${fmt(o.endDate)}
+  - Start: ${formatDetailedDate(o.startDate, selectedTimezone)}
+  - End: ${formatDetailedDate(o.endDate, selectedTimezone)}
   - Duration: ${diffLabel(o.startDate, o.endDate)}
   - Severity: ${o.severity}
   - Type: ${o.outageType || "Internal"}
@@ -575,7 +585,8 @@ export default function OutageDashboard() {
       >
         <div className="font-semibold">{tooltip.o.title}</div>
         <div className="text-sm opacity-90">
-          {fmt(tooltip.o.startDate)} → {fmt(tooltip.o.endDate)}
+          {formatTimelineDate(tooltip.o.startDate, selectedTimezone)} →{" "}
+          {formatTimelineDate(tooltip.o.endDate, selectedTimezone)}
         </div>
         <div className="text-sm opacity-90">Duration: {diffLabel(tooltip.o.startDate, tooltip.o.endDate)}</div>
         <div className="text-sm opacity-90">Team: {tooltip.o.assignee}</div>
@@ -598,9 +609,18 @@ export default function OutageDashboard() {
               <ThemeToggle />
             </div>
           </div>
-          <p className="text-muted-foreground text-sm">
-            Last updated: {lastUpdated?.toLocaleString() || "Never"} • Auto-refresh 30 s
-          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Globe className="h-4 w-4" />
+              <span>
+                Timezone: {selectedTimezone.replace("_", " ")} ({getTimezoneAbbreviation(selectedTimezone)})
+              </span>
+            </div>
+            <span className="hidden sm:inline">•</span>
+            <span>Last updated: {lastUpdated?.toLocaleString() || "Never"}</span>
+            <span className="hidden sm:inline">•</span>
+            <span>Auto-refresh 30s</span>
+          </div>
         </header>
 
         {/* ------------------------------- Tabs ------------------------------- */}
@@ -631,7 +651,8 @@ export default function OutageDashboard() {
                   <Alert key={o.id} className="bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800">
                     <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
                     <AlertDescription className="text-red-800 dark:text-red-300 text-sm">
-                      <strong>HIGH IMPACT:</strong> {o.title} on {fmt(o.startDate)} – {fmt(o.endDate)}
+                      <strong>HIGH IMPACT:</strong> {o.title} on {formatTimelineDate(o.startDate, selectedTimezone)} –{" "}
+                      {formatTimelineDate(o.endDate, selectedTimezone)}
                       {o.outageType && <span> ({o.outageType})</span>}
                     </AlertDescription>
                   </Alert>
@@ -652,6 +673,16 @@ export default function OutageDashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Timezone Selector */}
+                <div className="border-b pb-4">
+                  <TimezoneSelector
+                    value={selectedTimezone}
+                    onValueChange={setSelectedTimezone}
+                    label="Display Timezone"
+                    showCurrentTime={true}
+                  />
+                </div>
+
                 {/* Search-sort row */}
                 <div className="flex flex-col sm:flex-row gap-4">
                   <div className="flex-1">
@@ -1034,6 +1065,9 @@ export default function OutageDashboard() {
                     <span className="ml-2 text-sm">
                       Showing {filters.length} of {outages.length} outages
                     </span>
+                    <Badge variant="outline" className="ml-2">
+                      {getTimezoneAbbreviation(selectedTimezone)}
+                    </Badge>
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -1144,7 +1178,8 @@ export default function OutageDashboard() {
                             ))}
                           </div>
                           <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                            {fmt(o.startDate)} → {fmt(o.endDate)}
+                            {formatTimelineDate(o.startDate, selectedTimezone)} →{" "}
+                            {formatTimelineDate(o.endDate, selectedTimezone)}
                           </div>
                         </div>
 
@@ -1210,7 +1245,8 @@ export default function OutageDashboard() {
                           </div>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          {fmt(o.startDate)} → {fmt(o.endDate)} • {diffLabel(o.startDate, o.endDate)}
+                          {formatTimelineDate(o.startDate, selectedTimezone)} →{" "}
+                          {formatTimelineDate(o.endDate, selectedTimezone)} • {diffLabel(o.startDate, o.endDate)}
                         </p>
                       </div>
                     ))
