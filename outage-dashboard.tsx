@@ -352,6 +352,68 @@ export default function OutageDashboard() {
         </TabsList>
 
         <TabsContent value="dashboard" className="space-y-6">
+          {/* Quick Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Total Outages</p>
+                    <p className="text-2xl font-bold">{outages.length}</p>
+                  </div>
+                  <BarChart3 className="w-8 h-8 text-muted-foreground" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">High Severity</p>
+                    <p className="text-2xl font-bold text-red-600">
+                      {outages.filter((o) => o.severity === "High").length}
+                    </p>
+                  </div>
+                  <AlertTriangle className="w-8 h-8 text-red-500" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Scheduled</p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {outages.filter((o) => o.status === "Scheduled").length}
+                    </p>
+                  </div>
+                  <Clock className="w-8 h-8 text-blue-500" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">This Month</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {
+                        outages.filter((o) => {
+                          const currentMonth = new Date().toISOString().substring(0, 7)
+                          return o.startDate.toISOString().substring(0, 7) === currentMonth
+                        }).length
+                      }
+                    </p>
+                  </div>
+                  <TrendingUp className="w-8 h-8 text-green-500" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           {/* Filters */}
           <Card>
             <CardHeader>
@@ -769,68 +831,6 @@ export default function OutageDashboard() {
               )}
             </CardContent>
           </Card>
-
-          {/* Quick Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Outages</p>
-                    <p className="text-2xl font-bold">{outages.length}</p>
-                  </div>
-                  <BarChart3 className="w-8 h-8 text-muted-foreground" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">High Severity</p>
-                    <p className="text-2xl font-bold text-red-600">
-                      {outages.filter((o) => o.severity === "High").length}
-                    </p>
-                  </div>
-                  <AlertTriangle className="w-8 h-8 text-red-500" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Scheduled</p>
-                    <p className="text-2xl font-bold text-blue-600">
-                      {outages.filter((o) => o.status === "Scheduled").length}
-                    </p>
-                  </div>
-                  <Clock className="w-8 h-8 text-blue-500" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">This Month</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {
-                        outages.filter((o) => {
-                          const currentMonth = new Date().toISOString().substring(0, 7)
-                          return o.startDate.toISOString().substring(0, 7) === currentMonth
-                        }).length
-                      }
-                    </p>
-                  </div>
-                  <TrendingUp className="w-8 h-8 text-green-500" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
         </TabsContent>
 
         <TabsContent value="schedule-single">
