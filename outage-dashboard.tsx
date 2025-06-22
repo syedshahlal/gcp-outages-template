@@ -685,7 +685,11 @@ export default function OutageDashboard() {
         setUseCustomRange(false)
         setCustomDateRange({ start: "", end: "" })
         setSeverityFilter([])
-        toast({ title: "Showing All Outages", description: "All filters have been reset" })
+        // Reset month to current month
+        const now = new Date()
+        const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+        setSelectedMonth(currentMonth)
+        toast({ title: "Showing All Outages", description: "All filters have been reset to defaults" })
         break
     }
   }
@@ -884,6 +888,14 @@ export default function OutageDashboard() {
                       setUseCustomRange(false)
                       setCustomDateRange({ start: "", end: "" })
                       setSeverityFilter([])
+                      // Reset month to current month
+                      const now = new Date()
+                      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+                      setSelectedMonth(currentMonth)
+                      toast({
+                        title: "All Filters Reset",
+                        description: "All filter settings have been restored to defaults",
+                      })
                     }}
                     className="w-full"
                   >
