@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import {
   Calendar,
   Server,
@@ -17,6 +17,8 @@ import {
   Square,
   FileText,
   Globe,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -32,7 +34,6 @@ import { TimezoneSelector } from "@/components/timezone-selector"
 import dynamic from "next/dynamic"
 import { useToast } from "@/hooks/use-toast"
 import { getUserTimezone, formatTimelineDate, getTimezoneAbbreviation, formatDetailedDate } from "@/lib/timezone-utils"
-import { useRef } from "react"
 
 // Import JSON data statically to avoid SSR issues
 import outagesJson from "@/data/outages.json"
@@ -144,6 +145,7 @@ const diffLabel = (start: Date, end: Date) => {
 
 // Add these helper functions after the existing helper functions
 
+// Timeline scroll functions
 /* -------------------------------------------------------------------------- */
 /*                            Main Dashboard Component                         */
 /* -------------------------------------------------------------------------- */
@@ -192,6 +194,11 @@ export default function OutageDashboard() {
   // Add state for timeline hover:
   // Remove this line:
   // const [timelineHover, setTimelineHover] = useState<{ x: number; time: Date; visible: boolean } | null>(null)
+
+  // Add these state variables for scroll management after the existing state variables:
+  const [timelineScrollPosition, setTimelineScrollPosition] = useState(0)
+  const [visibleDays, setVisibleDays] = useState(10) // Show 10 days at a time
+  const timelineScrollRef = useRef<HTMLDivElement>(null)
 
   /* ---------------------------- Side Effects ---------------------------- */
 
@@ -524,6 +531,53 @@ export default function OutageDashboard() {
     }
   }
 
+  const scrollTimelineLeft = () => {
+    if (timelineScrollRef.current) {
+      const scrollAmount =
+        (timelineScrollRef.current.scrollWidth /
+          Math.ceil((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24))) *
+        3 // Scroll 3 days at a time
+      const newPosition = Math.max(0, timelineScrollPosition - scrollAmount)
+      timelineScrollRef.current.scrollTo({ left: newPosition, behavior: "smooth" })
+      setTimelineScrollPosition(newPosition)
+    }
+  }
+
+  const scrollTimelineRight = () => {
+    if (timelineScrollRef.current) {
+      const scrollAmount =
+        (timelineScrollRef.current.scrollWidth /
+          Math.ceil((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24))) *
+        3 // Scroll 3 days at a time
+      const maxScroll = timelineScrollRef.current.scrollWidth - timelineScrollRef.current.clientWidth
+      const newPosition = Math.min(maxScroll, timelineScrollPosition + scrollAmount)
+      timelineScrollRef.current.scrollTo({ left: newPosition, behavior: "smooth" })
+      setTimelineScrollPosition(newPosition)
+    }
+  }
+
+  const handleTimelineScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    setTimelineScrollPosition(e.currentTarget.scrollLeft)
+  }
+
+  // Calculate visible date range based on scroll position
+  const getVisibleDateRange = () => {
+    const totalDays = Math.ceil((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24))
+    const totalWidth = timelineScrollRef.current?.scrollWidth || 1000
+    const visibleWidth = timelineScrollRef.current?.clientWidth || 800
+
+    const scrollPercentage = timelineScrollPosition / (totalWidth - visibleWidth)
+    const startDayOffset = Math.floor(scrollPercentage * (totalDays - visibleDays))
+
+    const visibleStart = new Date(range.start)
+    visibleStart.setDate(visibleStart.getDate() + startDayOffset)
+
+    const visibleEnd = new Date(visibleStart)
+    visibleEnd.setDate(visibleEnd.getDate() + visibleDays)
+
+    return { start: visibleStart, end: visibleEnd, totalDays }
+  }
+
   /* ----------------------------- Render UI ------------------------------ */
 
   if (!mounted)
@@ -552,21 +606,6 @@ export default function OutageDashboard() {
         {tooltip.o.outageType && <div className="text-sm opacity-90">Type: {tooltip.o.outageType}</div>}
       </div>
     ) : null
-
-  // Remove this entire component:
-  // const TimelineTooltip = () =>
-  //   timelineHover?.visible ? (
-  //     <div
-  //       className="fixed z-50 p-2 rounded-lg shadow-lg pointer-events-none bg-black text-white dark:bg-white dark:text-black border"
-  //       style={{
-  //         left: timelineHover.x + 10,
-  //         top: timelineHover.x > window.innerWidth - 200 ? timelineHover.x - 60 : timelineHover.x - 40,
-  //       }}
-  //     >
-  //       <div className="text-sm font-medium">{formatDetailedDate(timelineHover.time, selectedTimezone)}</div>
-  //       <div className="text-xs opacity-75">{getTimezoneAbbreviation(selectedTimezone)}</div>
-  //     </div>
-  //   ) : null
 
   const scrollTimeline = (direction: "left" | "right") => {
     if (scrollContainerRef.current) {
@@ -1118,37 +1157,38 @@ export default function OutageDashboard() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {/* Enhanced timeline with scroll controls and time indicator */}
                   <div className="w-full">
                     {/* Scroll Controls */}
-                    {/* Remove this entire section */}
-                    {/*
-                    <div className="flex justify-between items-center mb-2">
+                    <div className="flex justify-between items-center mb-4 p-2 bg-muted/50 rounded-lg">
                       <div className="flex gap-2">
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => scrollTimeline("left")}
-                          disabled={scrollPosition <= 0}
+                          onClick={scrollTimelineLeft}
+                          disabled={timelineScrollPosition <= 0}
                         >
                           <ChevronLeft className="h-4 w-4" />
-                          Scroll Left
+                          Previous
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => scrollTimeline("right")}
-                          disabled={scrollPosition >= timelineWidth - (scrollContainerRef.current?.clientWidth || 0)}
+                          onClick={scrollTimelineRight}
+                          disabled={
+                            timelineScrollRef.current
+                              ? timelineScrollPosition >=
+                                timelineScrollRef.current.scrollWidth - timelineScrollRef.current.clientWidth
+                              : false
+                          }
                         >
-                          Scroll Right
+                          Next
                           <ChevronRight className="h-4 w-4" />
                         </Button>
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        Use scroll controls or drag to navigate timeline
+                        Showing {visibleDays} days • Scroll to view more
                       </div>
                     </div>
-                    */}
 
                     <div className="w-full">
                       {/* Timeline header */}
@@ -1156,50 +1196,63 @@ export default function OutageDashboard() {
                         <div className="w-80 pr-2 flex items-center justify-center shrink-0">
                           <h3 className="text-lg font-semibold text-center">Planned Outages</h3>
                         </div>
-                        <div className="flex-1 relative bg-gray-100 dark:bg-gray-800 rounded-lg">
-                          <div className="relative w-full">
-                            {/* Time scale header */}
-                            <div className="h-12 border-b border-gray-300 dark:border-gray-600">
-                              {/* Days row only */}
-                              <div className="h-12 flex">
-                                {Array.from(
-                                  {
-                                    length: Math.ceil(
-                                      (range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24),
-                                    ),
-                                  },
-                                  (_, i) => {
-                                    const currentDate = new Date(range.start)
-                                    currentDate.setDate(currentDate.getDate() + i)
-                                    const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6
-                                    const isToday = currentDate.toDateString() === new Date().toDateString()
+                        <div className="flex-1 relative bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
+                          <div
+                            ref={timelineScrollRef}
+                            className="relative w-full overflow-x-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200"
+                            onScroll={handleTimelineScroll}
+                            style={{ scrollbarWidth: "thin" }}
+                          >
+                            {/* Full timeline width container */}
+                            <div
+                              style={{
+                                width: `${Math.ceil((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24)) * 80}px`,
+                                minWidth: "100%",
+                              }}
+                            >
+                              {/* Time scale header */}
+                              <div className="h-12 border-b border-gray-300 dark:border-gray-600">
+                                <div className="h-12 flex">
+                                  {Array.from(
+                                    {
+                                      length: Math.ceil(
+                                        (range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24),
+                                      ),
+                                    },
+                                    (_, i) => {
+                                      const currentDate = new Date(range.start)
+                                      currentDate.setDate(currentDate.getDate() + i)
+                                      const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6
+                                      const isToday = currentDate.toDateString() === new Date().toDateString()
 
-                                    return (
-                                      <div
-                                        key={i}
-                                        className={`flex items-center justify-center text-sm font-semibold border-r border-gray-300 dark:border-gray-600 last:border-r-0 flex-1 ${
-                                          isWeekend
-                                            ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
-                                            : "text-gray-700 dark:text-gray-300"
-                                        } ${isToday ? "bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 font-bold" : ""}`}
-                                      >
-                                        <div className="text-center">
-                                          <div className="font-bold">
-                                            {currentDate.toLocaleDateString("en-US", {
-                                              month: "short",
-                                              day: "numeric",
-                                            })}
-                                          </div>
-                                          <div className="text-xs opacity-75">
-                                            {currentDate.toLocaleDateString("en-US", {
-                                              weekday: "short",
-                                            })}
+                                      return (
+                                        <div
+                                          key={i}
+                                          className={`flex items-center justify-center text-sm font-semibold border-r border-gray-300 dark:border-gray-600 last:border-r-0 ${
+                                            isWeekend
+                                              ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+                                              : "text-gray-700 dark:text-gray-300"
+                                          } ${isToday ? "bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 font-bold" : ""}`}
+                                          style={{ width: "80px", minWidth: "80px" }}
+                                        >
+                                          <div className="text-center">
+                                            <div className="font-bold">
+                                              {currentDate.toLocaleDateString("en-US", {
+                                                month: "short",
+                                                day: "numeric",
+                                              })}
+                                            </div>
+                                            <div className="text-xs opacity-75">
+                                              {currentDate.toLocaleDateString("en-US", {
+                                                weekday: "short",
+                                              })}
+                                            </div>
                                           </div>
                                         </div>
-                                      </div>
-                                    )
-                                  },
-                                )}
+                                      )
+                                    },
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -1208,7 +1261,6 @@ export default function OutageDashboard() {
 
                       {/* Timeline content */}
                       <div className="relative">
-                        {/* Outage rows with accurate positioning */}
                         <div className="space-y-1">
                           {loading ? (
                             [...Array(4)].map((_, i) => (
@@ -1225,17 +1277,15 @@ export default function OutageDashboard() {
                             </div>
                           ) : (
                             filters.map((o, index) => {
-                              // Calculate accurate positioning based on actual duration
                               const totalTimelineMs = range.end.getTime() - range.start.getTime()
                               const outageStartMs = o.startDate.getTime() - range.start.getTime()
                               const outageDurationMs = o.endDate.getTime() - o.startDate.getTime()
 
                               const startPercent = (outageStartMs / totalTimelineMs) * 100
-                              const widthPercent = Math.max(2, (outageDurationMs / totalTimelineMs) * 100 * 3) // Minimum 2% width, 3x multiplier
+                              const widthPercent = Math.max(1, (outageDurationMs / totalTimelineMs) * 100)
 
-                              // Ensure bars don't go beyond timeline bounds
                               const clampedStartPercent = Math.max(0, Math.min(100, startPercent))
-                              const clampedWidthPercent = Math.max(2, Math.min(100 - clampedStartPercent, widthPercent))
+                              const clampedWidthPercent = Math.max(1, Math.min(100 - clampedStartPercent, widthPercent))
 
                               return (
                                 <div key={o.id} className="flex items-center hover:bg-muted/50 rounded p-1 group">
@@ -1268,65 +1318,62 @@ export default function OutageDashboard() {
                                     </div>
                                   </div>
 
-                                  {/* Gantt bar */}
-                                  {/* Gantt bar */}
-                                  <div className="flex-1 relative h-12 bg-muted/30 rounded overflow-visible">
-                                    {/* Grid lines for better readability */}
-                                    <div className="absolute inset-0 opacity-20">
-                                      {Array.from({ length: 25 }, (_, i) => (
-                                        <div
-                                          key={i}
-                                          className="absolute top-0 bottom-0 w-px bg-gray-400"
-                                          style={{ left: `${i * 4}%` }}
-                                        />
-                                      ))}
-                                    </div>
-
-                                    {/* Outage bar with duration-based width */}
+                                  {/* Scrollable Gantt bar container */}
+                                  <div className="flex-1 relative overflow-hidden">
                                     <div
-                                      className={`absolute top-1 h-10 rounded-md flex items-center px-2 text-white text-xs font-medium cursor-pointer shadow-lg transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5 group-hover:ring-2 group-hover:ring-offset-1 ${
-                                        o.severity === "High"
-                                          ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 group-hover:ring-red-300"
-                                          : o.severity === "Medium"
-                                            ? "bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 group-hover:ring-yellow-300"
-                                            : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 group-hover:ring-green-300"
-                                      }`}
+                                      className="relative h-12 bg-muted/30 rounded"
                                       style={{
-                                        left: `${clampedStartPercent}%`,
-                                        width: `${clampedWidthPercent}%`,
-                                        minWidth: "60px",
+                                        width: `${Math.ceil((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24)) * 80}px`,
+                                        marginLeft: `-${timelineScrollPosition}px`,
                                       }}
-                                      onClick={() => setDetail(o)}
-                                      onMouseEnter={(e) => {
-                                        setHover(Number(o.id))
-                                        setTooltip({ o, x: e.clientX, y: e.clientY, v: true })
-                                      }}
-                                      onMouseLeave={() => {
-                                        setHover(null)
-                                        setTooltip(null)
-                                      }}
-                                      onMouseMove={(e) =>
-                                        tooltip && setTooltip({ ...tooltip, x: e.clientX, y: e.clientY })
-                                      }
                                     >
-                                      <span className="truncate">
-                                        {clampedWidthPercent > 4
-                                          ? diffLabel(o.startDate, o.endDate)
-                                          : diffLabel(o.startDate, o.endDate).replace(" ", "")}
-                                      </span>
-                                    </div>
+                                      {/* Grid lines */}
+                                      <div className="absolute inset-0 opacity-20">
+                                        {Array.from(
+                                          {
+                                            length: Math.ceil(
+                                              (range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24),
+                                            ),
+                                          },
+                                          (_, i) => (
+                                            <div
+                                              key={i}
+                                              className="absolute top-0 bottom-0 w-px bg-gray-400"
+                                              style={{ left: `${i * 80}px` }}
+                                            />
+                                          ),
+                                        )}
+                                      </div>
 
-                                    {/* Overflow indicators */}
-                                    {startPercent < 0 && (
-                                      <div className="absolute left-0 top-1 h-10 w-2 bg-red-500 rounded-l-md flex items-center justify-center">
-                                        <div className="w-0 h-0 border-t-2 border-b-2 border-l-2 border-transparent border-l-white"></div>
+                                      {/* Outage bar */}
+                                      <div
+                                        className={`absolute top-1 h-10 rounded-md flex items-center px-2 text-white text-xs font-medium cursor-pointer shadow-lg transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5 group-hover:ring-2 group-hover:ring-offset-1 ${
+                                          o.severity === "High"
+                                            ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 group-hover:ring-red-300"
+                                            : o.severity === "Medium"
+                                              ? "bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 group-hover:ring-yellow-300"
+                                              : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 group-hover:ring-green-300"
+                                        }`}
+                                        style={{
+                                          left: `${(outageStartMs / totalTimelineMs) * Math.ceil((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24)) * 80}px`,
+                                          width: `${Math.max(40, (outageDurationMs / totalTimelineMs) * Math.ceil((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24)) * 80)}px`,
+                                        }}
+                                        onClick={() => setDetail(o)}
+                                        onMouseEnter={(e) => {
+                                          setHover(Number(o.id))
+                                          setTooltip({ o, x: e.clientX, y: e.clientY, v: true })
+                                        }}
+                                        onMouseLeave={() => {
+                                          setHover(null)
+                                          setTooltip(null)
+                                        }}
+                                        onMouseMove={(e) =>
+                                          tooltip && setTooltip({ ...tooltip, x: e.clientX, y: e.clientY })
+                                        }
+                                      >
+                                        <span className="truncate">{diffLabel(o.startDate, o.endDate)}</span>
                                       </div>
-                                    )}
-                                    {startPercent + widthPercent > 100 && (
-                                      <div className="absolute right-0 top-1 h-10 w-2 bg-red-500 rounded-r-md flex items-center justify-center">
-                                        <div className="w-0 h-0 border-t-2 border-b-2 border-r-2 border-transparent border-r-white"></div>
-                                      </div>
-                                    )}
+                                    </div>
                                   </div>
                                 </div>
                               )
@@ -1350,12 +1397,9 @@ export default function OutageDashboard() {
                             <div className="w-3 h-3 bg-green-500 rounded"></div>
                             <span>Low Severity</span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 border-2 border-gray-400 bg-transparent rounded"></div>
-                            <span>Extends beyond view</span>
-                          </div>
                           <div className="text-xs text-muted-foreground ml-4">
-                            Bar width represents actual outage duration
+                            Use scroll controls or drag timeline to view more days • Showing {visibleDays} days at a
+                            time
                           </div>
                         </div>
                       </div>
