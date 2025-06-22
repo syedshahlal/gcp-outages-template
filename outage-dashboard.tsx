@@ -13,12 +13,12 @@ import {
   Search,
   RotateCcw,
   RefreshCw,
-  CheckSquare,
-  Square,
   FileText,
   Globe,
   ChevronLeft,
   ChevronRight,
+  Clock,
+  Users,
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -578,6 +578,17 @@ export default function OutageDashboard() {
     return { start: visibleStart, end: visibleEnd, totalDays }
   }
 
+  // Get upcoming outages for right sidebar
+  const upcomingOutages = useMemo(() => {
+    const now = new Date()
+    const nextMonth = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+
+    return outages
+      .filter((o) => o.startDate >= now && o.startDate <= nextMonth)
+      .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+      .slice(0, 10) // Show top 10 upcoming outages
+  }, [outages])
+
   /* ----------------------------- Render UI ------------------------------ */
 
   if (!mounted)
@@ -680,74 +691,38 @@ export default function OutageDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-1 sm:p-2">
-      <div className="w-full space-y-2 sm:space-y-4">
-        {/* ------------------------------ Header ------------------------------ */}
-        <header className="space-y-1 text-center px-2">
-          <div className="flex justify-center items-center gap-4">
-            <h1 className="text-2xl sm:text-3xl font-bold">GCP Planned Outages Dashboard</h1>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => fetchOutages(true)} disabled={refreshing}>
-                <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-                {refreshing ? "Refreshing…" : "Refresh"}
-              </Button>
-              <ThemeToggle />
-            </div>
-          </div>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
+        <div className="flex h-16 items-center justify-between px-4">
+          <div className="flex items-center gap-4">
+            <h1 className="text-xl font-bold">GCP Planned Outages Dashboard</h1>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Globe className="h-4 w-4" />
-              <span>
-                Timezone: {selectedTimezone.replace("_", " ")} ({getTimezoneAbbreviation(selectedTimezone)})
-              </span>
+              <span>{getTimezoneAbbreviation(selectedTimezone)}</span>
+              <span>•</span>
+              <span>Last updated: {lastUpdated?.toLocaleTimeString() || "Never"}</span>
             </div>
-            <span className="hidden sm:inline">•</span>
-            <span>Last updated: {lastUpdated?.toLocaleString() || "Never"}</span>
-            <span className="hidden sm:inline">•</span>
-            <span>Auto-refresh 30s</span>
           </div>
-        </header>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => fetchOutages(true)} disabled={refreshing}>
+              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+              {refreshing ? "Refreshing…" : "Refresh"}
+            </Button>
+            <ThemeToggle />
+          </div>
+        </div>
+      </header>
 
-        {/* ------------------------------- Tabs ------------------------------- */}
-        <Tabs defaultValue="dashboard" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="dashboard">
-              <BarChart3 className="h-4 w-4" />
-              Dashboard
-            </TabsTrigger>
-            <TabsTrigger value="schedule">
-              <Plus className="h-4 w-4" />
-              Schedule
-            </TabsTrigger>
-            <TabsTrigger value="metrics">
-              <FileText className="h-4 w-4" />
-              Metrics
-            </TabsTrigger>
-          </TabsList>
-
-          {/* ------------------------ DASHBOARD CONTENT ----------------------- */}
-          <TabsContent value="dashboard" className="space-y-6">
-            {/* ---- High-severity alerts ---- */}
-            <div className="space-y-2">
-              {filters
-                .filter((o) => o.severity === "High")
-                .slice(0, 3)
-                .map((o) => (
-                  <Alert key={o.id} className="bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800">
-                    <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
-                    <AlertDescription className="text-red-800 dark:text-red-300 text-sm">
-                      <strong>HIGH IMPACT:</strong> {o.title} on {formatTimelineDate(o.startDate, selectedTimezone)} –{" "}
-                      {formatTimelineDate(o.endDate, selectedTimezone)}
-                      {o.outageType && <span> ({o.outageType})</span>}
-                    </AlertDescription>
-                  </Alert>
-                ))}
-            </div>
-
-            {/* ---- Filters card ---- */}
+      {/* Three Column Layout */}
+      <div className="flex h-[calc(100vh-4rem)]">
+        {/* Left Sidebar - Filters */}
+        <div className="w-80 border-r bg-background/50 overflow-y-auto">
+          <div className="p-4 space-y-4">
+            {/* Filters Card */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
                   <Filter className="h-5 w-5" />
                   Filters
                   {(envFilter.length < ENVIRONMENTS.length || search || sortBy !== "date") && (
@@ -759,7 +734,7 @@ export default function OutageDashboard() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Timezone Selector */}
-                <div className="border-b pb-4">
+                <div className="space-y-2">
                   <TimezoneSelector
                     value={selectedTimezone}
                     onValueChange={setSelectedTimezone}
@@ -768,24 +743,26 @@ export default function OutageDashboard() {
                   />
                 </div>
 
-                {/* Search-sort row */}
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="flex-1">
-                    <Label>Search</Label>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="pl-10"
-                        placeholder="Title, team, category…"
-                      />
-                    </div>
+                {/* Search */}
+                <div className="space-y-2">
+                  <Label>Search</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className="pl-10"
+                      placeholder="Title, team, category…"
+                    />
                   </div>
-                  <div>
+                </div>
+
+                {/* Sort and Month */}
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="space-y-2">
                     <Label>Sort By</Label>
                     <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
-                      <SelectTrigger className="w-40">
+                      <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -795,17 +772,16 @@ export default function OutageDashboard() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div>
+                  <div className="space-y-2">
                     <Label>Month</Label>
                     <Select
                       value={selectedMonth}
                       onValueChange={(val) => {
-                        console.log("Month filter changed to:", val)
                         setSelectedMonth(val)
                         setUseCustomRange(false)
                       }}
                     >
-                      <SelectTrigger className="w-40">
+                      <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -821,45 +797,33 @@ export default function OutageDashboard() {
 
                 {/* Custom Date Range */}
                 <div className="space-y-3 border-t pt-4">
-                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/50 border border-border">
+                  <div className="flex items-center space-x-3">
                     <Checkbox
                       id="custom-range"
                       checked={useCustomRange}
-                      onCheckedChange={(checked) => {
-                        console.log("Custom range toggled:", checked)
-                        setUseCustomRange(checked as boolean)
-                      }}
-                      className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                      onCheckedChange={(checked) => setUseCustomRange(checked as boolean)}
                     />
                     <Label htmlFor="custom-range" className="cursor-pointer font-medium flex items-center gap-2">
                       <Calendar className="h-4 w-4" />
-                      Use Custom Date Range (Override Month Filter)
+                      Custom Date Range
                     </Label>
                   </div>
                   {useCustomRange && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-background border border-border rounded-lg">
+                    <div className="space-y-3">
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium">Start Date</Label>
+                        <Label className="text-sm">Start Date</Label>
                         <Input
                           type="date"
                           value={customDateRange.start}
-                          onChange={(e) => {
-                            console.log("Custom start date changed:", e.target.value)
-                            setCustomDateRange((prev) => ({ ...prev, start: e.target.value }))
-                          }}
-                          className="w-full"
+                          onChange={(e) => setCustomDateRange((prev) => ({ ...prev, start: e.target.value }))}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium">End Date</Label>
+                        <Label className="text-sm">End Date</Label>
                         <Input
                           type="date"
                           value={customDateRange.end}
-                          onChange={(e) => {
-                            console.log("Custom end date changed:", e.target.value)
-                            setCustomDateRange((prev) => ({ ...prev, end: e.target.value }))
-                          }}
-                          className="w-full"
+                          onChange={(e) => setCustomDateRange((prev) => ({ ...prev, end: e.target.value }))}
                         />
                       </div>
                     </div>
@@ -867,52 +831,40 @@ export default function OutageDashboard() {
                 </div>
 
                 {/* Environment checkboxes */}
-                <div className="space-y-3">
+                <div className="space-y-3 border-t pt-4">
                   <Label className="text-sm font-medium">Environments</Label>
                   <div className="space-y-3">
                     {/* Select All toggle */}
-                    <div className="flex items-center space-x-3 p-2 rounded-lg bg-muted/50">
-                      <div className="relative">
-                        <Checkbox
-                          id="all"
-                          checked={allSelected}
-                          ref={(el) => {
-                            if (el) el.indeterminate = someSelected
-                          }}
-                          onCheckedChange={(c) => setEnvFilter(c ? [...ENVIRONMENTS] : [])}
-                          className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                        />
-                      </div>
-                      <Label htmlFor="all" className="cursor-pointer flex items-center gap-2 font-medium">
-                        {allSelected ? (
-                          <CheckSquare className="w-4 h-4 text-primary" />
-                        ) : (
-                          <Square className="w-4 h-4 text-muted-foreground" />
-                        )}
-                        Select All Environments
+                    <div className="flex items-center space-x-3">
+                      <Checkbox
+                        id="all"
+                        checked={allSelected}
+                        ref={(el) => {
+                          if (el) el.indeterminate = someSelected
+                        }}
+                        onCheckedChange={(c) => setEnvFilter(c ? [...ENVIRONMENTS] : [])}
+                      />
+                      <Label htmlFor="all" className="cursor-pointer font-medium">
+                        Select All
                       </Label>
                     </div>
 
                     {/* Individual environment toggles */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                    <div className="space-y-2">
                       {ENVIRONMENTS.map((env) => (
-                        <div
-                          key={env}
-                          className="flex items-center space-x-3 p-2 rounded-lg border border-border hover:bg-muted/50 transition-colors"
-                        >
+                        <div key={env} className="flex items-center space-x-3">
                           <Checkbox
                             id={env}
                             checked={envFilter.includes(env)}
                             onChange={(c) => {
                               setEnvFilter(c ? [...envFilter, env] : envFilter.filter((e) => e !== env))
                             }}
-                            className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                           />
                           <Label htmlFor={env} className="cursor-pointer flex items-center gap-2 flex-1">
                             <div
                               className={`w-3 h-3 rounded-full ${environmentColors[env as keyof typeof environmentColors]}`}
                             />
-                            <span className="font-medium">{env}</span>
+                            <span className="text-sm">{env}</span>
                           </Label>
                         </div>
                       ))}
@@ -920,579 +872,674 @@ export default function OutageDashboard() {
                   </div>
                 </div>
 
-                {/* View toggles / reset / Generate Report */}
-                <div className="flex flex-col sm:flex-row justify-between gap-4 border-t pt-4">
-                  <div className="flex items-center gap-3">
-                    <Label className="text-sm font-medium">View</Label>
-                    <div className="relative inline-flex bg-muted rounded-lg p-1">
-                      <button
-                        className={`relative px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                          view === "timeline"
-                            ? "bg-background text-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground"
-                        }`}
-                        onClick={() => setView("timeline")}
-                      >
-                        <Calendar className="h-4 w-4 mr-2 inline" />
-                        Timeline
-                      </button>
-                      <button
-                        className={`relative px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                          view === "list"
-                            ? "bg-background text-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground"
-                        }`}
-                        onClick={() => setView("list")}
-                      >
-                        <Server className="h-4 w-4 mr-2 inline" />
-                        List
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    {/* Show Generate Report button only when filters are applied */}
-                    {(envFilter.length < ENVIRONMENTS.length || search || sortBy !== "date" || useCustomRange) && (
-                      <Button size="sm" variant="default" onClick={generateFilteredReport}>
-                        <FileText className="h-4 w-4 mr-2" />
-                        Generate Report
-                      </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setEnvFilter([...ENVIRONMENTS])
-                        setSearch("")
-                        setSortBy("date")
-                        setUseCustomRange(false)
-                        setCustomDateRange({ start: "", end: "" })
-                        setSeverityFilter([])
-                      }}
-                    >
-                      <RotateCcw className="h-4 w-4 mr-2" />
-                      Reset
-                    </Button>
-                  </div>
+                {/* Reset Button */}
+                <div className="border-t pt-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setEnvFilter([...ENVIRONMENTS])
+                      setSearch("")
+                      setSortBy("date")
+                      setUseCustomRange(false)
+                      setCustomDateRange({ start: "", end: "" })
+                      setSeverityFilter([])
+                    }}
+                    className="w-full"
+                  >
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Reset Filters
+                  </Button>
                 </div>
               </CardContent>
             </Card>
+          </div>
+        </div>
 
-            {/* ---- Clickable Stats (moved below filters) ---- */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-              <Card
-                className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-blue-500"
-                onClick={() =>
-                  applyQuickFilter(
-                    "total",
-                    setEnvFilter,
-                    setSearch,
-                    setSortBy,
-                    setUseCustomRange,
-                    setCustomDateRange,
-                    setSeverityFilter,
-                    setSelectedMonth,
-                    toast,
-                  )
-                }
-              >
-                <CardContent className="flex items-center justify-between p-4">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Outages</p>
-                    <div className="text-2xl font-bold">{filters.length}</div>
-                    <p className="text-xs text-blue-600 font-medium">Click to show all</p>
-                  </div>
-                  <BarChart3 className="h-8 w-8 text-blue-500" />
-                </CardContent>
-              </Card>
-
-              <Card
-                className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-red-500"
-                onClick={() =>
-                  applyQuickFilter(
-                    "high-severity",
-                    setEnvFilter,
-                    setSearch,
-                    setSortBy,
-                    setUseCustomRange,
-                    setCustomDateRange,
-                    setSeverityFilter,
-                    setSelectedMonth,
-                    toast,
-                  )
-                }
-              >
-                <CardContent className="flex items-center justify-between p-4">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">High Severity</p>
-                    <div className="text-2xl font-bold text-red-600">
-                      {filters.filter((o) => o.severity === "High").length}
-                    </div>
-                    <p className="text-xs text-red-600 font-medium">Click to filter</p>
-                  </div>
-                  <AlertTriangle className="h-8 w-8 text-red-500" />
-                </CardContent>
-              </Card>
-
-              <Card
-                className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-blue-500"
-                onClick={() =>
-                  applyQuickFilter(
-                    "scheduled",
-                    setEnvFilter,
-                    setSearch,
-                    setSortBy,
-                    setUseCustomRange,
-                    setCustomDateRange,
-                    setSeverityFilter,
-                    setSelectedMonth,
-                    toast,
-                  )
-                }
-              >
-                <CardContent className="flex items-center justify-between p-4">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Scheduled</p>
-                    <div className="text-2xl font-bold text-blue-600">
-                      {
-                        filters.filter((o) => {
-                          const now = new Date()
-                          return o.startDate > now
-                        }).length
-                      }
-                    </div>
-                    <p className="text-xs text-blue-600 font-medium">Click to filter</p>
-                  </div>
-                  <Calendar className="h-8 w-8 text-blue-500" />
-                </CardContent>
-              </Card>
-
-              <Card
-                className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-orange-500"
-                onClick={() =>
-                  applyQuickFilter(
-                    "upcoming",
-                    setEnvFilter,
-                    setSearch,
-                    setSortBy,
-                    setUseCustomRange,
-                    setCustomDateRange,
-                    setSeverityFilter,
-                    setSelectedMonth,
-                    toast,
-                  )
-                }
-              >
-                <CardContent className="flex items-center justify-between p-4">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Upcoming</p>
-                    <div className="text-2xl font-bold text-orange-600">
-                      {
-                        filters.filter((o) => {
-                          const now = new Date()
-                          const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
-                          return o.startDate >= now && o.startDate <= nextWeek
-                        }).length
-                      }
-                    </div>
-                    <p className="text-xs text-orange-600 font-medium">Click to filter</p>
-                  </div>
-                  <Calendar className="h-8 w-8 text-orange-500" />
-                </CardContent>
-              </Card>
-
-              <Card
-                className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-green-500"
-                onClick={() =>
-                  applyQuickFilter(
-                    "this-month",
-                    setEnvFilter,
-                    setSearch,
-                    setSortBy,
-                    setUseCustomRange,
-                    setCustomDateRange,
-                    setSeverityFilter,
-                    setSelectedMonth,
-                    toast,
-                  )
-                }
-              >
-                <CardContent className="flex items-center justify-between p-4">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">This Month</p>
-                    <div className="text-2xl font-bold text-green-600">
-                      {
-                        filters.filter((o) => {
-                          const now = new Date()
-                          const currentMonth = now.getMonth()
-                          const currentYear = now.getFullYear()
-                          return o.startDate.getMonth() === currentMonth && o.startDate.getFullYear() === currentYear
-                        }).length
-                      }
-                    </div>
-                    <p className="text-xs text-green-600 font-medium">Click to filter</p>
-                  </div>
-                  <BarChart3 className="h-8 w-8 text-green-500" />
-                </CardContent>
-              </Card>
+        {/* Main Content Area */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-4 space-y-4">
+            {/* High-severity alerts */}
+            <div className="space-y-2">
+              {filters
+                .filter((o) => o.severity === "High")
+                .slice(0, 2)
+                .map((o) => (
+                  <Alert key={o.id} className="bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800">
+                    <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                    <AlertDescription className="text-red-800 dark:text-red-300 text-sm">
+                      <strong>HIGH IMPACT:</strong> {o.title} on {formatTimelineDate(o.startDate, selectedTimezone)}
+                      {o.outageType && <span> ({o.outageType})</span>}
+                    </AlertDescription>
+                  </Alert>
+                ))}
             </div>
 
-            {/* ---- Timeline / List ---- */}
-            {view === "timeline" ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5" />
-                    Timeline (Sorted by Outage Time)
-                  </CardTitle>
-                  <CardDescription>
-                    {formatTimelineDate(range.start, selectedTimezone)} –{" "}
-                    {formatTimelineDate(range.end, selectedTimezone)}
-                    {!useCustomRange && !filters.length && " (Default 2-week view from upcoming outages)"}
-                    <span className="ml-2 text-sm">
-                      Showing {filters.length} of {outages.length} outages
-                    </span>
-                    <Badge variant="outline" className="ml-2">
-                      {getTimezoneAbbreviation(selectedTimezone)}
-                    </Badge>
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="w-full">
-                    {/* Scroll Controls */}
-                    <div className="flex justify-between items-center mb-4 p-2 bg-muted/50 rounded-lg">
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={scrollTimelineLeft}
-                          disabled={timelineScrollPosition <= 0}
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                          Previous
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={scrollTimelineRight}
-                          disabled={
-                            timelineScrollRef.current
-                              ? timelineScrollPosition >=
-                                timelineScrollRef.current.scrollWidth - timelineScrollRef.current.clientWidth
-                              : false
-                          }
-                        >
-                          Next
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        Showing {visibleDays} days • Scroll to view more
-                      </div>
-                    </div>
+            {/* Tabs */}
+            <Tabs defaultValue="dashboard" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="dashboard">
+                  <BarChart3 className="h-4 w-4" />
+                  Dashboard
+                </TabsTrigger>
+                <TabsTrigger value="schedule">
+                  <Plus className="h-4 w-4" />
+                  Schedule
+                </TabsTrigger>
+                <TabsTrigger value="metrics">
+                  <FileText className="h-4 w-4" />
+                  Metrics
+                </TabsTrigger>
+              </TabsList>
 
-                    <div className="w-full">
-                      {/* Timeline header */}
-                      <div className="flex mb-4">
-                        <div className="w-80 pr-2 flex items-center justify-center shrink-0">
-                          <h3 className="text-lg font-semibold text-center">Planned Outages</h3>
+              {/* Dashboard Content */}
+              <TabsContent value="dashboard" className="space-y-4">
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <Card
+                    className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-blue-500"
+                    onClick={() =>
+                      applyQuickFilter(
+                        "total",
+                        setEnvFilter,
+                        setSearch,
+                        setSortBy,
+                        setUseCustomRange,
+                        setCustomDateRange,
+                        setSeverityFilter,
+                        setSelectedMonth,
+                        toast,
+                      )
+                    }
+                  >
+                    <CardContent className="flex items-center justify-between p-4">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Total Outages</p>
+                        <div className="text-2xl font-bold">{filters.length}</div>
+                        <p className="text-xs text-blue-600 font-medium">Click to show all</p>
+                      </div>
+                      <BarChart3 className="h-8 w-8 text-blue-500" />
+                    </CardContent>
+                  </Card>
+
+                  <Card
+                    className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-red-500"
+                    onClick={() =>
+                      applyQuickFilter(
+                        "high-severity",
+                        setEnvFilter,
+                        setSearch,
+                        setSortBy,
+                        setUseCustomRange,
+                        setCustomDateRange,
+                        setSeverityFilter,
+                        setSelectedMonth,
+                        toast,
+                      )
+                    }
+                  >
+                    <CardContent className="flex items-center justify-between p-4">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">High Severity</p>
+                        <div className="text-2xl font-bold text-red-600">
+                          {filters.filter((o) => o.severity === "High").length}
                         </div>
-                        <div className="flex-1 relative bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
-                          <div
-                            ref={timelineScrollRef}
-                            className="relative w-full overflow-x-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200"
-                            onScroll={handleTimelineScroll}
-                            style={{ scrollbarWidth: "thin" }}
-                          >
-                            {/* Full timeline width container */}
-                            <div
-                              style={{
-                                width: `${Math.ceil((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24)) * 80}px`,
-                                minWidth: "100%",
-                              }}
-                            >
-                              {/* Time scale header */}
-                              <div className="h-12 border-b border-gray-300 dark:border-gray-600">
-                                <div className="h-12 flex">
-                                  {Array.from(
-                                    {
-                                      length: Math.ceil(
-                                        (range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24),
-                                      ),
-                                    },
-                                    (_, i) => {
-                                      const currentDate = new Date(range.start)
-                                      currentDate.setDate(currentDate.getDate() + i)
-                                      const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6
-                                      const isToday = currentDate.toDateString() === new Date().toDateString()
+                        <p className="text-xs text-red-600 font-medium">Click to filter</p>
+                      </div>
+                      <AlertTriangle className="h-8 w-8 text-red-500" />
+                    </CardContent>
+                  </Card>
 
-                                      return (
-                                        <div
-                                          key={i}
-                                          className={`flex items-center justify-center text-sm font-semibold border-r border-gray-300 dark:border-gray-600 last:border-r-0 ${
-                                            isWeekend
-                                              ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
-                                              : "text-gray-700 dark:text-gray-300"
-                                          } ${isToday ? "bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 font-bold" : ""}`}
-                                          style={{ width: "80px", minWidth: "80px" }}
-                                        >
-                                          <div className="text-center">
-                                            <div className="font-bold">
-                                              {currentDate.toLocaleDateString("en-US", {
-                                                month: "short",
-                                                day: "numeric",
-                                              })}
-                                            </div>
-                                            <div className="text-xs opacity-75">
-                                              {currentDate.toLocaleDateString("en-US", {
-                                                weekday: "short",
-                                              })}
-                                            </div>
-                                          </div>
-                                        </div>
-                                      )
-                                    },
-                                  )}
-                                </div>
-                              </div>
-                            </div>
+                  <Card
+                    className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-blue-500"
+                    onClick={() =>
+                      applyQuickFilter(
+                        "scheduled",
+                        setEnvFilter,
+                        setSearch,
+                        setSortBy,
+                        setUseCustomRange,
+                        setCustomDateRange,
+                        setSeverityFilter,
+                        setSelectedMonth,
+                        toast,
+                      )
+                    }
+                  >
+                    <CardContent className="flex items-center justify-between p-4">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Scheduled</p>
+                        <div className="text-2xl font-bold text-blue-600">
+                          {
+                            filters.filter((o) => {
+                              const now = new Date()
+                              return o.startDate > now
+                            }).length
+                          }
+                        </div>
+                        <p className="text-xs text-blue-600 font-medium">Click to filter</p>
+                      </div>
+                      <Calendar className="h-8 w-8 text-blue-500" />
+                    </CardContent>
+                  </Card>
+
+                  <Card
+                    className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-orange-500"
+                    onClick={() =>
+                      applyQuickFilter(
+                        "upcoming",
+                        setEnvFilter,
+                        setSearch,
+                        setSortBy,
+                        setUseCustomRange,
+                        setCustomDateRange,
+                        setSeverityFilter,
+                        setSelectedMonth,
+                        toast,
+                      )
+                    }
+                  >
+                    <CardContent className="flex items-center justify-between p-4">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Upcoming</p>
+                        <div className="text-2xl font-bold text-orange-600">
+                          {
+                            filters.filter((o) => {
+                              const now = new Date()
+                              const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+                              return o.startDate >= now && o.startDate <= nextWeek
+                            }).length
+                          }
+                        </div>
+                        <p className="text-xs text-orange-600 font-medium">Click to filter</p>
+                      </div>
+                      <Calendar className="h-8 w-8 text-orange-500" />
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Timeline */}
+                {view === "timeline" ? (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Calendar className="h-5 w-5" />
+                        Timeline (Sorted by Outage Time)
+                      </CardTitle>
+                      <CardDescription>
+                        {formatTimelineDate(range.start, selectedTimezone)} –{" "}
+                        {formatTimelineDate(range.end, selectedTimezone)}
+                        <span className="ml-2 text-sm">
+                          Showing {filters.length} of {outages.length} outages
+                        </span>
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="w-full">
+                        {/* Scroll Controls */}
+                        <div className="flex justify-between items-center mb-4 p-2 bg-muted/50 rounded-lg">
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={scrollTimelineLeft}
+                              disabled={timelineScrollPosition <= 0}
+                            >
+                              <ChevronLeft className="h-4 w-4" />
+                              Previous
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={scrollTimelineRight}
+                              disabled={
+                                timelineScrollRef.current
+                                  ? timelineScrollPosition >=
+                                    timelineScrollRef.current.scrollWidth - timelineScrollRef.current.clientWidth
+                                  : false
+                              }
+                            >
+                              Next
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            Showing {visibleDays} days • Scroll to view more
                           </div>
                         </div>
-                      </div>
 
-                      {/* Timeline content */}
-                      <div className="relative">
-                        <div className="space-y-1">
-                          {loading ? (
-                            [...Array(4)].map((_, i) => (
-                              <div key={i} className="flex">
-                                <div className="w-80 h-14 rounded bg-muted animate-pulse mr-2"></div>
-                                <div className="flex-1 h-14 rounded bg-muted animate-pulse"></div>
-                              </div>
-                            ))
-                          ) : !filters.length ? (
-                            <div className="text-center py-8 text-muted-foreground">
-                              <p>No outages match your filters</p>
-                              <p className="text-sm mt-2">Total outages available: {outages.length}</p>
-                              <p className="text-sm">Try adjusting your month or environment filters</p>
+                        <div className="w-full">
+                          {/* Timeline header */}
+                          <div className="flex mb-4">
+                            <div className="w-80 pr-2 flex items-center justify-center shrink-0">
+                              <h3 className="text-lg font-semibold text-center">Planned Outages</h3>
                             </div>
-                          ) : (
-                            filters.map((o, index) => {
-                              const totalTimelineMs = range.end.getTime() - range.start.getTime()
-                              const outageStartMs = o.startDate.getTime() - range.start.getTime()
-                              const outageDurationMs = o.endDate.getTime() - o.startDate.getTime()
+                            <div className="flex-1 relative bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
+                              <div
+                                ref={timelineScrollRef}
+                                className="relative w-full overflow-x-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200"
+                                onScroll={handleTimelineScroll}
+                                style={{ scrollbarWidth: "thin" }}
+                              >
+                                {/* Full timeline width container */}
+                                <div
+                                  style={{
+                                    width: `${Math.ceil((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24)) * 80}px`,
+                                    minWidth: "100%",
+                                  }}
+                                >
+                                  {/* Time scale header */}
+                                  <div className="h-12 border-b border-gray-300 dark:border-gray-600">
+                                    <div className="h-12 flex">
+                                      {Array.from(
+                                        {
+                                          length: Math.ceil(
+                                            (range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24),
+                                          ),
+                                        },
+                                        (_, i) => {
+                                          const currentDate = new Date(range.start)
+                                          currentDate.setDate(currentDate.getDate() + i)
+                                          const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6
+                                          const isToday = currentDate.toDateString() === new Date().toDateString()
 
-                              const startPercent = (outageStartMs / totalTimelineMs) * 100
-                              const widthPercent = Math.max(1, (outageDurationMs / totalTimelineMs) * 100)
-
-                              const clampedStartPercent = Math.max(0, Math.min(100, startPercent))
-                              const clampedWidthPercent = Math.max(1, Math.min(100 - clampedStartPercent, widthPercent))
-
-                              return (
-                                <div key={o.id} className="flex items-center hover:bg-muted/50 rounded p-1 group">
-                                  {/* Info panel */}
-                                  <div className="w-80 pr-2 shrink-0">
-                                    <div className="flex justify-between items-start mb-1">
-                                      <h4 className="font-medium text-sm leading-tight">{o.title}</h4>
-                                      <div className="flex gap-1 ml-2">
-                                        <Badge className={`${severityCss[o.severity]} text-xs`}>{o.severity}</Badge>
-                                        {o.outageType && (
-                                          <Badge className={`${typeCss[o.outageType]} text-xs`}>{o.outageType}</Badge>
-                                        )}
-                                      </div>
-                                    </div>
-                                    <div className="flex flex-wrap gap-1 mb-1">
-                                      {o.environments.map((e) => (
-                                        <Badge
-                                          key={e}
-                                          className={`text-xs ${environmentColors[e as keyof typeof environmentColors]} text-white`}
-                                        >
-                                          {e}
-                                        </Badge>
-                                      ))}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      {formatTimelineDate(o.startDate, selectedTimezone)}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      Duration: {diffLabel(o.startDate, o.endDate)}
-                                    </div>
-                                  </div>
-
-                                  {/* Scrollable Gantt bar container */}
-                                  <div className="flex-1 relative overflow-hidden">
-                                    <div
-                                      className="relative h-12 bg-muted/30 rounded"
-                                      style={{
-                                        width: `${Math.ceil((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24)) * 80}px`,
-                                        marginLeft: `-${timelineScrollPosition}px`,
-                                      }}
-                                    >
-                                      {/* Grid lines */}
-                                      <div className="absolute inset-0 opacity-20">
-                                        {Array.from(
-                                          {
-                                            length: Math.ceil(
-                                              (range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24),
-                                            ),
-                                          },
-                                          (_, i) => (
+                                          return (
                                             <div
                                               key={i}
-                                              className="absolute top-0 bottom-0 w-px bg-gray-400"
-                                              style={{ left: `${i * 80}px` }}
-                                            />
-                                          ),
-                                        )}
-                                      </div>
-
-                                      {/* Outage bar */}
-                                      <div
-                                        className={`absolute top-1 h-10 rounded-md flex items-center px-2 text-white text-xs font-medium cursor-pointer shadow-lg transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5 group-hover:ring-2 group-hover:ring-offset-1 ${
-                                          o.severity === "High"
-                                            ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 group-hover:ring-red-300"
-                                            : o.severity === "Medium"
-                                              ? "bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 group-hover:ring-yellow-300"
-                                              : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 group-hover:ring-green-300"
-                                        }`}
-                                        style={{
-                                          left: `${(outageStartMs / totalTimelineMs) * Math.ceil((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24)) * 80}px`,
-                                          width: `${Math.max(40, (outageDurationMs / totalTimelineMs) * Math.ceil((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24)) * 80)}px`,
-                                        }}
-                                        onClick={() => setDetail(o)}
-                                        onMouseEnter={(e) => {
-                                          setHover(Number(o.id))
-                                          setTooltip({ o, x: e.clientX, y: e.clientY, v: true })
-                                        }}
-                                        onMouseLeave={() => {
-                                          setHover(null)
-                                          setTooltip(null)
-                                        }}
-                                        onMouseMove={(e) =>
-                                          tooltip && setTooltip({ ...tooltip, x: e.clientX, y: e.clientY })
-                                        }
-                                      >
-                                        <span className="truncate">{diffLabel(o.startDate, o.endDate)}</span>
-                                      </div>
+                                              className={`flex items-center justify-center text-sm font-semibold border-r border-gray-300 dark:border-gray-600 last:border-r-0 ${
+                                                isWeekend
+                                                  ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+                                                  : "text-gray-700 dark:text-gray-300"
+                                              } ${isToday ? "bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 font-bold" : ""}`}
+                                              style={{ width: "80px", minWidth: "80px" }}
+                                            >
+                                              <div className="text-center">
+                                                <div className="font-bold">
+                                                  {currentDate.toLocaleDateString("en-US", {
+                                                    month: "short",
+                                                    day: "numeric",
+                                                  })}
+                                                </div>
+                                                <div className="text-xs opacity-75">
+                                                  {currentDate.toLocaleDateString("en-US", {
+                                                    weekday: "short",
+                                                  })}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          )
+                                        },
+                                      )}
                                     </div>
                                   </div>
                                 </div>
-                              )
-                            })
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Timeline content */}
+                          <div className="relative">
+                            <div className="space-y-1">
+                              {loading ? (
+                                [...Array(4)].map((_, i) => (
+                                  <div key={i} className="flex">
+                                    <div className="w-80 h-14 rounded bg-muted animate-pulse mr-2"></div>
+                                    <div className="flex-1 h-14 rounded bg-muted animate-pulse"></div>
+                                  </div>
+                                ))
+                              ) : !filters.length ? (
+                                <div className="text-center py-8 text-muted-foreground">
+                                  <p>No outages match your filters</p>
+                                  <p className="text-sm mt-2">Total outages available: {outages.length}</p>
+                                  <p className="text-sm">Try adjusting your filters</p>
+                                </div>
+                              ) : (
+                                filters.map((o, index) => {
+                                  const totalTimelineMs = range.end.getTime() - range.start.getTime()
+                                  const outageStartMs = o.startDate.getTime() - range.start.getTime()
+                                  const outageDurationMs = o.endDate.getTime() - o.startDate.getTime()
+
+                                  return (
+                                    <div key={o.id} className="flex items-center hover:bg-muted/50 rounded p-1 group">
+                                      {/* Info panel */}
+                                      <div className="w-80 pr-2 shrink-0">
+                                        <div className="flex justify-between items-start mb-1">
+                                          <h4 className="font-medium text-sm leading-tight">{o.title}</h4>
+                                          <div className="flex gap-1 ml-2">
+                                            <Badge className={`${severityCss[o.severity]} text-xs`}>{o.severity}</Badge>
+                                            {o.outageType && (
+                                              <Badge className={`${typeCss[o.outageType]} text-xs`}>
+                                                {o.outageType}
+                                              </Badge>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <div className="flex flex-wrap gap-1 mb-1">
+                                          {o.environments.map((e) => (
+                                            <Badge
+                                              key={e}
+                                              className={`text-xs ${environmentColors[e as keyof typeof environmentColors]} text-white`}
+                                            >
+                                              {e}
+                                            </Badge>
+                                          ))}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                          {formatTimelineDate(o.startDate, selectedTimezone)}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                          Duration: {diffLabel(o.startDate, o.endDate)}
+                                        </div>
+                                      </div>
+
+                                      {/* Scrollable Gantt bar container */}
+                                      <div className="flex-1 relative overflow-hidden">
+                                        <div
+                                          className="relative h-12 bg-muted/30 rounded"
+                                          style={{
+                                            width: `${Math.ceil((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24)) * 80}px`,
+                                            marginLeft: `-${timelineScrollPosition}px`,
+                                          }}
+                                        >
+                                          {/* Grid lines */}
+                                          <div className="absolute inset-0 opacity-20">
+                                            {Array.from(
+                                              {
+                                                length: Math.ceil(
+                                                  (range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24),
+                                                ),
+                                              },
+                                              (_, i) => (
+                                                <div
+                                                  key={i}
+                                                  className="absolute top-0 bottom-0 w-px bg-gray-400"
+                                                  style={{ left: `${i * 80}px` }}
+                                                />
+                                              ),
+                                            )}
+                                          </div>
+
+                                          {/* Outage bar */}
+                                          <div
+                                            className={`absolute top-1 h-10 rounded-md flex items-center px-2 text-white text-xs font-medium cursor-pointer shadow-lg transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5 group-hover:ring-2 group-hover:ring-offset-1 ${
+                                              o.severity === "High"
+                                                ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 group-hover:ring-red-300"
+                                                : o.severity === "Medium"
+                                                  ? "bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 group-hover:ring-yellow-300"
+                                                  : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 group-hover:ring-green-300"
+                                            }`}
+                                            style={{
+                                              left: `${(outageStartMs / totalTimelineMs) * Math.ceil((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24)) * 80}px`,
+                                              width: `${Math.max(40, (outageDurationMs / totalTimelineMs) * Math.ceil((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24)) * 80)}px`,
+                                            }}
+                                            onClick={() => setDetail(o)}
+                                            onMouseEnter={(e) => {
+                                              setHover(Number(o.id))
+                                              setTooltip({ o, x: e.clientX, y: e.clientY, v: true })
+                                            }}
+                                            onMouseLeave={() => {
+                                              setHover(null)
+                                              setTooltip(null)
+                                            }}
+                                            onMouseMove={(e) =>
+                                              tooltip && setTooltip({ ...tooltip, x: e.clientX, y: e.clientY })
+                                            }
+                                          >
+                                            <span className="truncate">{diffLabel(o.startDate, o.endDate)}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )
+                                })
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Legend */}
+                          <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                            <div className="flex flex-wrap items-center gap-4 text-sm">
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 bg-red-500 rounded"></div>
+                                <span>High Severity</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 bg-yellow-500 rounded"></div>
+                                <span>Medium Severity</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 bg-green-500 rounded"></div>
+                                <span>Low Severity</span>
+                              </div>
+                              <div className="text-xs text-muted-foreground ml-4">
+                                Use scroll controls or drag timeline to view more days • Showing {visibleDays} days at a
+                                time
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Server className="h-5 w-5" />
+                        Outage List
+                      </CardTitle>
+                      <CardDescription>
+                        Showing {filters.length} of {outages.length} outages
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {filters.map((o) => (
+                        <Card key={o.id} className="border-2 hover:shadow-md transition-shadow">
+                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">{o.title}</CardTitle>
+                            <div className="flex items-center space-x-2">
+                              <Badge className={severityCss[o.severity]}>{o.severity}</Badge>
+                              {o.outageType && <Badge className={typeCss[o.outageType]}>{o.outageType}</Badge>}
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-sm text-muted-foreground">
+                              {formatTimelineDate(o.startDate, selectedTimezone)} –{" "}
+                              {formatTimelineDate(o.endDate, selectedTimezone)} ({diffLabel(o.startDate, o.endDate)})
+                            </p>
+                            <p className="text-sm text-muted-foreground">Team: {o.assignee}</p>
+                            <p className="text-sm text-muted-foreground">Environments: {o.environments.join(", ")}</p>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+
+              {/* Schedule Content */}
+              <TabsContent value="schedule">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Schedule an Outage</CardTitle>
+                    <CardDescription>Create a new planned outage event.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <Tabs defaultValue="simple">
+                      <TabsList>
+                        <TabsTrigger value="simple">Simple Form</TabsTrigger>
+                        <TabsTrigger value="enhanced">Enhanced Form</TabsTrigger>
+                        <TabsTrigger value="tabular">Tabular Form</TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="simple">
+                        <p className="text-sm text-muted-foreground">
+                          A basic form for quickly scheduling a single outage.
+                        </p>
+                        <EnhancedOutageForm />
+                      </TabsContent>
+                      <TabsContent value="enhanced">
+                        <p className="text-sm text-muted-foreground">
+                          A more detailed form with advanced options for scheduling a single outage.
+                        </p>
+                        <EnhancedOutageForm />
+                      </TabsContent>
+                      <TabsContent value="tabular">
+                        <p className="text-sm text-muted-foreground">
+                          A tabular form for scheduling multiple outages at once.
+                        </p>
+                        <TabularMultiOutageForm />
+                      </TabsContent>
+                    </Tabs>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Metrics Content */}
+              <TabsContent value="metrics">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Outage Metrics</CardTitle>
+                    <CardDescription>Visualize outage data and trends.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">Coming soon...</p>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div>
+
+        {/* Right Sidebar - Upcoming Outages */}
+        <div className="w-80 border-l bg-background/50 overflow-y-auto">
+          <div className="p-4 space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Clock className="h-5 w-5" />
+                  Upcoming Outages
+                  <Badge variant="secondary">{upcomingOutages.length}</Badge>
+                </CardTitle>
+                <CardDescription>Next 30 days</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {upcomingOutages.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-sm">No upcoming outages</p>
+                    <p className="text-xs">All clear for the next 30 days!</p>
+                  </div>
+                ) : (
+                  upcomingOutages.map((outage) => {
+                    const daysUntil = Math.ceil(
+                      (outage.startDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
+                    )
+                    const isToday = daysUntil === 0
+                    const isTomorrow = daysUntil === 1
+
+                    return (
+                      <div
+                        key={outage.id}
+                        className="border rounded-lg p-3 hover:bg-muted/50 transition-colors cursor-pointer"
+                        onClick={() => setDetail(outage)}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="font-medium text-sm leading-tight pr-2">{outage.title}</h4>
+                          <div className="flex gap-1 shrink-0">
+                            <Badge className={`${severityCss[outage.severity]} text-xs`}>{outage.severity}</Badge>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          {outage.environments.slice(0, 2).map((env) => (
+                            <Badge
+                              key={env}
+                              className={`text-xs ${environmentColors[env as keyof typeof environmentColors]} text-white`}
+                            >
+                              {env}
+                            </Badge>
+                          ))}
+                          {outage.environments.length > 2 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{outage.environments.length - 2}
+                            </Badge>
                           )}
                         </div>
-                      </div>
 
-                      {/* Legend */}
-                      <div className="mt-4 p-3 bg-muted/50 rounded-lg">
-                        <div className="flex flex-wrap items-center gap-4 text-sm">
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-red-500 rounded"></div>
-                            <span>High Severity</span>
+                        <div className="space-y-1 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            <span>
+                              {isToday ? "Today" : isTomorrow ? "Tomorrow" : `In ${daysUntil} days`} •{" "}
+                              {formatTimelineDate(outage.startDate, selectedTimezone)}
+                            </span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-yellow-500 rounded"></div>
-                            <span>Medium Severity</span>
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            <span>Duration: {diffLabel(outage.startDate, outage.endDate)}</span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-green-500 rounded"></div>
-                            <span>Low Severity</span>
-                          </div>
-                          <div className="text-xs text-muted-foreground ml-4">
-                            Use scroll controls or drag timeline to view more days • Showing {visibleDays} days at a
-                            time
+                          {outage.estimatedUsers && outage.estimatedUsers > 0 && (
+                            <div className="flex items-center gap-1">
+                              <Users className="h-3 w-3" />
+                              <span>{outage.estimatedUsers.toLocaleString()} users affected</span>
+                            </div>
+                          )}
+                          <div className="text-xs">
+                            <span className="font-medium">Team:</span> {outage.assignee}
                           </div>
                         </div>
+
+                        {(isToday || isTomorrow) && (
+                          <div className="mt-2 px-2 py-1 bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-300 rounded text-xs font-medium">
+                            {isToday ? "🚨 Starting Today" : "⚠️ Starting Tomorrow"}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Server className="h-5 w-5" />
-                    Outage List
-                  </CardTitle>
-                  <CardDescription>
-                    Showing {filters.length} of {outages.length} outages
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {filters.map((o) => (
-                    <Card key={o.id} className="border-2 hover:shadow-md transition-shadow">
-                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">{o.title}</CardTitle>
-                        <div className="flex items-center space-x-2">
-                          <Badge className={severityCss[o.severity]}>{o.severity}</Badge>
-                          {o.outageType && <Badge className={typeCss[o.outageType]}>{o.outageType}</Badge>}
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-sm text-muted-foreground">
-                          {formatTimelineDate(o.startDate, selectedTimezone)} –{" "}
-                          {formatTimelineDate(o.endDate, selectedTimezone)} ({diffLabel(o.startDate, o.endDate)})
-                        </p>
-                        <p className="text-sm text-muted-foreground">Team: {o.assignee}</p>
-                        <p className="text-sm text-muted-foreground">Environments: {o.environments.join(", ")}</p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          {/* ------------------------ SCHEDULE CONTENT ---------------------- */}
-          <TabsContent value="schedule">
-            <Card>
-              <CardHeader>
-                <CardTitle>Schedule an Outage</CardTitle>
-                <CardDescription>Create a new planned outage event.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Tabs defaultValue="simple">
-                  <TabsList>
-                    <TabsTrigger value="simple">Simple Form</TabsTrigger>
-                    <TabsTrigger value="enhanced">Enhanced Form</TabsTrigger>
-                    <TabsTrigger value="tabular">Tabular Form</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="simple">
-                    <p className="text-sm text-muted-foreground">
-                      A basic form for quickly scheduling a single outage.
-                    </p>
-                    <EnhancedOutageForm />
-                  </TabsContent>
-                  <TabsContent value="enhanced">
-                    <p className="text-sm text-muted-foreground">
-                      A more detailed form with advanced options for scheduling a single outage.
-                    </p>
-                    <EnhancedOutageForm />
-                  </TabsContent>
-                  <TabsContent value="tabular">
-                    <p className="text-sm text-muted-foreground">
-                      A tabular form for scheduling multiple outages at once.
-                    </p>
-                    <TabularMultiOutageForm />
-                  </TabsContent>
-                </Tabs>
+                    )
+                  })
+                )}
               </CardContent>
             </Card>
-          </TabsContent>
 
-          {/* ------------------------- METRICS CONTENT ------------------------ */}
-          <TabsContent value="metrics">
+            {/* Quick Actions */}
             <Card>
-              <CardHeader>
-                <CardTitle>Outage Metrics</CardTitle>
-                <CardDescription>Visualize outage data and trends.</CardDescription>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Quick Actions</CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">Coming soon...</p>
+              <CardContent className="space-y-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={() => {
+                    const now = new Date()
+                    setCustomDateRange({
+                      start: now.toISOString().split("T")[0],
+                      end: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+                    })
+                    setUseCustomRange(true)
+                  }}
+                >
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Next 7 Days
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={() => setSeverityFilter(["High"])}
+                >
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  High Severity Only
+                </Button>
+                <Button variant="outline" size="sm" className="w-full justify-start" onClick={generateFilteredReport}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Export Report
+                </Button>
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
+          </div>
+        </div>
       </div>
       <Tooltip />
     </div>
