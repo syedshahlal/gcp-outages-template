@@ -642,7 +642,7 @@ export default function OutageDashboard() {
 
   return (
     <div className="min-h-screen bg-background p-2 sm:p-4">
-      <div className="mx-auto max-w-7xl space-y-4 sm:space-y-6">
+      <div className="mx-auto max-w-full space-y-4 sm:space-y-6">
         {/* ------------------------------ Header ------------------------------ */}
         <header className="space-y-2 text-center">
           <div className="flex justify-center items-center gap-4">
