@@ -1153,7 +1153,7 @@ export default function OutageDashboard() {
                     <div className="min-w-[800px]">
                       {/* Timeline header */}
                       <div className="flex mb-4">
-                        <div className="w-80 pr-4 flex items-center justify-center shrink-0">
+                        <div className="w-96 pr-4 flex items-center justify-center shrink-0">
                           <h3 className="text-lg font-semibold text-center">Planned Outages</h3>
                         </div>
                         <div className="flex-1 relative bg-gray-100 dark:bg-gray-800 rounded-lg min-w-[500px]">
@@ -1213,7 +1213,7 @@ export default function OutageDashboard() {
                           {loading ? (
                             [...Array(4)].map((_, i) => (
                               <div key={i} className="flex">
-                                <div className="w-80 h-14 rounded bg-muted animate-pulse mr-4"></div>
+                                <div className="w-96 h-14 rounded bg-muted animate-pulse mr-4"></div>
                                 <div className="flex-1 h-14 rounded bg-muted animate-pulse min-w-[500px]"></div>
                               </div>
                             ))
@@ -1240,7 +1240,7 @@ export default function OutageDashboard() {
                               return (
                                 <div key={o.id} className="flex items-center hover:bg-muted/50 rounded p-1 group">
                                   {/* Info panel */}
-                                  <div className="w-80 pr-4 shrink-0">
+                                  <div className="w-96 pr-4 shrink-0">
                                     <div className="flex justify-between items-start mb-1">
                                       <h4 className="font-medium text-sm leading-tight">{o.title}</h4>
                                       <div className="flex gap-1 ml-2">
@@ -1251,7 +1251,7 @@ export default function OutageDashboard() {
                                       </div>
                                     </div>
                                     <div className="flex flex-wrap gap-1 mb-1">
-                                      {o.environments.slice(0, 3).map((e) => (
+                                      {o.environments.map((e) => (
                                         <Badge
                                           key={e}
                                           className={`text-xs ${environmentColors[e as keyof typeof environmentColors]} text-white`}
@@ -1259,11 +1259,6 @@ export default function OutageDashboard() {
                                           {e}
                                         </Badge>
                                       ))}
-                                      {o.environments.length > 3 && (
-                                        <Badge variant="outline" className="text-xs">
-                                          +{o.environments.length - 3}
-                                        </Badge>
-                                      )}
                                     </div>
                                     <div className="text-xs text-muted-foreground">
                                       {formatTimelineDate(o.startDate, selectedTimezone)}
