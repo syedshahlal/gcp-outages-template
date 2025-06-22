@@ -1102,15 +1102,14 @@ export default function OutageDashboard() {
                         <div className="flex-1 relative bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden min-w-[500px]">
                           {/* Existing timeline content... */}
                           {/* Time scale header */}
-                          <div className="h-16 border-b border-gray-300 dark:border-gray-600">
-                            {/* Days row */}
-                            <div className="h-8 flex border-b border-gray-300 dark:border-gray-600">
+                          <div className="h-12 border-b border-gray-300 dark:border-gray-600">
+                            {/* Days row only */}
+                            <div className="h-12 flex">
                               {(() => {
-                                const totalHours = Math.ceil(
-                                  (range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60),
+                                const totalDays = Math.ceil(
+                                  (range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24),
                                 )
-                                const days = Math.ceil(totalHours / 24)
-                                return Array.from({ length: days }, (_, i) => {
+                                return Array.from({ length: totalDays }, (_, i) => {
                                   const currentDate = new Date(range.start)
                                   currentDate.setDate(currentDate.getDate() + i)
                                   const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6
@@ -1119,51 +1118,29 @@ export default function OutageDashboard() {
                                   return (
                                     <div
                                       key={i}
-                                      className={`flex items-center justify-center text-xs font-semibold border-r border-gray-300 dark:border-gray-600 last:border-r-0  ${
+                                      className={`flex items-center justify-center text-sm font-semibold border-r border-gray-300 dark:border-gray-600 last:border-r-0 ${
                                         isWeekend
                                           ? "bg-gray-200 dark:bg-gray-700 text-red-600 dark:text-red-400"
                                           : "text-gray-700 dark:text-gray-300"
                                       } ${isToday ? "bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 font-bold" : ""}`}
                                       style={{
-                                        width: `${(24 / totalHours) * 100}%`,
-                                        minWidth: "60px",
+                                        width: `${(1 / totalDays) * 100}%`,
+                                        minWidth: "80px",
                                       }}
                                     >
-                                      {currentDate.toLocaleDateString("en-US", {
-                                        month: "short",
-                                        day: "numeric",
-                                      })}
-                                    </div>
-                                  )
-                                })
-                              })()}
-                            </div>
-
-                            {/* Hours row */}
-                            <div className="h-8 flex">
-                              {(() => {
-                                const totalHours = Math.ceil(
-                                  (range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60),
-                                )
-                                const hoursToShow = Math.min(totalHours, 168) // Max 1 week of hours
-                                const hourStep = totalHours > 168 ? Math.ceil(totalHours / 168) : 1
-
-                                return Array.from({ length: Math.ceil(totalHours / hourStep) }, (_, i) => {
-                                  const hourIndex = i * hourStep
-                                  const currentTime = new Date(range.start.getTime() + hourIndex * 60 * 60 * 1000)
-                                  const hour = currentTime.getHours()
-                                  const showHour = hourStep === 1 || hour % 6 === 0 // Show every hour or every 6 hours
-
-                                  return (
-                                    <div
-                                      key={i}
-                                      className="flex items-center justify-center text-xs border-r border-gray-300 dark:border-gray-600 last:border-r-0 text-gray-500 dark:text-gray-400 "
-                                      style={{
-                                        width: `${(hourStep / totalHours) * 100}%`,
-                                        minWidth: "20px",
-                                      }}
-                                    >
-                                      {showHour ? `${hour.toString().padStart(2, "0")}:00` : ""}
+                                      <div className="text-center">
+                                        <div className="font-bold">
+                                          {currentDate.toLocaleDateString("en-US", {
+                                            month: "short",
+                                            day: "numeric",
+                                          })}
+                                        </div>
+                                        <div className="text-xs opacity-75">
+                                          {currentDate.toLocaleDateString("en-US", {
+                                            weekday: "short",
+                                          })}
+                                        </div>
+                                      </div>
                                     </div>
                                   )
                                 })
@@ -1181,7 +1158,7 @@ export default function OutageDashboard() {
                                 100
                               return (
                                 <div
-                                  className="absolute top-16 bottom-0 w-0.5 bg-red-500 z-10 pointer-events-none"
+                                  className="absolute top-12 bottom-0 w-0.5 bg-red-500 z-10 pointer-events-none"
                                   style={{ left: `${nowPosition}%` }}
                                 >
                                   <div className="absolute -top-2 -left-1 w-3 h-3 bg-red-500 rounded-full"></div>
