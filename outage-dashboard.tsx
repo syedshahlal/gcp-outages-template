@@ -1229,48 +1229,189 @@ export default function OutageDashboard() {
                       {/* Timeline content */}
                       <div className="relative">
                         {/* Current time indicator */}
-                        <div
-                          className="absolute top-0 bottom-0 w-[2px] bg-blue-500 opacity-50"
-                          style={{
-                            left: `${
-                              ((new Date().getTime() - range.start.getTime()) /
+                        {(() => {
+                          const now = new Date()
+                          if (now >= range.start && now <= range.end) {
+                            const nowPosition =
+                              ((now.getTime() - range.start.getTime()) /
                                 (range.end.getTime() - range.start.getTime())) *
                               100
-                            }%`,
-                          }}
-                        />
-
-                        {filters.map((o) => {
-                          const pos = ganttPos(o.startDate, o.endDate)
-                          return (
-                            <div
-                              key={o.id}
-                              className="group absolute block rounded-md cursor-pointer hover:opacity-100 transition-opacity duration-200"
-                              style={{
-                                top: 4 + filters.indexOf(o) * 32,
-                                height: 24,
-                                left: pos.left,
-                                width: pos.width,
-                                backgroundColor: environmentColors[o.environments[0] as keyof typeof environmentColors],
-                              }}
-                              onPointerEnter={(e) => {
-                                setTooltip({
-                                  o,
-                                  x: e.clientX,
-                                  y: e.clientY,
-                                  v: true,
-                                })
-                              }}
-                              onPointerLeave={() => setTooltip({ ...tooltip, v: false } as any)}
-                              onClick={() => setDetail(o)}
-                            >
-                              <div className="absolute inset-0 bg-black/20 rounded-md opacity-0 group-hover:opacity-100" />
-                              <div className="absolute inset-0 flex items-center justify-center text-white text-sm font-medium rounded-md">
-                                {o.title}
+                            return (
+                              <div
+                                className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10 pointer-events-none"
+                                style={{ left: `${nowPosition}%` }}
+                              >
+                                <div className="absolute -top-2 -left-1 w-3 h-3 bg-red-500 rounded-full"></div>
+                                <div className="absolute -top-6 -left-8 text-xs text-red-500 font-semibold whitespace-nowrap">
+                                  Now
+                                </div>
                               </div>
+                            )
+                          }
+                          return null
+                        })()}
+
+                        {/* Outage rows with accurate positioning */}
+                        <div className="space-y-1">
+                          {loading ? (
+                            [...Array(4)].map((_, i) => (
+                              <div key={i} className="flex">
+                                <div className="w-80 h-14 rounded bg-muted animate-pulse mr-4"></div>
+                                <div className="flex-1 h-14 rounded bg-muted animate-pulse min-w-[500px]"></div>
+                              </div>
+                            ))
+                          ) : !filters.length ? (
+                            <div className="text-center py-8 text-muted-foreground">
+                              <p>No outages match your filters</p>
+                              <p className="text-sm mt-2">Total outages available: {outages.length}</p>
+                              <p className="text-sm">Try adjusting your month or environment filters</p>
                             </div>
-                          )
-                        })}
+                          ) : (
+                            filters.map((o, index) => {
+                              // Calculate accurate positioning based on actual duration
+                              const totalTimelineMs = range.end.getTime() - range.start.getTime()
+                              const outageStartMs = o.startDate.getTime() - range.start.getTime()
+                              const outageDurationMs = o.endDate.getTime() - o.startDate.getTime()
+
+                              const startPercent = (outageStartMs / totalTimelineMs) * 100
+                              const widthPercent = Math.max(0.5, (outageDurationMs / totalTimelineMs) * 100) // Minimum 0.5% width
+
+                              // Ensure bars don't go beyond timeline bounds
+                              const clampedStartPercent = Math.max(0, Math.min(100, startPercent))
+                              const clampedWidthPercent = Math.max(
+                                0.5,
+                                Math.min(100 - clampedStartPercent, widthPercent),
+                              )
+
+                              return (
+                                <div key={o.id} className="flex items-center hover:bg-muted/50 rounded p-1 group">
+                                  {/* Info panel */}
+                                  <div className="w-80 pr-4 shrink-0">
+                                    <div className="flex justify-between items-start mb-1">
+                                      <h4 className="font-medium text-sm leading-tight">{o.title}</h4>
+                                      <div className="flex gap-1 ml-2">
+                                        <Badge className={`${severityCss[o.severity]} text-xs`}>{o.severity}</Badge>
+                                        {o.outageType && (
+                                          <Badge className={`${typeCss[o.outageType]} text-xs`}>{o.outageType}</Badge>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1 mb-1">
+                                      {o.environments.slice(0, 3).map((e) => (
+                                        <Badge
+                                          key={e}
+                                          className={`text-xs ${environmentColors[e as keyof typeof environmentColors]} text-white`}
+                                        >
+                                          {e}
+                                        </Badge>
+                                      ))}
+                                      {o.environments.length > 3 && (
+                                        <Badge variant="outline" className="text-xs">
+                                          +{o.environments.length - 3}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {formatTimelineDate(o.startDate, selectedTimezone)}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      Duration: {diffLabel(o.startDate, o.endDate)}
+                                    </div>
+                                  </div>
+
+                                  {/* Gantt bar */}
+                                  <div className="flex-1 relative h-12 bg-muted/30 rounded overflow-visible min-w-[500px]">
+                                    {/* Grid lines for better readability */}
+                                    <div className="absolute inset-0 opacity-20">
+                                      {Array.from({ length: 25 }, (_, i) => (
+                                        <div
+                                          key={i}
+                                          className="absolute top-0 bottom-0 w-px bg-gray-400"
+                                          style={{ left: `${i * 4}%` }}
+                                        />
+                                      ))}
+                                    </div>
+
+                                    {/* Outage bar with duration-based width */}
+                                    <div
+                                      className={`absolute top-1 h-10 rounded-md flex items-center px-2 text-white text-xs font-medium cursor-pointer shadow-lg transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5 group-hover:ring-2 group-hover:ring-offset-1 ${
+                                        o.severity === "High"
+                                          ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 group-hover:ring-red-300"
+                                          : o.severity === "Medium"
+                                            ? "bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 group-hover:ring-yellow-300"
+                                            : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 group-hover:ring-green-300"
+                                      }`}
+                                      style={{
+                                        left: `${clampedStartPercent}%`,
+                                        width: `${clampedWidthPercent}%`,
+                                        minWidth: "40px", // Ensure minimum clickable area
+                                      }}
+                                      onClick={() => setDetail(o)}
+                                      onMouseEnter={(e) => {
+                                        setHover(Number(o.id))
+                                        setTooltip({ o, x: e.clientX, y: e.clientY, v: true })
+                                      }}
+                                      onMouseLeave={() => {
+                                        setHover(null)
+                                        setTooltip(null)
+                                      }}
+                                      onMouseMove={(e) =>
+                                        tooltip && setTooltip({ ...tooltip, x: e.clientX, y: e.clientY })
+                                      }
+                                    >
+                                      <span className="truncate">
+                                        {clampedWidthPercent > 8
+                                          ? diffLabel(o.startDate, o.endDate)
+                                          : diffLabel(o.startDate, o.endDate).replace(" ", "")}
+                                      </span>
+                                    </div>
+
+                                    {/* Overflow indicators */}
+                                    {startPercent < 0 && (
+                                      <div className="absolute left-0 top-1 h-10 w-2 bg-red-500 rounded-l-md flex items-center justify-center">
+                                        <div className="w-0 h-0 border-t-2 border-b-2 border-l-2 border-transparent border-l-white"></div>
+                                      </div>
+                                    )}
+                                    {startPercent + widthPercent > 100 && (
+                                      <div className="absolute right-0 top-1 h-10 w-2 bg-red-500 rounded-r-md flex items-center justify-center">
+                                        <div className="w-0 h-0 border-t-2 border-b-2 border-r-2 border-transparent border-r-white"></div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Legend */}
+                      <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                        <div className="flex flex-wrap items-center gap-4 text-sm">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-red-500 rounded"></div>
+                            <span>High Severity</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-yellow-500 rounded"></div>
+                            <span>Medium Severity</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-green-500 rounded"></div>
+                            <span>Low Severity</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-px h-4 bg-red-500"></div>
+                            <span>Current Time</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 border-2 border-gray-400 bg-transparent rounded"></div>
+                            <span>Extends beyond view</span>
+                          </div>
+                          <div className="text-xs text-muted-foreground ml-4">
+                            Bar width represents actual outage duration
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
