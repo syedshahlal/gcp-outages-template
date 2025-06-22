@@ -1377,27 +1377,20 @@ export default function OutageDashboard() {
                     <CardDescription>Create a new planned outage event.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <Tabs defaultValue="simple">
+                    <Tabs defaultValue="single">
                       <TabsList>
-                        <TabsTrigger value="simple">Simple Form</TabsTrigger>
-                        <TabsTrigger value="enhanced">Enhanced Form</TabsTrigger>
-                        <TabsTrigger value="tabular">Tabular Form</TabsTrigger>
+                        <TabsTrigger value="single">Single</TabsTrigger>
+                        <TabsTrigger value="multiple">Multiple</TabsTrigger>
                       </TabsList>
-                      <TabsContent value="simple">
+                      <TabsContent value="single">
                         <p className="text-sm text-muted-foreground">
-                          A basic form for quickly scheduling a single outage.
+                          Create a single planned outage with detailed information.
                         </p>
                         <EnhancedOutageForm />
                       </TabsContent>
-                      <TabsContent value="enhanced">
+                      <TabsContent value="multiple">
                         <p className="text-sm text-muted-foreground">
-                          A more detailed form with advanced options for scheduling a single outage.
-                        </p>
-                        <EnhancedOutageForm />
-                      </TabsContent>
-                      <TabsContent value="tabular">
-                        <p className="text-sm text-muted-foreground">
-                          A tabular form for scheduling multiple outages at once.
+                          Create multiple outages at once using a tabular interface.
                         </p>
                         <TabularMultiOutageForm />
                       </TabsContent>
