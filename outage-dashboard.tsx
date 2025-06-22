@@ -571,14 +571,18 @@ export default function OutageDashboard() {
   //     </div>
   //   ) : null
 
-  const scrollTimeline = (direction: 'left' | 'right') => {
+  const scrollTimeline = (direction: "left" | "right") => {
     if (scrollContainerRef.current) {
       const scrollAmount = 200
-      const newPosition = direction === 'left'
-        ? Math.max(0, scrollPosition - scrollAmount)
-        : Math.min(scrollContainerRef.current.scrollWidth - scrollContainerRef.current.clientWidth, scrollPosition + scrollAmount)
+      const newPosition =
+        direction === "left"
+          ? Math.max(0, scrollPosition - scrollAmount)
+          : Math.min(
+              scrollContainerRef.current.scrollWidth - scrollContainerRef.current.clientWidth,
+              scrollPosition + scrollAmount,
+            )
 
-      scrollContainerRef.current.scrollTo({ left: newPosition, behavior: 'smooth' })
+      scrollContainerRef.current.scrollTo({ left: newPosition, behavior: "smooth" })
       setScrollPosition(newPosition)
     }
   }
@@ -1125,7 +1129,7 @@ export default function OutageDashboard() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => scrollTimeline('left')}
+                          onClick={() => scrollTimeline("left")}
                           disabled={scrollPosition <= 0}
                         >
                           <ChevronLeft className="h-4 w-4" />
@@ -1134,8 +1138,8 @@ export default function OutageDashboard() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => scrollTimeline('right')}
-                          disabled={scrollPosition >= (timelineWidth - (scrollContainerRef.current?.clientWidth || 0))}
+                          onClick={() => scrollTimeline("right")}
+                          disabled={scrollPosition >= timelineWidth - (scrollContainerRef.current?.clientWidth || 0)}
                         >
                           Scroll Right
                           <ChevronRight className="h-4 w-4" />
@@ -1156,13 +1160,13 @@ export default function OutageDashboard() {
                           ref={scrollContainerRef}
                           className="flex-1 relative bg-gray-100 dark:bg-gray-800 rounded-lg overflow-x-auto overflow-y-hidden min-w-[500px]"
                           onScroll={handleScroll}
-                          style={{ scrollbarWidth: 'thin' }}
+                          style={{ scrollbarWidth: "thin" }}
                         >
                           <div
                             className="relative"
                             style={{
-                              width: `${Math.max(800, (range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24) * 100)}px`,
-                              minWidth: '800px'
+                              width: `${Math.max(800, ((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24)) * 100)}px`,
+                              minWidth: "800px",
                             }}
                             onLoad={() => {
                               if (scrollContainerRef.current) {
@@ -1217,4 +1221,149 @@ export default function OutageDashboard() {
                                   })
                                 })()}
                               </div>
-                            </div>\
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Timeline content */}
+                      <div className="relative">
+                        {/* Current time indicator */}
+                        <div
+                          className="absolute top-0 bottom-0 w-[2px] bg-blue-500 opacity-50"
+                          style={{
+                            left: `${
+                              ((new Date().getTime() - range.start.getTime()) /
+                                (range.end.getTime() - range.start.getTime())) *
+                              100
+                            }%`,
+                          }}
+                        />
+
+                        {filters.map((o) => {
+                          const pos = ganttPos(o.startDate, o.endDate)
+                          return (
+                            <div
+                              key={o.id}
+                              className="group absolute block rounded-md cursor-pointer hover:opacity-100 transition-opacity duration-200"
+                              style={{
+                                top: 4 + filters.indexOf(o) * 32,
+                                height: 24,
+                                left: pos.left,
+                                width: pos.width,
+                                backgroundColor: environmentColors[o.environments[0] as keyof typeof environmentColors],
+                              }}
+                              onPointerEnter={(e) => {
+                                setTooltip({
+                                  o,
+                                  x: e.clientX,
+                                  y: e.clientY,
+                                  v: true,
+                                })
+                              }}
+                              onPointerLeave={() => setTooltip({ ...tooltip, v: false } as any)}
+                              onClick={() => setDetail(o)}
+                            >
+                              <div className="absolute inset-0 bg-black/20 rounded-md opacity-0 group-hover:opacity-100" />
+                              <div className="absolute inset-0 flex items-center justify-center text-white text-sm font-medium rounded-md">
+                                {o.title}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Server className="h-5 w-5" />
+                    Outage List
+                  </CardTitle>
+                  <CardDescription>
+                    Showing {filters.length} of {outages.length} outages
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {filters.map((o) => (
+                    <Card key={o.id} className="border-2 hover:shadow-md transition-shadow">
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">{o.title}</CardTitle>
+                        <div className="flex items-center space-x-2">
+                          <Badge className={severityCss[o.severity]}>{o.severity}</Badge>
+                          {o.outageType && <Badge className={typeCss[o.outageType]}>{o.outageType}</Badge>}
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground">
+                          {formatTimelineDate(o.startDate, selectedTimezone)} –{" "}
+                          {formatTimelineDate(o.endDate, selectedTimezone)} ({diffLabel(o.startDate, o.endDate)})
+                        </p>
+                        <p className="text-sm text-muted-foreground">Team: {o.assignee}</p>
+                        <p className="text-sm text-muted-foreground">Environments: {o.environments.join(", ")}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* ------------------------ SCHEDULE CONTENT ---------------------- */}
+          <TabsContent value="schedule">
+            <Card>
+              <CardHeader>
+                <CardTitle>Schedule an Outage</CardTitle>
+                <CardDescription>Create a new planned outage event.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Tabs defaultValue="simple">
+                  <TabsList>
+                    <TabsTrigger value="simple">Simple Form</TabsTrigger>
+                    <TabsTrigger value="enhanced">Enhanced Form</TabsTrigger>
+                    <TabsTrigger value="tabular">Tabular Form</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="simple">
+                    <p className="text-sm text-muted-foreground">
+                      A basic form for quickly scheduling a single outage.
+                    </p>
+                    <EnhancedOutageForm />
+                  </TabsContent>
+                  <TabsContent value="enhanced">
+                    <p className="text-sm text-muted-foreground">
+                      A more detailed form with advanced options for scheduling a single outage.
+                    </p>
+                    <EnhancedOutageForm />
+                  </TabsContent>
+                  <TabsContent value="tabular">
+                    <p className="text-sm text-muted-foreground">
+                      A tabular form for scheduling multiple outages at once.
+                    </p>
+                    <TabularMultiOutageForm />
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ------------------------- METRICS CONTENT ------------------------ */}
+          <TabsContent value="metrics">
+            <Card>
+              <CardHeader>
+                <CardTitle>Outage Metrics</CardTitle>
+                <CardDescription>Visualize outage data and trends.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">Coming soon...</p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+      <Tooltip />
+    </div>
+  )
+}
