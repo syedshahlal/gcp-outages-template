@@ -691,10 +691,10 @@ export default function OutageDashboard() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-background">
+    <div className="min-h-screen w-screen bg-background">
       {/* Header */}
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-        <div className="flex h-16 items-center justify-between px-4">
+        <div className="flex h-16 items-center justify-between px-4 w-full max-w-none">
           <div className="flex items-center gap-4">
             <h1 className="text-xl font-bold">GCP Planned Outages Dashboard</h1>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -715,9 +715,9 @@ export default function OutageDashboard() {
       </header>
 
       {/* Three Column Layout */}
-      <div className="flex h-[calc(100vh-4rem)]">
+      <div className="flex h-[calc(100vh-4rem)] w-full">
         {/* Left Sidebar - Filters */}
-        <div className="w-80 border-r bg-background/50 overflow-y-auto">
+        <div className="w-80 xl:w-96 2xl:w-[400px] border-r bg-background/50 overflow-y-auto flex-shrink-0">
           <div className="p-4 space-y-4">
             {/* Filters Card */}
             <Card>
@@ -898,7 +898,7 @@ export default function OutageDashboard() {
 
         {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto">
-          <div className="p-4 space-y-4">
+          <div className="p-4 xl:p-6 2xl:p-8 space-y-4">
             {/* High-severity alerts */}
             <div className="space-y-2">
               {filters
@@ -935,7 +935,7 @@ export default function OutageDashboard() {
               {/* Dashboard Content */}
               <TabsContent value="dashboard" className="space-y-4">
                 {/* Stats Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
                   <Card
                     className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-blue-500"
                     onClick={() =>
@@ -1111,7 +1111,7 @@ export default function OutageDashboard() {
                         <div className="w-full">
                           {/* Timeline header */}
                           <div className="flex mb-4">
-                            <div className="w-80 pr-2 flex items-center justify-center shrink-0">
+                            <div className="w-80 xl:w-96 2xl:w-[400px] pr-2 flex items-center justify-center shrink-0">
                               <h3 className="text-lg font-semibold text-center">Planned Outages</h3>
                             </div>
                             <div className="flex-1 relative bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
@@ -1183,7 +1183,7 @@ export default function OutageDashboard() {
                               {loading ? (
                                 [...Array(4)].map((_, i) => (
                                   <div key={i} className="flex">
-                                    <div className="w-80 h-14 rounded bg-muted animate-pulse mr-2"></div>
+                                    <div className="w-80 xl:w-96 2xl:w-[400px] h-14 rounded bg-muted animate-pulse mr-2"></div>
                                     <div className="flex-1 h-14 rounded bg-muted animate-pulse"></div>
                                   </div>
                                 ))
@@ -1202,7 +1202,7 @@ export default function OutageDashboard() {
                                   return (
                                     <div key={o.id} className="flex items-center hover:bg-muted/50 rounded p-1 group">
                                       {/* Info panel */}
-                                      <div className="w-80 pr-2 shrink-0">
+                                      <div className="w-80 xl:w-96 2xl:w-[400px] pr-2 shrink-0">
                                         <div className="flex justify-between items-start mb-1">
                                           <h4 className="font-medium text-sm leading-tight">{o.title}</h4>
                                           <div className="flex gap-1 ml-2">
@@ -1411,7 +1411,7 @@ export default function OutageDashboard() {
         </div>
 
         {/* Right Sidebar - Upcoming Outages */}
-        <div className="w-80 border-l bg-background/50 overflow-y-auto">
+        <div className="w-80 xl:w-96 2xl:w-[400px] border-l bg-background/50 overflow-y-auto flex-shrink-0">
           <div className="p-4 space-y-4">
             <Card>
               <CardHeader className="pb-3">
