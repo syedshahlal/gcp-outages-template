@@ -1214,5 +1214,7 @@ export default function OutageDashboard() {
                                         </div>
                                       </div>
                                     )
-                                  })\
-                                })(
+                                  })
+                                })()}
+                              </div>
+                            </div>\
