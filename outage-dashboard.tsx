@@ -1179,7 +1179,7 @@ export default function OutageDashboard() {
                                         key={i}
                                         className={`flex items-center justify-center text-sm font-semibold border-r border-gray-300 dark:border-gray-600 last:border-r-0 flex-1 ${
                                           isWeekend
-                                            ? "bg-gray-200 dark:bg-gray-700 text-red-600 dark:text-red-400"
+                                            ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
                                             : "text-gray-700 dark:text-gray-300"
                                         } ${isToday ? "bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 font-bold" : ""}`}
                                       >
