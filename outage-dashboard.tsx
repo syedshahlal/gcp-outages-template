@@ -1274,14 +1274,11 @@ export default function OutageDashboard() {
                               const outageDurationMs = o.endDate.getTime() - o.startDate.getTime()
 
                               const startPercent = (outageStartMs / totalTimelineMs) * 100
-                              const widthPercent = Math.max(0.5, (outageDurationMs / totalTimelineMs) * 100) // Minimum 0.5% width
+                              const widthPercent = Math.max(2, (outageDurationMs / totalTimelineMs) * 100 * 3) // Minimum 2% width, 3x multiplier
 
                               // Ensure bars don't go beyond timeline bounds
                               const clampedStartPercent = Math.max(0, Math.min(100, startPercent))
-                              const clampedWidthPercent = Math.max(
-                                0.5,
-                                Math.min(100 - clampedStartPercent, widthPercent),
-                              )
+                              const clampedWidthPercent = Math.max(2, Math.min(100 - clampedStartPercent, widthPercent))
 
                               return (
                                 <div key={o.id} className="flex items-center hover:bg-muted/50 rounded p-1 group">
@@ -1344,7 +1341,7 @@ export default function OutageDashboard() {
                                       style={{
                                         left: `${clampedStartPercent}%`,
                                         width: `${clampedWidthPercent}%`,
-                                        minWidth: "40px", // Ensure minimum clickable area
+                                        minWidth: "60px", // Ensure minimum clickable area
                                       }}
                                       onClick={() => setDetail(o)}
                                       onMouseEnter={(e) => {
@@ -1360,7 +1357,7 @@ export default function OutageDashboard() {
                                       }
                                     >
                                       <span className="truncate">
-                                        {clampedWidthPercent > 8
+                                        {clampedWidthPercent > 4
                                           ? diffLabel(o.startDate, o.endDate)
                                           : diffLabel(o.startDate, o.endDate).replace(" ", "")}
                                       </span>
