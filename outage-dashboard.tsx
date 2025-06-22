@@ -641,10 +641,10 @@ export default function OutageDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-2 sm:p-4">
-      <div className="mx-auto max-w-full space-y-4 sm:space-y-6">
+    <div className="min-h-screen bg-background p-1 sm:p-2">
+      <div className="w-full space-y-2 sm:space-y-4">
         {/* ------------------------------ Header ------------------------------ */}
-        <header className="space-y-2 text-center">
+        <header className="space-y-1 text-center px-2">
           <div className="flex justify-center items-center gap-4">
             <h1 className="text-2xl sm:text-3xl font-bold">GCP Planned Outages Dashboard</h1>
             <div className="flex gap-2">
@@ -1150,13 +1150,13 @@ export default function OutageDashboard() {
                     </div>
                     */}
 
-                    <div className="min-w-[800px]">
+                    <div className="w-full">
                       {/* Timeline header */}
                       <div className="flex mb-4">
-                        <div className="w-96 pr-4 flex items-center justify-center shrink-0">
+                        <div className="w-80 pr-2 flex items-center justify-center shrink-0">
                           <h3 className="text-lg font-semibold text-center">Planned Outages</h3>
                         </div>
-                        <div className="flex-1 relative bg-gray-100 dark:bg-gray-800 rounded-lg min-w-[500px]">
+                        <div className="flex-1 relative bg-gray-100 dark:bg-gray-800 rounded-lg">
                           <div className="relative w-full">
                             {/* Time scale header */}
                             <div className="h-12 border-b border-gray-300 dark:border-gray-600">
@@ -1213,8 +1213,8 @@ export default function OutageDashboard() {
                           {loading ? (
                             [...Array(4)].map((_, i) => (
                               <div key={i} className="flex">
-                                <div className="w-96 h-14 rounded bg-muted animate-pulse mr-4"></div>
-                                <div className="flex-1 h-14 rounded bg-muted animate-pulse min-w-[500px]"></div>
+                                <div className="w-80 h-14 rounded bg-muted animate-pulse mr-2"></div>
+                                <div className="flex-1 h-14 rounded bg-muted animate-pulse"></div>
                               </div>
                             ))
                           ) : !filters.length ? (
@@ -1240,7 +1240,7 @@ export default function OutageDashboard() {
                               return (
                                 <div key={o.id} className="flex items-center hover:bg-muted/50 rounded p-1 group">
                                   {/* Info panel */}
-                                  <div className="w-96 pr-4 shrink-0">
+                                  <div className="w-80 pr-2 shrink-0">
                                     <div className="flex justify-between items-start mb-1">
                                       <h4 className="font-medium text-sm leading-tight">{o.title}</h4>
                                       <div className="flex gap-1 ml-2">
@@ -1270,7 +1270,7 @@ export default function OutageDashboard() {
 
                                   {/* Gantt bar */}
                                   {/* Gantt bar */}
-                                  <div className="flex-1 relative h-12 bg-muted/30 rounded overflow-visible min-w-[500px]">
+                                  <div className="flex-1 relative h-12 bg-muted/30 rounded overflow-visible">
                                     {/* Grid lines for better readability */}
                                     <div className="absolute inset-0 opacity-20">
                                       {Array.from({ length: 25 }, (_, i) => (
