@@ -1060,7 +1060,8 @@ export default function OutageDashboard() {
                     Timeline (Sorted by Outage Time)
                   </CardTitle>
                   <CardDescription>
-                    {range.start.toLocaleDateString()} – {range.end.toLocaleDateString()}
+                    {formatTimelineDate(range.start, selectedTimezone)} –{" "}
+                    {formatTimelineDate(range.end, selectedTimezone)}
                     {!useCustomRange && !filters.length && " (Default 2-week view from upcoming outages)"}
                     <span className="ml-2 text-sm">
                       Showing {filters.length} of {outages.length} outages
@@ -1071,147 +1072,272 @@ export default function OutageDashboard() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {/* Enhanced timeline header with dates */}
-                  <div className="hidden sm:block mb-4">
-                    <div className="flex">
-                      <div className="w-96 pr-4 flex items-center justify-center">
-                        <h3 className="text-lg font-semibold text-center">Planned Outages</h3>
-                      </div>
-                      <div className="flex-1 relative bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
-                        {/* Month headers */}
-                        <div className="h-8 flex border-b border-gray-300 dark:border-gray-600">
-                          {(() => {
-                            const months: { [key: string]: { start: number; width: number; name: string } } = {}
-                            const totalDays = Math.min(range.days || 14, 31)
-
-                            // Calculate month spans
-                            for (let i = 0; i < totalDays; i++) {
-                              const currentDate = new Date(range.start)
-                              currentDate.setDate(currentDate.getDate() + i)
-                              const monthKey = currentDate.toLocaleDateString("en-US", {
-                                month: "long",
-                                year: "numeric",
-                              })
-
-                              if (!months[monthKey]) {
-                                months[monthKey] = { start: i, width: 1, name: monthKey }
-                              } else {
-                                months[monthKey].width++
-                              }
-                            }
-
-                            return Object.entries(months).map(([monthKey, data]) => (
-                              <div
-                                key={monthKey}
-                                className="flex items-center justify-center text-sm font-semibold text-gray-700 dark:text-gray-300 border-r border-gray-300 dark:border-gray-600 last:border-r-0"
-                                style={{
-                                  width: `${(data.width / totalDays) * 100}%`,
-                                  minWidth: "60px",
-                                }}
-                              >
-                                {data.name}
-                              </div>
-                            ))
-                          })()}
+                  {/* Enhanced timeline with horizontal scroll */}
+                  <div className="w-full overflow-x-auto">
+                    <div className="min-w-[800px]">
+                      {/* Timeline header */}
+                      <div className="flex mb-4">
+                        <div className="w-80 pr-4 flex items-center justify-center shrink-0">
+                          <h3 className="text-lg font-semibold text-center">Planned Outages</h3>
                         </div>
-
-                        {/* Days grid */}
-                        <div className="h-12 flex">
-                          {Array.from({ length: Math.min(range.days || 14, 31) }, (_, i) => {
-                            const currentDate = new Date(range.start)
-                            currentDate.setDate(currentDate.getDate() + i)
-                            const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6
-                            const isToday = currentDate.toDateString() === new Date().toDateString()
+                        <div className="flex-1 relative bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden min-w-[500px]">
+                          {/* Calculate proper time scale */}
+                          {(() => {
+                            const totalHours = Math.ceil(
+                              (range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60),
+                            )
+                            const minWidth = Math.max(800, totalHours * 4) // 4px per hour minimum
 
                             return (
-                              <div
-                                key={i}
-                                className={`flex-1 flex flex-col items-center justify-center text-xs font-medium border-r border-gray-300 dark:border-gray-600 last:border-r-0 min-w-0 py-1 ${
-                                  isWeekend ? "bg-gray-200 dark:bg-gray-700" : ""
-                                } ${isToday ? "bg-blue-100 dark:bg-blue-900" : ""}`}
-                              >
-                                <div
-                                  className={`${isWeekend ? "text-red-600 dark:text-red-400" : ""} ${isToday ? "font-bold text-blue-600 dark:text-blue-400" : ""}`}
-                                >
-                                  {currentDate.getDate()}
+                              <>
+                                {/* Time scale header */}
+                                <div className="h-16 border-b border-gray-300 dark:border-gray-600">
+                                  {/* Days row */}
+                                  <div className="h-8 flex border-b border-gray-300 dark:border-gray-600">
+                                    {(() => {
+                                      const days = Math.ceil(totalHours / 24)
+                                      return Array.from({ length: days }, (_, i) => {
+                                        const currentDate = new Date(range.start)
+                                        currentDate.setDate(currentDate.getDate() + i)
+                                        const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6
+                                        const isToday = currentDate.toDateString() === new Date().toDateString()
+
+                                        return (
+                                          <div
+                                            key={i}
+                                            className={`flex items-center justify-center text-xs font-semibold border-r border-gray-300 dark:border-gray-600 last:border-r-0 ${
+                                              isWeekend
+                                                ? "bg-gray-200 dark:bg-gray-700 text-red-600 dark:text-red-400"
+                                                : "text-gray-700 dark:text-gray-300"
+                                            } ${isToday ? "bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 font-bold" : ""}`}
+                                            style={{
+                                              width: `${(24 / totalHours) * 100}%`,
+                                              minWidth: "60px",
+                                            }}
+                                          >
+                                            {currentDate.toLocaleDateString("en-US", {
+                                              month: "short",
+                                              day: "numeric",
+                                            })}
+                                          </div>
+                                        )
+                                      })
+                                    })()}
+                                  </div>
+
+                                  {/* Hours row */}
+                                  <div className="h-8 flex">
+                                    {(() => {
+                                      const hoursToShow = Math.min(totalHours, 168) // Max 1 week of hours
+                                      const hourStep = totalHours > 168 ? Math.ceil(totalHours / 168) : 1
+
+                                      return Array.from({ length: Math.ceil(totalHours / hourStep) }, (_, i) => {
+                                        const hourIndex = i * hourStep
+                                        const currentTime = new Date(range.start.getTime() + hourIndex * 60 * 60 * 1000)
+                                        const hour = currentTime.getHours()
+                                        const showHour = hourStep === 1 || hour % 6 === 0 // Show every hour or every 6 hours
+
+                                        return (
+                                          <div
+                                            key={i}
+                                            className="flex items-center justify-center text-xs border-r border-gray-300 dark:border-gray-600 last:border-r-0 text-gray-500 dark:text-gray-400"
+                                            style={{
+                                              width: `${(hourStep / totalHours) * 100}%`,
+                                              minWidth: "20px",
+                                            }}
+                                          >
+                                            {showHour ? `${hour.toString().padStart(2, "0")}:00` : ""}
+                                          </div>
+                                        )
+                                      })
+                                    })()}
+                                  </div>
                                 </div>
-                                <div className="text-gray-400 dark:text-gray-500 text-xs">
-                                  {currentDate.toLocaleDateString("en-US", { weekday: "short" })}
+
+                                {/* Current time indicator */}
+                                {(() => {
+                                  const now = new Date()
+                                  if (now >= range.start && now <= range.end) {
+                                    const nowPosition =
+                                      ((now.getTime() - range.start.getTime()) /
+                                        (range.end.getTime() - range.start.getTime())) *
+                                      100
+                                    return (
+                                      <div
+                                        className="absolute top-16 bottom-0 w-0.5 bg-red-500 z-10 pointer-events-none"
+                                        style={{ left: `${nowPosition}%` }}
+                                      >
+                                        <div className="absolute -top-2 -left-1 w-3 h-3 bg-red-500 rounded-full"></div>
+                                        <div className="absolute -top-6 -left-8 text-xs text-red-500 font-semibold whitespace-nowrap">
+                                          Now
+                                        </div>
+                                      </div>
+                                    )
+                                  }
+                                  return null
+                                })()}
+                              </>
+                            )
+                          })()}
+                        </div>
+                      </div>
+
+                      {/* Outage rows with accurate positioning */}
+                      <div className="space-y-1">
+                        {loading ? (
+                          [...Array(4)].map((_, i) => (
+                            <div key={i} className="flex">
+                              <div className="w-80 h-14 rounded bg-muted animate-pulse mr-4"></div>
+                              <div className="flex-1 h-14 rounded bg-muted animate-pulse min-w-[500px]"></div>
+                            </div>
+                          ))
+                        ) : !filters.length ? (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <p>No outages match your filters</p>
+                            <p className="text-sm mt-2">Total outages available: {outages.length}</p>
+                            <p className="text-sm">Try adjusting your month or environment filters</p>
+                          </div>
+                        ) : (
+                          filters.map((o, index) => {
+                            // Calculate accurate positioning
+                            const startPercent =
+                              ((o.startDate.getTime() - range.start.getTime()) /
+                                (range.end.getTime() - range.start.getTime())) *
+                              100
+                            const endPercent =
+                              ((o.endDate.getTime() - range.start.getTime()) /
+                                (range.end.getTime() - range.start.getTime())) *
+                              100
+                            const widthPercent = Math.max(0.5, endPercent - startPercent) // Minimum 0.5% width
+
+                            return (
+                              <div key={o.id} className="flex items-center hover:bg-muted/50 rounded p-1 group">
+                                {/* Info panel */}
+                                <div className="w-80 pr-4 shrink-0">
+                                  <div className="flex justify-between items-start mb-1">
+                                    <h4 className="font-medium text-sm leading-tight">{o.title}</h4>
+                                    <div className="flex gap-1 ml-2">
+                                      <Badge className={`${severityCss[o.severity]} text-xs`}>{o.severity}</Badge>
+                                      {o.outageType && (
+                                        <Badge className={`${typeCss[o.outageType]} text-xs`}>{o.outageType}</Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="flex flex-wrap gap-1 mb-1">
+                                    {o.environments.slice(0, 3).map((e) => (
+                                      <Badge
+                                        key={e}
+                                        className={`text-xs ${environmentColors[e as keyof typeof environmentColors]} text-white`}
+                                      >
+                                        {e}
+                                      </Badge>
+                                    ))}
+                                    {o.environments.length > 3 && (
+                                      <Badge variant="outline" className="text-xs">
+                                        +{o.environments.length - 3}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {formatTimelineDate(o.startDate, selectedTimezone)}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    Duration: {diffLabel(o.startDate, o.endDate)}
+                                  </div>
+                                </div>
+
+                                {/* Gantt bar */}
+                                <div className="flex-1 relative h-12 bg-muted/30 rounded overflow-visible min-w-[500px]">
+                                  {/* Grid lines for better readability */}
+                                  <div className="absolute inset-0 opacity-20">
+                                    {Array.from({ length: 25 }, (_, i) => (
+                                      <div
+                                        key={i}
+                                        className="absolute top-0 bottom-0 w-px bg-gray-400"
+                                        style={{ left: `${i * 4}%` }}
+                                      />
+                                    ))}
+                                  </div>
+
+                                  {/* Outage bar */}
+                                  <div
+                                    className={`absolute top-1 h-10 rounded-md flex items-center px-2 text-white text-xs font-medium cursor-pointer shadow-lg transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5 group-hover:ring-2 group-hover:ring-offset-1 ${
+                                      o.severity === "High"
+                                        ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 group-hover:ring-red-300"
+                                        : o.severity === "Medium"
+                                          ? "bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 group-hover:ring-yellow-300"
+                                          : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 group-hover:ring-green-300"
+                                    }`}
+                                    style={{
+                                      left: `${Math.max(0, startPercent)}%`,
+                                      width: `${widthPercent}%`,
+                                      minWidth: "40px",
+                                    }}
+                                    onClick={() => setDetail(o)}
+                                    onMouseEnter={(e) => {
+                                      setHover(Number(o.id))
+                                      setTooltip({ o, x: e.clientX, y: e.clientY, v: true })
+                                    }}
+                                    onMouseLeave={() => {
+                                      setHover(null)
+                                      setTooltip(null)
+                                    }}
+                                    onMouseMove={(e) =>
+                                      tooltip && setTooltip({ ...tooltip, x: e.clientX, y: e.clientY })
+                                    }
+                                  >
+                                    <span className="truncate">
+                                      {widthPercent > 8
+                                        ? diffLabel(o.startDate, o.endDate)
+                                        : diffLabel(o.startDate, o.endDate).replace(" ", "")}
+                                    </span>
+                                  </div>
+
+                                  {/* Overflow indicators */}
+                                  {startPercent < 0 && (
+                                    <div className="absolute left-0 top-1 h-10 w-2 bg-red-500 rounded-l-md flex items-center justify-center">
+                                      <div className="w-0 h-0 border-t-2 border-b-2 border-l-2 border-transparent border-l-white"></div>
+                                    </div>
+                                  )}
+                                  {endPercent > 100 && (
+                                    <div className="absolute right-0 top-1 h-10 w-2 bg-red-500 rounded-r-md flex items-center justify-center">
+                                      <div className="w-0 h-0 border-t-2 border-b-2 border-r-2 border-transparent border-r-white"></div>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             )
-                          })}
-                        </div>
+                          })
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  {/* outage rows */}
-                  {loading ? (
-                    [...Array(4)].map((_, i) => <div key={i} className="h-14 rounded bg-muted animate-pulse mb-2" />)
-                  ) : !filters.length ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <p>No outages match your filters</p>
-                      <p className="text-sm mt-2">Total outages available: {outages.length}</p>
-                      <p className="text-sm">Try adjusting your month or environment filters</p>
-                    </div>
-                  ) : (
-                    filters.map((o) => (
-                      <div key={o.id} className="flex items-start gap-2 mb-2 hover:bg-muted/50 rounded p-2">
-                        {/* info cell */}
-                        <div className="w-full sm:w-96">
-                          <div className="flex justify-between items-center">
-                            <h4 className="font-medium text-sm">{o.title}</h4>
-                            <div className="flex gap-1">
-                              <Badge className={severityCss[o.severity]}>{o.severity}</Badge>
-                              {o.outageType && <Badge className={typeCss[o.outageType]}>{o.outageType}</Badge>}
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {o.environments.map((e) => (
-                              <Badge
-                                key={e}
-                                className={`text-xs ${environmentColors[e as keyof typeof environmentColors]} text-white`}
-                              >
-                                {e}
-                              </Badge>
-                            ))}
-                          </div>
-                          <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                            {formatTimelineDate(o.startDate, selectedTimezone)} →{" "}
-                            {formatTimelineDate(o.endDate, selectedTimezone)}
-                          </div>
-                        </div>
-
-                        {/* bar cell */}
-                        <div className="flex-1 hidden sm:block relative h-14 bg-muted rounded overflow-hidden">
-                          <div
-                            className={`absolute top-2 h-10 rounded flex items-center px-3 text-white text-xs font-medium cursor-pointer shadow-lg transition-transform hover:scale-105
-                              ${
-                                o.severity === "High"
-                                  ? "bg-gradient-to-r from-red-500 to-red-600"
-                                  : o.severity === "Medium"
-                                    ? "bg-gradient-to-r from-yellow-500 to-yellow-600"
-                                    : "bg-gradient-to-r from-green-500 to-green-600"
-                              }`}
-                            style={ganttPos(o.startDate, o.endDate)}
-                            onClick={() => setDetail(o)}
-                            onMouseEnter={(e) => {
-                              setHover(Number(o.id))
-                              setTooltip({ o, x: e.clientX, y: e.clientY, v: true })
-                            }}
-                            onMouseLeave={() => {
-                              setHover(null)
-                              setTooltip(null)
-                            }}
-                            onMouseMove={(e) => tooltip && setTooltip({ ...tooltip, x: e.clientX, y: e.clientY })}
-                          >
-                            {diffLabel(o.startDate, o.endDate)}
-                          </div>
-                        </div>
+                  {/* Legend */}
+                  <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                    <div className="flex flex-wrap items-center gap-4 text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-red-500 rounded"></div>
+                        <span>High Severity</span>
                       </div>
-                    ))
-                  )}
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-yellow-500 rounded"></div>
+                        <span>Medium Severity</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-green-500 rounded"></div>
+                        <span>Low Severity</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-px h-4 bg-red-500"></div>
+                        <span>Current Time</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 border-2 border-gray-400 bg-transparent rounded"></div>
+                        <span>Extends beyond view</span>
+                      </div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             ) : (
