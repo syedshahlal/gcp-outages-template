@@ -1268,19 +1268,46 @@ export default function OutageDashboard() {
                             </div>
                           ) : (
                             filters.map((o, index) => {
-                              // Calculate accurate positioning based on actual duration
+                              // Calculate the timeline container width dynamically
+                              const timelineContainerWidth = Math.max(
+                                800,
+                                ((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24)) * 100,
+                              )
+
+                              // Calculate exact positioning in pixels for precision
                               const totalTimelineMs = range.end.getTime() - range.start.getTime()
                               const outageStartMs = o.startDate.getTime() - range.start.getTime()
                               const outageDurationMs = o.endDate.getTime() - o.startDate.getTime()
 
-                              const startPercent = (outageStartMs / totalTimelineMs) * 100
-                              const widthPercent = Math.max(0.5, (outageDurationMs / totalTimelineMs) * 100) // Minimum 0.5% width
+                              // Convert to pixel positions for exact placement
+                              const startPixels = (outageStartMs / totalTimelineMs) * timelineContainerWidth
+                              const widthPixels = Math.max(
+                                2,
+                                (outageDurationMs / totalTimelineMs) * timelineContainerWidth,
+                              )
 
                               // Ensure bars don't go beyond timeline bounds
-                              const clampedStartPercent = Math.max(0, Math.min(100, startPercent))
-                              const clampedWidthPercent = Math.max(
-                                0.5,
-                                Math.min(100 - clampedStartPercent, widthPercent),
+                              const clampedStartPixels = Math.max(0, Math.min(timelineContainerWidth, startPixels))
+                              const clampedWidthPixels = Math.max(
+                                2,
+                                Math.min(timelineContainerWidth - clampedStartPixels, widthPixels),
+                              )
+
+                              // Debug logging for verification
+                              console.log(`Outage: ${o.title}`)
+                              console.log(`  Start: ${o.startDate.toISOString()}`)
+                              console.log(`  End: ${o.endDate.toISOString()}`)
+                              console.log(`  Duration: ${outageDurationMs / (1000 * 60 * 60)} hours`)
+                              console.log(
+                                `  Timeline range: ${range.start.toISOString()} to ${range.end.toISOString()}`,
+                              )
+                              console.log(`  Timeline duration: ${totalTimelineMs / (1000 * 60 * 60 * 24)} days`)
+                              console.log(`  Container width: ${timelineContainerWidth}px`)
+                              console.log(
+                                `  Start position: ${startPixels}px (${((startPixels / timelineContainerWidth) * 100).toFixed(2)}%)`,
+                              )
+                              console.log(
+                                `  Bar width: ${widthPixels}px (${((widthPixels / timelineContainerWidth) * 100).toFixed(2)}%)`,
                               )
 
                               return (
@@ -1312,27 +1339,33 @@ export default function OutageDashboard() {
                                       )}
                                     </div>
                                     <div className="text-xs text-muted-foreground">
-                                      {formatTimelineDate(o.startDate, selectedTimezone)}
+                                      Start: {formatTimelineDate(o.startDate, selectedTimezone)}
                                     </div>
                                     <div className="text-xs text-muted-foreground">
+                                      End: {formatTimelineDate(o.endDate, selectedTimezone)}
+                                    </div>
+                                    <div className="text-xs font-medium text-blue-600">
                                       Duration: {diffLabel(o.startDate, o.endDate)}
                                     </div>
                                   </div>
 
-                                  {/* Gantt bar */}
-                                  <div className="flex-1 relative h-12 bg-muted/30 rounded overflow-visible min-w-[500px]">
+                                  {/* Gantt bar container */}
+                                  <div
+                                    className="flex-1 relative h-12 bg-muted/30 rounded overflow-visible min-w-[500px]"
+                                    style={{ width: `${timelineContainerWidth}px` }}
+                                  >
                                     {/* Grid lines for better readability */}
                                     <div className="absolute inset-0 opacity-20">
-                                      {Array.from({ length: 25 }, (_, i) => (
+                                      {Array.from({ length: Math.ceil(timelineContainerWidth / 40) }, (_, i) => (
                                         <div
                                           key={i}
                                           className="absolute top-0 bottom-0 w-px bg-gray-400"
-                                          style={{ left: `${i * 4}%` }}
+                                          style={{ left: `${i * 40}px` }}
                                         />
                                       ))}
                                     </div>
 
-                                    {/* Outage bar with duration-based width */}
+                                    {/* Outage bar with exact pixel positioning */}
                                     <div
                                       className={`absolute top-1 h-10 rounded-md flex items-center px-2 text-white text-xs font-medium cursor-pointer shadow-lg transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5 group-hover:ring-2 group-hover:ring-offset-1 ${
                                         o.severity === "High"
@@ -1342,9 +1375,9 @@ export default function OutageDashboard() {
                                             : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 group-hover:ring-green-300"
                                       }`}
                                       style={{
-                                        left: `${clampedStartPercent}%`,
-                                        width: `${clampedWidthPercent}%`,
-                                        minWidth: "40px", // Ensure minimum clickable area
+                                        left: `${clampedStartPixels}px`,
+                                        width: `${clampedWidthPixels}px`,
+                                        minWidth: "20px", // Minimum for visibility
                                       }}
                                       onClick={() => setDetail(o)}
                                       onMouseEnter={(e) => {
@@ -1359,23 +1392,39 @@ export default function OutageDashboard() {
                                         tooltip && setTooltip({ ...tooltip, x: e.clientX, y: e.clientY })
                                       }
                                     >
-                                      <span className="truncate">
-                                        {clampedWidthPercent > 8
-                                          ? diffLabel(o.startDate, o.endDate)
-                                          : diffLabel(o.startDate, o.endDate).replace(" ", "")}
+                                      <span className="truncate text-xs font-semibold">
+                                        {clampedWidthPixels > 60
+                                          ? `${diffLabel(o.startDate, o.endDate)} - ${o.title.substring(0, 15)}${o.title.length > 15 ? "..." : ""}`
+                                          : clampedWidthPixels > 40
+                                            ? diffLabel(o.startDate, o.endDate)
+                                            : `${Math.round(outageDurationMs / (1000 * 60 * 60))}h`}
                                       </span>
                                     </div>
 
-                                    {/* Overflow indicators */}
-                                    {startPercent < 0 && (
-                                      <div className="absolute left-0 top-1 h-10 w-2 bg-red-500 rounded-l-md flex items-center justify-center">
-                                        <div className="w-0 h-0 border-t-2 border-b-2 border-l-2 border-transparent border-l-white"></div>
+                                    {/* Overflow indicators for bars that extend beyond visible range */}
+                                    {startPixels < 0 && (
+                                      <div className="absolute left-0 top-1 h-10 w-3 bg-red-500/80 rounded-l-md flex items-center justify-center">
+                                        <div className="text-white text-xs font-bold">←</div>
                                       </div>
                                     )}
-                                    {startPercent + widthPercent > 100 && (
-                                      <div className="absolute right-0 top-1 h-10 w-2 bg-red-500 rounded-r-md flex items-center justify-center">
-                                        <div className="w-0 h-0 border-t-2 border-b-2 border-r-2 border-transparent border-r-white"></div>
+                                    {startPixels + widthPixels > timelineContainerWidth && (
+                                      <div className="absolute right-0 top-1 h-10 w-3 bg-red-500/80 rounded-r-md flex items-center justify-center">
+                                        <div className="text-white text-xs font-bold">→</div>
                                       </div>
+                                    )}
+
+                                    {/* Time markers on the bar for precise positioning verification */}
+                                    {clampedWidthPixels > 80 && (
+                                      <>
+                                        <div
+                                          className="absolute top-0 w-px h-1 bg-white/60"
+                                          style={{ left: `${clampedStartPixels}px` }}
+                                        />
+                                        <div
+                                          className="absolute top-0 w-px h-1 bg-white/60"
+                                          style={{ left: `${clampedStartPixels + clampedWidthPixels}px` }}
+                                        />
+                                      </>
                                     )}
                                   </div>
                                 </div>
