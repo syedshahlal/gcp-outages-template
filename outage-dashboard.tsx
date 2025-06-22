@@ -235,7 +235,8 @@ export default function OutageDashboard() {
   const [selectedTimezone, setSelectedTimezone] = useState<string>("")
 
   // Add state for timeline hover:
-  const [timelineHover, setTimelineHover] = useState<{ x: number; time: Date; visible: boolean } | null>(null)
+  // Remove this line:
+  // const [timelineHover, setTimelineHover] = useState<{ x: number; time: Date; visible: boolean } | null>(null)
 
   /* ---------------------------- Side Effects ---------------------------- */
 
@@ -597,19 +598,20 @@ export default function OutageDashboard() {
       </div>
     ) : null
 
-  const TimelineTooltip = () =>
-    timelineHover?.visible ? (
-      <div
-        className="fixed z-50 p-2 rounded-lg shadow-lg pointer-events-none bg-black text-white dark:bg-white dark:text-black border"
-        style={{
-          left: timelineHover.x + 10,
-          top: timelineHover.x > window.innerWidth - 200 ? timelineHover.x - 60 : timelineHover.x - 40,
-        }}
-      >
-        <div className="text-sm font-medium">{formatDetailedDate(timelineHover.time, selectedTimezone)}</div>
-        <div className="text-xs opacity-75">{getTimezoneAbbreviation(selectedTimezone)}</div>
-      </div>
-    ) : null
+  // Remove this entire component:
+  // const TimelineTooltip = () =>
+  //   timelineHover?.visible ? (
+  //     <div
+  //       className="fixed z-50 p-2 rounded-lg shadow-lg pointer-events-none bg-black text-white dark:bg-white dark:text-black border"
+  //       style={{
+  //         left: timelineHover.x + 10,
+  //         top: timelineHover.x > window.innerWidth - 200 ? timelineHover.x - 60 : timelineHover.x - 40,
+  //       }}
+  //     >
+  //       <div className="text-sm font-medium">{formatDetailedDate(timelineHover.time, selectedTimezone)}</div>
+  //       <div className="text-xs opacity-75">{getTimezoneAbbreviation(selectedTimezone)}</div>
+  //     </div>
+  //   ) : null
 
   return (
     <div className="min-h-screen bg-background p-2 sm:p-4">
@@ -1097,19 +1099,7 @@ export default function OutageDashboard() {
                         <div className="w-80 pr-4 flex items-center justify-center shrink-0">
                           <h3 className="text-lg font-semibold text-center">Planned Outages</h3>
                         </div>
-                        <div
-                          className="flex-1 relative bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden min-w-[500px]"
-                          onMouseMove={(e) => {
-                            const rect = e.currentTarget.getBoundingClientRect()
-                            const x = e.clientX - rect.left
-                            const percentage = x / rect.width
-                            const timeAtPosition = new Date(
-                              range.start.getTime() + percentage * (range.end.getTime() - range.start.getTime()),
-                            )
-                            setTimelineHover({ x: e.clientX, time: timeAtPosition, visible: true })
-                          }}
-                          onMouseLeave={() => setTimelineHover(null)}
-                        >
+                        <div className="flex-1 relative bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden min-w-[500px]">
                           {/* Existing timeline content... */}
                           {/* Time scale header */}
                           <div className="h-16 border-b border-gray-300 dark:border-gray-600">
@@ -1129,7 +1119,7 @@ export default function OutageDashboard() {
                                   return (
                                     <div
                                       key={i}
-                                      className={`flex items-center justify-center text-xs font-semibold border-r border-gray-300 dark:border-gray-600 last:border-r-0 cursor-crosshair ${
+                                      className={`flex items-center justify-center text-xs font-semibold border-r border-gray-300 dark:border-gray-600 last:border-r-0  ${
                                         isWeekend
                                           ? "bg-gray-200 dark:bg-gray-700 text-red-600 dark:text-red-400"
                                           : "text-gray-700 dark:text-gray-300"
@@ -1167,7 +1157,7 @@ export default function OutageDashboard() {
                                   return (
                                     <div
                                       key={i}
-                                      className="flex items-center justify-center text-xs border-r border-gray-300 dark:border-gray-600 last:border-r-0 text-gray-500 dark:text-gray-400 cursor-crosshair"
+                                      className="flex items-center justify-center text-xs border-r border-gray-300 dark:border-gray-600 last:border-r-0 text-gray-500 dark:text-gray-400 "
                                       style={{
                                         width: `${(hourStep / totalHours) * 100}%`,
                                         minWidth: "20px",
@@ -1430,7 +1420,7 @@ export default function OutageDashboard() {
 
         {/* floating tooltip & detailed modal */}
         <Tooltip />
-        <TimelineTooltip />
+
         <OutageDetailModal outage={detail} isOpen={!!detail} onClose={() => setDetail(null)} />
       </div>
     </div>
