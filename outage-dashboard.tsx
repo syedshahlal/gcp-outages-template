@@ -31,9 +31,11 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { TimezoneSelector } from "@/components/timezone-selector"
 import dynamic from "next/dynamic"
 import { useToast } from "@/hooks/use-toast"
-import { InteractiveReport } from "./components/interactive-report"
-import { OutageDetailModal } from "./components/outage-detail-modal"
 import { getUserTimezone, formatTimelineDate, getTimezoneAbbreviation, formatDetailedDate } from "@/lib/timezone-utils"
+
+// Add the missing imports
+import { ChevronLeft, ChevronRight } from "lucide-react"
+import { useRef } from "react"
 
 // Import JSON data statically to avoid SSR issues
 import outagesJson from "@/data/outages.json"
@@ -141,58 +143,9 @@ const diffLabel = (start: Date, end: Date) => {
   return days ? `${days} d ${hours % 24} h` : `${hours} h`
 }
 
-// Add these helper functions after the existing helper functions
-const applyQuickFilter = (
-  filterType: string,
-  setEnvFilter: React.Dispatch<React.SetStateAction<string[]>>,
-  setSearch: React.Dispatch<React.SetStateAction<string>>,
-  setSortBy: React.Dispatch<React.SetStateAction<"date" | "severity" | "team">>,
-  setUseCustomRange: React.Dispatch<React.SetStateAction<boolean>>,
-  setCustomDateRange: React.Dispatch<React.SetStateAction<{ start: string; end: string }>>,
-  setSeverityFilter: React.Dispatch<React.SetStateAction<string[]>>,
-  setSelectedMonth: React.Dispatch<React.SetStateAction<string>>,
-  toast: (opts: { title: string; description?: string }) => void,
-) => {
-  const now = new Date()
+// Add scroll functions after the existing helper functions:
 
-  switch (filterType) {
-    case "high-severity":
-      setSeverityFilter(["High"])
-      toast({ title: "Filtered by High Severity", description: "Showing only high severity outages" })
-      break
-    case "scheduled":
-      setCustomDateRange({
-        start: now.toISOString().split("T")[0],
-        end: new Date(now.getFullYear(), now.getMonth() + 6, 1).toISOString().split("T")[0],
-      })
-      setUseCustomRange(true)
-      toast({ title: "Filtered by Scheduled", description: "Showing scheduled outages from today onwards" })
-      break
-    case "upcoming":
-      setCustomDateRange({
-        start: now.toISOString().split("T")[0],
-        end: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      })
-      setUseCustomRange(true)
-      toast({ title: "Filtered by Upcoming", description: "Showing outages in the next 7 days" })
-      break
-    case "this-month":
-      setSelectedMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`)
-      setUseCustomRange(false)
-      toast({ title: "Filtered by This Month", description: "Showing outages for current month" })
-      break
-    case "total":
-    default:
-      setEnvFilter([...ENVIRONMENTS])
-      setSearch("")
-      setSortBy("date")
-      setUseCustomRange(false)
-      setCustomDateRange({ start: "", end: "" })
-      setSeverityFilter([])
-      toast({ title: "Showing All Outages", description: "All filters have been reset" })
-      break
-  }
-}
+// Add these helper functions after the existing helper functions
 
 /* -------------------------------------------------------------------------- */
 /*                            Main Dashboard Component                         */
@@ -233,6 +186,11 @@ export default function OutageDashboard() {
 
   // Add timezone state
   const [selectedTimezone, setSelectedTimezone] = useState<string>("")
+
+  // Add these state variables after the existing ones
+  const [scrollPosition, setScrollPosition] = useState(0)
+  const [timelineWidth, setTimelineWidth] = useState(0)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   // Add state for timeline hover:
   // Remove this line:
@@ -613,6 +571,74 @@ export default function OutageDashboard() {
   //     </div>
   //   ) : null
 
+  const scrollTimeline = (direction: 'left' | 'right') => {
+    if (scrollContainerRef.current) {
+      const scrollAmount = 200
+      const newPosition = direction === 'left'
+        ? Math.max(0, scrollPosition - scrollAmount)
+        : Math.min(scrollContainerRef.current.scrollWidth - scrollContainerRef.current.clientWidth, scrollPosition + scrollAmount)
+
+      scrollContainerRef.current.scrollTo({ left: newPosition, behavior: 'smooth' })
+      setScrollPosition(newPosition)
+    }
+  }
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    setScrollPosition(e.currentTarget.scrollLeft)
+  }
+
+  const applyQuickFilter = (
+    filterType: string,
+    setEnvFilter: React.Dispatch<React.SetStateAction<string[]>>,
+    setSearch: React.Dispatch<React.SetStateAction<string>>,
+    setSortBy: React.Dispatch<React.SetStateAction<"date" | "severity" | "team">>,
+    setUseCustomRange: React.Dispatch<React.SetStateAction<boolean>>,
+    setCustomDateRange: React.Dispatch<React.SetStateAction<{ start: string; end: string }>>,
+    setSeverityFilter: React.Dispatch<React.SetStateAction<string[]>>,
+    setSelectedMonth: React.Dispatch<React.SetStateAction<string>>,
+    toast: (opts: { title: string; description?: string }) => void,
+  ) => {
+    const now = new Date()
+
+    switch (filterType) {
+      case "high-severity":
+        setSeverityFilter(["High"])
+        toast({ title: "Filtered by High Severity", description: "Showing only high severity outages" })
+        break
+      case "scheduled":
+        setCustomDateRange({
+          start: now.toISOString().split("T")[0],
+          end: new Date(now.getFullYear(), now.getMonth() + 6, 1).toISOString().split("T")[0],
+        })
+        setUseCustomRange(true)
+        toast({ title: "Filtered by Scheduled", description: "Showing scheduled outages from today onwards" })
+        break
+      case "upcoming":
+        setCustomDateRange({
+          start: now.toISOString().split("T")[0],
+          end: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+        })
+        setUseCustomRange(true)
+        toast({ title: "Filtered by Upcoming", description: "Showing outages in the next 7 days" })
+        break
+      case "this-month":
+        setSelectedMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`)
+        setUseCustomRange(false)
+        toast({ title: "Filtered by This Month", description: "Showing outages for current month" })
+        break
+      case "total":
+      default:
+        setEnvFilter([...ENVIRONMENTS])
+        setSearch("")
+        setSortBy("date")
+        setUseCustomRange(false)
+        setCustomDateRange({ start: "", end: "" })
+        setSeverityFilter([])
+        toast({ title: "Showing All Outages", description: "All filters have been reset" })
+        break
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background p-2 sm:p-4">
       <div className="mx-auto max-w-7xl space-y-4 sm:space-y-6">
@@ -837,7 +863,7 @@ export default function OutageDashboard() {
                           <Checkbox
                             id={env}
                             checked={envFilter.includes(env)}
-                            onCheckedChange={(c) => {
+                            onChange={(c) => {
                               setEnvFilter(c ? [...envFilter, env] : envFilter.filter((e) => e !== env))
                             }}
                             className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
@@ -1091,315 +1117,102 @@ export default function OutageDashboard() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {/* Enhanced timeline with horizontal scroll and hover time indicator */}
-                  <div className="w-full overflow-x-auto">
+                  {/* Enhanced timeline with scroll controls and time indicator */}
+                  <div className="w-full">
+                    {/* Scroll Controls */}
+                    <div className="flex justify-between items-center mb-2">
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => scrollTimeline('left')}
+                          disabled={scrollPosition <= 0}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                          Scroll Left
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => scrollTimeline('right')}
+                          disabled={scrollPosition >= (timelineWidth - (scrollContainerRef.current?.clientWidth || 0))}
+                        >
+                          Scroll Right
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        Use scroll controls or drag to navigate timeline
+                      </div>
+                    </div>
+
                     <div className="min-w-[800px]">
                       {/* Timeline header */}
                       <div className="flex mb-4">
                         <div className="w-80 pr-4 flex items-center justify-center shrink-0">
                           <h3 className="text-lg font-semibold text-center">Planned Outages</h3>
                         </div>
-                        <div className="flex-1 relative bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden min-w-[500px]">
-                          {/* Existing timeline content... */}
-                          {/* Time scale header */}
-                          <div className="h-12 border-b border-gray-300 dark:border-gray-600">
-                            {/* Days row only */}
-                            <div className="h-12 flex">
-                              {(() => {
-                                const totalDays = Math.ceil(
-                                  (range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24),
-                                )
-                                return Array.from({ length: totalDays }, (_, i) => {
-                                  const currentDate = new Date(range.start)
-                                  currentDate.setDate(currentDate.getDate() + i)
-                                  const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6
-                                  const isToday = currentDate.toDateString() === new Date().toDateString()
-
-                                  return (
-                                    <div
-                                      key={i}
-                                      className={`flex items-center justify-center text-sm font-semibold border-r border-gray-300 dark:border-gray-600 last:border-r-0 ${
-                                        isWeekend
-                                          ? "bg-gray-200 dark:bg-gray-700 text-red-600 dark:text-red-400"
-                                          : "text-gray-700 dark:text-gray-300"
-                                      } ${isToday ? "bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 font-bold" : ""}`}
-                                      style={{
-                                        width: `${(1 / totalDays) * 100}%`,
-                                        minWidth: "80px",
-                                      }}
-                                    >
-                                      <div className="text-center">
-                                        <div className="font-bold">
-                                          {currentDate.toLocaleDateString("en-US", {
-                                            month: "short",
-                                            day: "numeric",
-                                          })}
-                                        </div>
-                                        <div className="text-xs opacity-75">
-                                          {currentDate.toLocaleDateString("en-US", {
-                                            weekday: "short",
-                                          })}
-                                        </div>
-                                      </div>
-                                    </div>
+                        <div
+                          ref={scrollContainerRef}
+                          className="flex-1 relative bg-gray-100 dark:bg-gray-800 rounded-lg overflow-x-auto overflow-y-hidden min-w-[500px]"
+                          onScroll={handleScroll}
+                          style={{ scrollbarWidth: 'thin' }}
+                        >
+                          <div
+                            className="relative"
+                            style={{
+                              width: `${Math.max(800, (range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24) * 100)}px`,
+                              minWidth: '800px'
+                            }}
+                            onLoad={() => {
+                              if (scrollContainerRef.current) {
+                                setTimelineWidth(scrollContainerRef.current.scrollWidth)
+                              }
+                            }}
+                          >
+                            {/* Time scale header */}
+                            <div className="h-12 border-b border-gray-300 dark:border-gray-600">
+                              {/* Days row only */}
+                              <div className="h-12 flex">
+                                {(() => {
+                                  const totalDays = Math.ceil(
+                                    (range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24),
                                   )
-                                })
-                              })()}
-                            </div>
-                          </div>
+                                  const dayWidth = Math.max(80, 800 / totalDays)
 
-                          {/* Current time indicator */}
-                          {(() => {
-                            const now = new Date()
-                            if (now >= range.start && now <= range.end) {
-                              const nowPosition =
-                                ((now.getTime() - range.start.getTime()) /
-                                  (range.end.getTime() - range.start.getTime())) *
-                                100
-                              return (
-                                <div
-                                  className="absolute top-12 bottom-0 w-0.5 bg-red-500 z-10 pointer-events-none"
-                                  style={{ left: `${nowPosition}%` }}
-                                >
-                                  <div className="absolute -top-2 -left-1 w-3 h-3 bg-red-500 rounded-full"></div>
-                                  <div className="absolute -top-6 -left-8 text-xs text-red-500 font-semibold whitespace-nowrap">
-                                    Now
-                                  </div>
-                                </div>
-                              )
-                            }
-                            return null
-                          })()}
-                        </div>
-                      </div>
+                                  return Array.from({ length: totalDays }, (_, i) => {
+                                    const currentDate = new Date(range.start)
+                                    currentDate.setDate(currentDate.getDate() + i)
+                                    const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6
+                                    const isToday = currentDate.toDateString() === new Date().toDateString()
 
-                      {/* Outage rows with accurate positioning */}
-                      <div className="space-y-1">
-                        {loading ? (
-                          [...Array(4)].map((_, i) => (
-                            <div key={i} className="flex">
-                              <div className="w-80 h-14 rounded bg-muted animate-pulse mr-4"></div>
-                              <div className="flex-1 h-14 rounded bg-muted animate-pulse min-w-[500px]"></div>
-                            </div>
-                          ))
-                        ) : !filters.length ? (
-                          <div className="text-center py-8 text-muted-foreground">
-                            <p>No outages match your filters</p>
-                            <p className="text-sm mt-2">Total outages available: {outages.length}</p>
-                            <p className="text-sm">Try adjusting your month or environment filters</p>
-                          </div>
-                        ) : (
-                          filters.map((o, index) => {
-                            // Calculate accurate positioning
-                            const startPercent =
-                              ((o.startDate.getTime() - range.start.getTime()) /
-                                (range.end.getTime() - range.start.getTime())) *
-                              100
-                            const endPercent =
-                              ((o.endDate.getTime() - range.start.getTime()) /
-                                (range.end.getTime() - range.start.getTime())) *
-                              100
-                            const widthPercent = Math.max(0.5, endPercent - startPercent) // Minimum 0.5% width
-
-                            return (
-                              <div key={o.id} className="flex items-center hover:bg-muted/50 rounded p-1 group">
-                                {/* Info panel */}
-                                <div className="w-80 pr-4 shrink-0">
-                                  <div className="flex justify-between items-start mb-1">
-                                    <h4 className="font-medium text-sm leading-tight">{o.title}</h4>
-                                    <div className="flex gap-1 ml-2">
-                                      <Badge className={`${severityCss[o.severity]} text-xs`}>{o.severity}</Badge>
-                                      {o.outageType && (
-                                        <Badge className={`${typeCss[o.outageType]} text-xs`}>{o.outageType}</Badge>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <div className="flex flex-wrap gap-1 mb-1">
-                                    {o.environments.slice(0, 3).map((e) => (
-                                      <Badge
-                                        key={e}
-                                        className={`text-xs ${environmentColors[e as keyof typeof environmentColors]} text-white`}
-                                      >
-                                        {e}
-                                      </Badge>
-                                    ))}
-                                    {o.environments.length > 3 && (
-                                      <Badge variant="outline" className="text-xs">
-                                        +{o.environments.length - 3}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground">
-                                    {formatTimelineDate(o.startDate, selectedTimezone)}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground">
-                                    Duration: {diffLabel(o.startDate, o.endDate)}
-                                  </div>
-                                </div>
-
-                                {/* Gantt bar */}
-                                <div className="flex-1 relative h-12 bg-muted/30 rounded overflow-visible min-w-[500px]">
-                                  {/* Grid lines for better readability */}
-                                  <div className="absolute inset-0 opacity-20">
-                                    {Array.from({ length: 25 }, (_, i) => (
+                                    return (
                                       <div
                                         key={i}
-                                        className="absolute top-0 bottom-0 w-px bg-gray-400"
-                                        style={{ left: `${i * 4}%` }}
-                                      />
-                                    ))}
-                                  </div>
-
-                                  {/* Outage bar */}
-                                  <div
-                                    className={`absolute top-1 h-10 rounded-md flex items-center px-2 text-white text-xs font-medium cursor-pointer shadow-lg transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5 group-hover:ring-2 group-hover:ring-offset-1 ${
-                                      o.severity === "High"
-                                        ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 group-hover:ring-red-300"
-                                        : o.severity === "Medium"
-                                          ? "bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 group-hover:ring-yellow-300"
-                                          : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 group-hover:ring-green-300"
-                                    }`}
-                                    style={{
-                                      left: `${Math.max(0, startPercent)}%`,
-                                      width: `${widthPercent}%`,
-                                      minWidth: "40px",
-                                    }}
-                                    onClick={() => setDetail(o)}
-                                    onMouseEnter={(e) => {
-                                      setHover(Number(o.id))
-                                      setTooltip({ o, x: e.clientX, y: e.clientY, v: true })
-                                    }}
-                                    onMouseLeave={() => {
-                                      setHover(null)
-                                      setTooltip(null)
-                                    }}
-                                    onMouseMove={(e) =>
-                                      tooltip && setTooltip({ ...tooltip, x: e.clientX, y: e.clientY })
-                                    }
-                                  >
-                                    <span className="truncate">
-                                      {widthPercent > 8
-                                        ? diffLabel(o.startDate, o.endDate)
-                                        : diffLabel(o.startDate, o.endDate).replace(" ", "")}
-                                    </span>
-                                  </div>
-
-                                  {/* Overflow indicators */}
-                                  {startPercent < 0 && (
-                                    <div className="absolute left-0 top-1 h-10 w-2 bg-red-500 rounded-l-md flex items-center justify-center">
-                                      <div className="w-0 h-0 border-t-2 border-b-2 border-l-2 border-transparent border-l-white"></div>
-                                    </div>
-                                  )}
-                                  {endPercent > 100 && (
-                                    <div className="absolute right-0 top-1 h-10 w-2 bg-red-500 rounded-r-md flex items-center justify-center">
-                                      <div className="w-0 h-0 border-t-2 border-b-2 border-r-2 border-transparent border-r-white"></div>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )
-                          })
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Legend */}
-                  <div className="mt-4 p-3 bg-muted/50 rounded-lg">
-                    <div className="flex flex-wrap items-center gap-4 text-sm">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-red-500 rounded"></div>
-                        <span>High Severity</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-yellow-500 rounded"></div>
-                        <span>Medium Severity</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-green-500 rounded"></div>
-                        <span>Low Severity</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-px h-4 bg-red-500"></div>
-                        <span>Current Time</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 border-2 border-gray-400 bg-transparent rounded"></div>
-                        <span>Extends beyond view</span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle>
-                    <Server className="h-5 w-5" />
-                    List (Sorted by Outage Time)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {loading ? (
-                    [...Array(3)].map((_, i) => <div key={i} className="h-20 rounded bg-muted animate-pulse mb-4" />)
-                  ) : !filters.length ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <p>No outages match your filters</p>
-                      <p className="text-sm mt-2">Total outages available: {outages.length}</p>
-                    </div>
-                  ) : (
-                    filters.map((o) => (
-                      <div
-                        key={o.id}
-                        className="p-4 border rounded mb-4 cursor-pointer hover:shadow"
-                        onClick={() => setDetail(o)}
-                      >
-                        <div className="flex justify-between mb-1">
-                          <h4 className="font-semibold">{o.title}</h4>
-                          <div className="flex gap-1">
-                            <Badge>#{o.id}</Badge>
-                            {o.outageType && <Badge className={typeCss[o.outageType]}>{o.outageType}</Badge>}
-                          </div>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {formatTimelineDate(o.startDate, selectedTimezone)} →{" "}
-                          {formatTimelineDate(o.endDate, selectedTimezone)} • {diffLabel(o.startDate, o.endDate)}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          {/* -------------------- SCHEDULE OOT (single / multi) -------------------- */}
-          <TabsContent value="schedule" className="space-y-6">
-            <Tabs defaultValue="single">
-              <TabsList>
-                <TabsTrigger value="single">Single</TabsTrigger>
-                <TabsTrigger value="multiple">Multiple</TabsTrigger>
-              </TabsList>
-              <TabsContent value="single" className="mt-6">
-                <EnhancedOutageForm onSuccess={() => fetchOutages(true)} />
-              </TabsContent>
-              <TabsContent value="multiple" className="mt-6">
-                <TabularMultiOutageForm onSuccess={() => fetchOutages(true)} />
-              </TabsContent>
-            </Tabs>
-          </TabsContent>
-
-          {/* --------------------------- METRICS TAB ---------------------------- */}
-          <TabsContent value="metrics" className="space-y-6">
-            <InteractiveReport />
-          </TabsContent>
-        </Tabs>
-
-        {/* floating tooltip & detailed modal */}
-        <Tooltip />
-
-        <OutageDetailModal outage={detail} isOpen={!!detail} onClose={() => setDetail(null)} />
-      </div>
-    </div>
-  )
-}
+                                        className={`flex items-center justify-center text-sm font-semibold border-r border-gray-300 dark:border-gray-600 last:border-r-0 ${
+                                          isWeekend
+                                            ? "bg-gray-200 dark:bg-gray-700 text-red-600 dark:text-red-400"
+                                            : "text-gray-700 dark:text-gray-300"
+                                        } ${isToday ? "bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 font-bold" : ""}`}
+                                        style={{
+                                          width: `${dayWidth}px`,
+                                          minWidth: "80px",
+                                        }}
+                                      >
+                                        <div className="text-center">
+                                          <div className="font-bold">
+                                            {currentDate.toLocaleDateString("en-US", {
+                                              month: "short",
+                                              day: "numeric",
+                                            })}
+                                          </div>
+                                          <div className="text-xs opacity-75">
+                                            {currentDate.toLocaleDateString("en-US", {
+                                              weekday: "short",
+                                            })}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )
+                                  })\
+                                })(
