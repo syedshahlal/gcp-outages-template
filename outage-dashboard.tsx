@@ -1208,29 +1208,6 @@ export default function OutageDashboard() {
 
                       {/* Timeline content */}
                       <div className="relative">
-                        {/* Current time indicator */}
-                        {(() => {
-                          const now = new Date()
-                          if (now >= range.start && now <= range.end) {
-                            const nowPosition =
-                              ((now.getTime() - range.start.getTime()) /
-                                (range.end.getTime() - range.start.getTime())) *
-                              100
-                            return (
-                              <div
-                                className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10 pointer-events-none"
-                                style={{ left: `${nowPosition}%` }}
-                              >
-                                <div className="absolute -top-2 -left-1 w-3 h-3 bg-red-500 rounded-full"></div>
-                                <div className="absolute -top-6 -left-8 text-xs text-red-500 font-semibold whitespace-nowrap">
-                                  Now
-                                </div>
-                              </div>
-                            )
-                          }
-                          return null
-                        })()}
-
                         {/* Outage rows with accurate positioning */}
                         <div className="space-y-1">
                           {loading ? (
@@ -1377,10 +1354,6 @@ export default function OutageDashboard() {
                           <div className="flex items-center gap-2">
                             <div className="w-3 h-3 bg-green-500 rounded"></div>
                             <span>Low Severity</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="w-px h-4 bg-red-500"></div>
-                            <span>Current Time</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <div className="w-3 h-3 border-2 border-gray-400 bg-transparent rounded"></div>
