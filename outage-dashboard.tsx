@@ -32,9 +32,6 @@ import { TimezoneSelector } from "@/components/timezone-selector"
 import dynamic from "next/dynamic"
 import { useToast } from "@/hooks/use-toast"
 import { getUserTimezone, formatTimelineDate, getTimezoneAbbreviation, formatDetailedDate } from "@/lib/timezone-utils"
-
-// Add the missing imports
-import { ChevronLeft, ChevronRight } from "lucide-react"
 import { useRef } from "react"
 
 // Import JSON data statically to avoid SSR issues
@@ -1124,6 +1121,8 @@ export default function OutageDashboard() {
                   {/* Enhanced timeline with scroll controls and time indicator */}
                   <div className="w-full">
                     {/* Scroll Controls */}
+                    {/* Remove this entire section */}
+                    {/*
                     <div className="flex justify-between items-center mb-2">
                       <div className="flex gap-2">
                         <Button
@@ -1149,6 +1148,7 @@ export default function OutageDashboard() {
                         Use scroll controls or drag to navigate timeline
                       </div>
                     </div>
+                    */}
 
                     <div className="min-w-[800px]">
                       {/* Timeline header */}
@@ -1156,24 +1156,8 @@ export default function OutageDashboard() {
                         <div className="w-80 pr-4 flex items-center justify-center shrink-0">
                           <h3 className="text-lg font-semibold text-center">Planned Outages</h3>
                         </div>
-                        <div
-                          ref={scrollContainerRef}
-                          className="flex-1 relative bg-gray-100 dark:bg-gray-800 rounded-lg overflow-x-auto overflow-y-hidden min-w-[500px]"
-                          onScroll={handleScroll}
-                          style={{ scrollbarWidth: "thin" }}
-                        >
-                          <div
-                            className="relative"
-                            style={{
-                              width: `${Math.max(800, ((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24)) * 100)}px`,
-                              minWidth: "800px",
-                            }}
-                            onLoad={() => {
-                              if (scrollContainerRef.current) {
-                                setTimelineWidth(scrollContainerRef.current.scrollWidth)
-                              }
-                            }}
-                          >
+                        <div className="flex-1 relative bg-gray-100 dark:bg-gray-800 rounded-lg min-w-[500px]">
+                          <div className="relative w-full">
                             {/* Time scale header */}
                             <div className="h-12 border-b border-gray-300 dark:border-gray-600">
                               {/* Days row only */}
@@ -1193,15 +1177,11 @@ export default function OutageDashboard() {
                                     return (
                                       <div
                                         key={i}
-                                        className={`flex items-center justify-center text-sm font-semibold border-r border-gray-300 dark:border-gray-600 last:border-r-0 ${
+                                        className={`flex items-center justify-center text-sm font-semibold border-r border-gray-300 dark:border-gray-600 last:border-r-0 flex-1 ${
                                           isWeekend
                                             ? "bg-gray-200 dark:bg-gray-700 text-red-600 dark:text-red-400"
                                             : "text-gray-700 dark:text-gray-300"
                                         } ${isToday ? "bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 font-bold" : ""}`}
-                                        style={{
-                                          width: `${Math.max(80, 800 / Math.ceil((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24)))}px`,
-                                          minWidth: "80px",
-                                        }}
                                       >
                                         <div className="text-center">
                                           <div className="font-bold">
@@ -1317,6 +1297,7 @@ export default function OutageDashboard() {
                                   </div>
 
                                   {/* Gantt bar */}
+                                  {/* Gantt bar */}
                                   <div className="flex-1 relative h-12 bg-muted/30 rounded overflow-visible min-w-[500px]">
                                     {/* Grid lines for better readability */}
                                     <div className="absolute inset-0 opacity-20">
@@ -1341,7 +1322,7 @@ export default function OutageDashboard() {
                                       style={{
                                         left: `${clampedStartPercent}%`,
                                         width: `${clampedWidthPercent}%`,
-                                        minWidth: "60px", // Ensure minimum clickable area
+                                        minWidth: "60px",
                                       }}
                                       onClick={() => setDetail(o)}
                                       onMouseEnter={(e) => {
