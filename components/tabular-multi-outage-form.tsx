@@ -670,7 +670,7 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
               <ScrollArea className="w-full border rounded-md">
                 <div
                   ref={scrollContainerRef}
-                  className="min-w-[1800px] p-4 overflow-x-auto overflow-y-visible"
+                  className="min-w-[1800px] p-4 overflow-x-scroll overflow-y-visible scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200"
                   onScroll={handleScroll}
                 >
                   <Table>
