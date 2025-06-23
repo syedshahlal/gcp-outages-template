@@ -65,6 +65,7 @@ interface OutageRow {
   contactEmail: string
   estimatedUsers: number
   outageType: "Internal" | "External" | ""
+  timezone: string
 }
 
 const categories = [
@@ -85,6 +86,29 @@ const severityColors: Record<string, string> = {
   Medium: "bg-yellow-100 text-yellow-800 border-yellow-200",
   Low: "bg-green-100 text-green-800 border-green-200",
 }
+
+const timezones = [
+  "Etc/GMT+12",
+  "Etc/GMT+11",
+  "Pacific/Honolulu",
+  "America/Anchorage",
+  "America/Los_Angeles",
+  "America/Denver",
+  "America/Chicago",
+  "America/New_York",
+  "America/Sao_Paulo",
+  "Etc/GMT-2",
+  "Atlantic/Cape_Verde",
+  "Europe/London",
+  "Europe/Berlin",
+  "Europe/Moscow",
+  "Asia/Dubai",
+  "Asia/Karachi",
+  "Asia/Shanghai",
+  "Asia/Tokyo",
+  "Australia/Sydney",
+  "Pacific/Auckland",
+]
 
 // API functions
 async function createMultipleOutages(outages: any[]) {
@@ -157,6 +181,7 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
     contactEmail: "",
     estimatedUsers: 0,
     outageType: "",
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   })
 
   const [rows, setRows] = useState<OutageRow[]>([createEmptyRow()])
@@ -300,6 +325,7 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
       if (!row.severity) errors.push(`Row ${rowNum}: Severity is required`)
       if (!row.outageType) errors.push(`Row ${rowNum}: Outage type is required`)
       if (row.environments.length === 0) errors.push(`Row ${rowNum}: At least one environment is required`)
+      if (!row.timezone) errors.push(`Row ${rowNum}: Timezone is required`)
     })
 
     return errors
@@ -353,6 +379,7 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
           contactEmail: data.contactEmail || "",
           estimatedUsers: data.estimatedUsers || 0,
           outageType: data.outageType || "",
+          timezone: data.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
         }
       })
 
@@ -395,6 +422,7 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
         ContactEmail: "devops@company.com",
         EstimatedUsers: 1000,
         OutageType: "Internal",
+        Timezone: "America/Los_Angeles",
       },
     ]
 
@@ -445,14 +473,15 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
 
         return {
           title: row.title,
-          startDate: new Date(`${row.startDate}T${row.startTime || "00:00"}`),
-          endDate: new Date(`${row.endDate}T${row.endTime || "23:59"}`),
+          startDate: new Date(`${row.startDate}T${row.startTime || "00:00"} ${row.timezone}`),
+          endDate: new Date(`${row.endDate}T${row.endTime || "23:59"} ${row.timezone}`),
           environments: selectedEnvironmentNames,
           affectedModels: row.affectedModels,
           reason: row.reason,
           detailedImpact: row.detailedImpact.filter((item) => item.trim() !== ""),
           assignee: selectedTeamNames.join(", "),
           severity: row.severity as "High" | "Medium" | "Low",
+          timezone: row.timezone,
         }
       })
 
@@ -692,6 +721,7 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
                         <TableHead className="w-[150px]">Impact Details</TableHead>
                         <TableHead className="w-[150px]">Contact Email</TableHead>
                         <TableHead className="w-[100px]">Est. Users</TableHead>
+                        <TableHead className="w-[150px]">Timezone *</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1026,6 +1056,24 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
                               placeholder="0"
                               className="min-w-[80px]"
                             />
+                          </TableCell>
+                          {/* Timezone */}
+                          <TableCell>
+                            <Select
+                              value={row.timezone}
+                              onValueChange={(value) => updateRow(row.id, "timezone", value)}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select Timezone" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {timezones.map((timezone) => (
+                                  <SelectItem key={timezone} value={timezone}>
+                                    {timezone}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </TableCell>
                         </TableRow>
                       ))}

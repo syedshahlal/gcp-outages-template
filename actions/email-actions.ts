@@ -24,6 +24,9 @@ interface OutageEmailData {
   contactEmail: string
   impact: string
   outageType?: "Internal" | "External"
+  affectedServices?: string[] // Added affectedServices
+  incidentReportRef?: string // Added incidentReportRef
+  updateTrackingRef?: string // Added updateTrackingRef
 }
 
 function getPriorityStyles(priority: string): string {
@@ -68,10 +71,10 @@ function generateEmailHTML(outages: OutageEmailData[]): string {
       
       <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 16px 0;">
         <div>
-          <strong style="color: #374151;">Start:</strong> ${new Date(outage.startDate).toLocaleString()}
+          <strong style="color: #374151;">Start:</strong> ${new Date(outage.startDate).toLocaleString(undefined, { timeZone: "UTC" })}
         </div>
         <div>
-          <strong style="color: #374151;">End:</strong> ${new Date(outage.endDate).toLocaleString()}
+          <strong style="color: #374151;">End:</strong> ${new Date(outage.endDate).toLocaleString(undefined, { timeZone: "UTC" })}
         </div>
         <div>
           <strong style="color: #374151;">Duration:</strong> ${outage.duration}
@@ -85,6 +88,22 @@ function generateEmailHTML(outages: OutageEmailData[]): string {
         <strong style="color: #374151;">Environments:</strong>
         ${outage.environments.map((env) => `<span style="background: #f3f4f6; padding: 2px 8px; border-radius: 4px; margin: 0 4px; font-size: 12px;">${env}</span>`).join("")}
       </div>
+
+      ${
+        outage.affectedServices && outage.affectedServices.length > 0
+          ? `
+            <div style="margin: 12px 0;">
+              <strong style="color: #374151;">Affected Services:</strong>
+              ${outage.affectedServices
+                .map(
+                  (service) =>
+                    `<span style="background: #f3f4f6; padding: 2px 8px; border-radius: 4px; margin: 0 4px; font-size: 12px;">${service}</span>`,
+                )
+                .join("")}
+            </div>
+          `
+          : ""
+      }
       
       <div style="margin: 12px 0;">
         <strong style="color: #374151;">Impact:</strong> ${outage.impact}
@@ -93,6 +112,28 @@ function generateEmailHTML(outages: OutageEmailData[]): string {
       <div style="margin: 12px 0;">
         <strong style="color: #374151;">Contact:</strong> ${outage.contactEmail}
       </div>
+
+      ${
+        outage.incidentReportRef
+          ? `
+            <div style="margin-top: 12px;">
+              <strong style="color: #374151;">Incident Report:</strong>
+              <a href="${outage.incidentReportRef}" style="color: #3b82f6;">View Report</a>
+            </div>
+          `
+          : ""
+      }
+
+      ${
+        outage.updateTrackingRef
+          ? `
+            <div style="margin-top: 12px;">
+              <strong style="color: #374151;">Update Tracking:</strong>
+              <a href="${outage.updateTrackingRef}" style="color: #3b82f6;">Track Updates</a>
+            </div>
+          `
+          : ""
+      }
     </div>
   `,
     )

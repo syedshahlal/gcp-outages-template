@@ -47,6 +47,7 @@ export interface StoredOutage extends OutageData {
   type: string
   createdAt: Date
   updatedAt: Date
+  version: number // For optimistic concurrency
 }
 
 /* -------------------------------------------------------------------------- */
@@ -66,6 +67,7 @@ async function readJSON(): Promise<StoredOutage[]> {
     createdAt: new Date(o.createdAt),
     updatedAt: new Date(o.updatedAt),
     outageType: o.outageType || "Internal", // Default to Internal for backward compatibility
+    version: o.version || 1, // Initialize version if not present
   }))
 }
 
@@ -104,6 +106,7 @@ async function readExcel(): Promise<StoredOutage[]> {
     type: row.Type || "Planned",
     createdAt: new Date(row.CreatedAt || Date.now()),
     updatedAt: new Date(row.UpdatedAt || Date.now()),
+    version: Number(row.Version) || 1,
   }))
 }
 
@@ -141,6 +144,7 @@ async function writeBoth(outages: StoredOutage[]) {
     Type: o.type,
     CreatedAt: o.createdAt.toISOString(),
     UpdatedAt: o.updatedAt.toISOString(),
+    Version: o.version,
   }))
 
   const ws = XLSX.utils.json_to_sheet(excelRows)
@@ -165,7 +169,32 @@ export async function getOutages(): Promise<StoredOutage[]> {
   return xlsx.sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
 }
 
+function isValidOutageData(data: OutageData): boolean {
+  if (!data.title || data.title.length === 0) return false
+  if (!data.startDate || !(data.startDate instanceof Date) || isNaN(data.startDate.getTime())) return false
+  if (!data.endDate || !(data.endDate instanceof Date) || isNaN(data.endDate.getTime())) return false
+  if (data.endDate <= data.startDate) return false
+  if (!data.environments || !Array.isArray(data.environments)) return false
+  if (!data.affectedModels || data.affectedModels.length === 0) return false
+  if (!data.reason || data.reason.length === 0) return false
+  if (!data.detailedImpact || !Array.isArray(data.detailedImpact)) return false
+  if (!data.assignee || data.assignee.length === 0) return false
+  if (!data.severity || !["High", "Medium", "Low"].includes(data.severity)) return false
+  if (data.estimatedUsers !== undefined && (typeof data.estimatedUsers !== "number" || isNaN(data.estimatedUsers)))
+    return false
+  if (!data.outageType || !["Internal", "External"].includes(data.outageType)) return false
+
+  return true
+}
+
 export async function createOutage(data: OutageData) {
+  if (!isValidOutageData(data)) {
+    return {
+      success: false,
+      message: "Invalid outage data. Please check your inputs.",
+    }
+  }
+
   const existing = await getOutages()
   const nextId = existing.length ? Math.max(...existing.map((o) => o.id)) + 1 : 1
 
@@ -176,9 +205,21 @@ export async function createOutage(data: OutageData) {
     type: "Planned",
     createdAt: new Date(),
     updatedAt: new Date(),
+    version: 1,
   }
 
   const all = [newOutage, ...existing]
+
+  // Data consistency check: Ensure no overlapping outages
+  for (const outage of existing) {
+    if (newOutage.startDate < outage.endDate && newOutage.endDate > outage.startDate) {
+      return {
+        success: false,
+        message: `New outage overlaps with existing outage "${outage.title}" (ID #${outage.id}).`,
+      }
+    }
+  }
+
   await writeBoth(all)
 
   revalidateTag("outages")
@@ -192,17 +233,39 @@ export async function createOutage(data: OutageData) {
 }
 
 export async function createMultipleOutages(rows: OutageData[]) {
+  const validRows = rows.filter(isValidOutageData)
+
+  if (validRows.length !== rows.length) {
+    return {
+      success: false,
+      message: "One or more rows contain invalid outage data.  Only valid rows were processed.",
+    }
+  }
+
   const existing = await getOutages()
   let nextId = existing.length ? Math.max(...existing.map((o) => o.id)) + 1 : 1
 
-  const newOutages: StoredOutage[] = rows.map((r) => ({
+  const newOutages: StoredOutage[] = validRows.map((r) => ({
     ...r,
     id: nextId++,
     status: "Scheduled",
     type: "Planned",
     createdAt: new Date(),
     updatedAt: new Date(),
+    version: 1,
   }))
+
+  // Data consistency check: Ensure no overlapping outages
+  for (const newOutage of newOutages) {
+    for (const outage of existing) {
+      if (newOutage.startDate < outage.endDate && newOutage.endDate > outage.startDate) {
+        return {
+          success: false,
+          message: `New outage "${newOutage.title}" overlaps with existing outage "${outage.title}" (ID #${outage.id}). No outages were created.`,
+        }
+      }
+    }
+  }
 
   await writeBoth([...newOutages, ...existing])
 
