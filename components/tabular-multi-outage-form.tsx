@@ -625,12 +625,12 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
               </Alert>
             )}
 
-            <ScrollArea className="w-full">
-              <div className="min-w-[1400px]">
+            <ScrollArea className="w-full h-[600px] border rounded-md">
+              <div className="min-w-[1800px] p-4">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[50px]">Actions</TableHead>
+                      <TableHead className="w-[50px] sticky left-0 bg-background z-10">Actions</TableHead>
                       <TableHead className="w-[200px]">Title *</TableHead>
                       <TableHead className="w-[120px]">Start Date *</TableHead>
                       <TableHead className="w-[100px]">Start Time</TableHead>
@@ -651,8 +651,8 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
                   <TableBody>
                     {rows.map((row, rowIndex) => (
                       <TableRow key={row.id}>
-                        {/* Actions */}
-                        <TableCell>
+                        {/* Actions - make sticky */}
+                        <TableCell className="sticky left-0 bg-background z-10">
                           <div className="flex flex-col gap-1">
                             <Button
                               type="button"
