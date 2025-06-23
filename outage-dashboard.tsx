@@ -1115,9 +1115,6 @@ export default function OutageDashboard() {
                               <ChevronRight className="h-4 w-4" />
                             </Button>
                           </div>
-                          <div className="text-sm text-muted-foreground">
-                            Showing {visibleDays} days • Scroll to view more
-                          </div>
                         </div>
 
                         <div className="w-full">
@@ -1324,8 +1321,7 @@ export default function OutageDashboard() {
                                 <span>Low Severity</span>
                               </div>
                               <div className="text-xs text-muted-foreground ml-4">
-                                Use scroll controls or drag timeline to view more days • Showing {visibleDays} days at a
-                                time
+                                Use scroll controls or drag timeline to view more days
                               </div>
                             </div>
                           </div>
