@@ -721,7 +721,7 @@ export default function OutageDashboard() {
       {/* Three Column Layout */}
       <div className="flex h-[calc(100vh-4rem)] w-full">
         {/* Left Sidebar - Filters */}
-        <div className="w-80 xl:w-96 2xl:w-[400px] border-r bg-background/50 overflow-y-auto flex-shrink-0">
+        <div className="w-80 xl:w-96 2xl:w-[400px] border-r bg-background/50 overflow-y-auto flex-shrink-0 mr-4">
           <div className="p-0 space-y-3">
             {/* Filters Card */}
             <Card>
@@ -909,7 +909,7 @@ export default function OutageDashboard() {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 overflow-y-auto ml-4">
+        <div className="flex-1 overflow-y-auto">
           <div className="p-3 xl:p-4 2xl:p-5 space-y-4">
             {/* High-severity alerts */}
             <div className="space-y-2">
