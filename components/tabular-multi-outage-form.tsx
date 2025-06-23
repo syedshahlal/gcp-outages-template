@@ -29,6 +29,7 @@ import {
   Trash2,
   Copy,
   FileSpreadsheet,
+  Users,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { parseExcelFile } from "@/lib/parse-excel"
@@ -692,123 +693,145 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
                   {/* Update the table min-width to accommodate the new timezone column: */}
                   <Table className="min-w-[2000px]">
                     <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[50px] sticky left-0 bg-background z-10">Actions</TableHead>
-                        <TableHead className="w-[200px]">Title *</TableHead>
-                        <TableHead className="w-[120px]">Start Date *</TableHead>
-                        <TableHead className="w-[100px]">Start Time</TableHead>
-                        <TableHead className="w-[120px]">End Date *</TableHead>
-                        <TableHead className="w-[100px]">End Time</TableHead>
-                        {/* In the Table header, add timezone column after End Time: */}
-                        <TableHead className="w-[150px]">Timezone</TableHead>
-                        <TableHead className="w-[150px]">Environments *</TableHead>
-                        <TableHead className="w-[120px]">Teams</TableHead>
-                        <TableHead className="w-[100px]">Severity *</TableHead>
-                        <TableHead className="w-[100px]">Type *</TableHead>
-                        <TableHead className="w-[120px]">Category</TableHead>
-                        <TableHead className="w-[150px]">Affected Models</TableHead>
-                        <TableHead className="w-[200px]">Reason</TableHead>
-                        <TableHead className="w-[150px]">Impact Details</TableHead>
-                        <TableHead className="w-[150px]">Contact Email</TableHead>
-                        <TableHead className="w-[100px]">Est. Users</TableHead>
+                      <TableRow className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border-b-2 border-blue-200 dark:border-blue-800">
+                        <TableHead className="w-[60px] sticky left-0 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 z-10 font-bold text-blue-900 dark:text-blue-100">
+                          Actions
+                        </TableHead>
+                        <TableHead className="w-[200px] font-bold text-blue-900 dark:text-blue-100">Title *</TableHead>
+                        <TableHead className="w-[120px] font-bold text-blue-900 dark:text-blue-100">
+                          Start Date *
+                        </TableHead>
+                        <TableHead className="w-[100px] font-bold text-blue-900 dark:text-blue-100">
+                          Start Time
+                        </TableHead>
+                        <TableHead className="w-[120px] font-bold text-blue-900 dark:text-blue-100">
+                          End Date *
+                        </TableHead>
+                        <TableHead className="w-[100px] font-bold text-blue-900 dark:text-blue-100">End Time</TableHead>
+                        <TableHead className="w-[150px] font-bold text-blue-900 dark:text-blue-100">Timezone</TableHead>
+                        <TableHead className="w-[150px] font-bold text-blue-900 dark:text-blue-100">
+                          Environments *
+                        </TableHead>
+                        <TableHead className="w-[120px] font-bold text-blue-900 dark:text-blue-100">Teams</TableHead>
+                        <TableHead className="w-[100px] font-bold text-blue-900 dark:text-blue-100">
+                          Severity *
+                        </TableHead>
+                        <TableHead className="w-[100px] font-bold text-blue-900 dark:text-blue-100">Type *</TableHead>
+                        <TableHead className="w-[120px] font-bold text-blue-900 dark:text-blue-100">Category</TableHead>
+                        <TableHead className="w-[150px] font-bold text-blue-900 dark:text-blue-100">
+                          Affected Models
+                        </TableHead>
+                        <TableHead className="w-[200px] font-bold text-blue-900 dark:text-blue-100">Reason</TableHead>
+                        <TableHead className="w-[150px] font-bold text-blue-900 dark:text-blue-100">
+                          Impact Details
+                        </TableHead>
+                        <TableHead className="w-[150px] font-bold text-blue-900 dark:text-blue-100">
+                          Contact Email
+                        </TableHead>
+                        <TableHead className="w-[100px] font-bold text-blue-900 dark:text-blue-100">
+                          Est. Users
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {rows.map((row, rowIndex) => (
-                        <TableRow key={row.id}>
-                          {/* Actions - make sticky */}
-                          <TableCell className="sticky left-0 bg-background z-10">
-                            <div className="flex flex-col gap-1">
+                        <TableRow
+                          key={row.id}
+                          className="hover:bg-blue-50/50 dark:hover:bg-blue-950/10 border-b border-gray-200 dark:border-gray-700"
+                        >
+                          {/* Enhanced Actions - make sticky */}
+                          <TableCell className="sticky left-0 bg-background z-10 border-r border-gray-200 dark:border-gray-700">
+                            <div className="flex flex-col gap-2">
                               <Button
                                 type="button"
                                 variant="outline"
                                 size="icon"
-                                className="h-6 w-6"
+                                className="h-8 w-8 hover:bg-blue-100 dark:hover:bg-blue-900/20 border-blue-200 dark:border-blue-700"
                                 onClick={() => duplicateRow(row.id)}
                                 title="Duplicate row"
                               >
-                                <Copy className="h-3 w-3" />
+                                <Copy className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                               </Button>
                               {rows.length > 1 && (
                                 <Button
                                   type="button"
                                   variant="outline"
                                   size="icon"
-                                  className="h-6 w-6"
+                                  className="h-8 w-8 hover:bg-red-100 dark:hover:bg-red-900/20 border-red-200 dark:border-red-700"
                                   onClick={() => removeRow(row.id)}
                                   title="Remove row"
                                 >
-                                  <Trash2 className="h-3 w-3" />
+                                  <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
                                 </Button>
                               )}
                             </div>
                           </TableCell>
 
-                          {/* Title */}
+                          {/* Enhanced Title */}
                           <TableCell>
                             <Input
                               value={row.title}
                               onChange={(e) => updateRow(row.id, "title", e.target.value)}
                               placeholder="Outage title"
-                              className="min-w-[180px]"
+                              className="min-w-[180px] border-2 focus:border-blue-500 dark:focus:border-blue-400"
                             />
                           </TableCell>
 
-                          {/* Start Date */}
+                          {/* Enhanced Date/Time inputs */}
                           <TableCell>
                             <Input
                               type="date"
                               value={row.startDate}
                               onChange={(e) => updateRow(row.id, "startDate", e.target.value)}
-                              className="min-w-[120px]"
+                              className="min-w-[120px] border-2 focus:border-green-500 dark:focus:border-green-400"
                             />
                           </TableCell>
 
-                          {/* Start Time */}
                           <TableCell>
                             <Input
                               type="time"
                               value={row.startTime}
                               onChange={(e) => updateRow(row.id, "startTime", e.target.value)}
-                              className="min-w-[100px]"
+                              className="min-w-[100px] border-2 focus:border-green-500 dark:focus:border-green-400"
                             />
                           </TableCell>
 
-                          {/* End Date */}
                           <TableCell>
                             <Input
                               type="date"
                               value={row.endDate}
                               onChange={(e) => updateRow(row.id, "endDate", e.target.value)}
-                              className="min-w-[120px]"
+                              className="min-w-[120px] border-2 focus:border-green-500 dark:focus:border-green-400"
                             />
                           </TableCell>
 
-                          {/* End Time */}
                           <TableCell>
                             <Input
                               type="time"
                               value={row.endTime}
                               onChange={(e) => updateRow(row.id, "endTime", e.target.value)}
-                              className="min-w-[100px]"
+                              className="min-w-[100px] border-2 focus:border-green-500 dark:focus:border-green-400"
                             />
                           </TableCell>
 
-                          {/* Timezone */}
-                          {/* In the TableBody, add timezone cell after End Time: */}
+                          {/* Enhanced Timezone */}
                           <TableCell>
                             <Select
                               value={row.timezone}
                               onValueChange={(value) => updateRow(row.id, "timezone", value)}
                             >
-                              <SelectTrigger className="w-full">
+                              <SelectTrigger className="w-full border-2 focus:border-green-500 dark:focus:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20">
                                 <SelectValue placeholder="Select timezone" />
                               </SelectTrigger>
                               <SelectContent className="max-h-48">
                                 {timezones.map((tz) => (
-                                  <SelectItem key={tz.value} value={tz.value}>
+                                  <SelectItem
+                                    key={tz.value}
+                                    value={tz.value}
+                                    className="py-3 hover:bg-green-50 dark:hover:bg-green-900/20"
+                                  >
                                     <div className="flex flex-col">
-                                      <span className="text-xs font-medium">{tz.label.split(" (")[0]}</span>
+                                      <span className="text-sm font-medium">{tz.label.split(" (")[0]}</span>
                                       <span className="text-xs text-muted-foreground">{tz.offset}</span>
                                     </div>
                                   </SelectItem>
@@ -817,18 +840,26 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
                             </Select>
                           </TableCell>
 
-                          {/* Environments */}
+                          {/* Enhanced Environments */}
                           <TableCell>
                             <Popover>
                               <PopoverTrigger asChild>
-                                <Button variant="outline" className="w-full justify-between text-left">
-                                  {row.environments.length === 0 ? "Select..." : `${row.environments.length} selected`}
+                                <Button
+                                  variant="outline"
+                                  className="w-full justify-between text-left border-2 hover:bg-purple-50 dark:hover:bg-purple-900/20 border-purple-200 dark:border-purple-700 focus:border-purple-500 dark:focus:border-purple-400"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                                    {row.environments.length === 0
+                                      ? "Select..."
+                                      : `${row.environments.length} selected`}
+                                  </div>
                                   <ChevronDown className="ml-2 h-4 w-4" />
                                 </Button>
                               </PopoverTrigger>
                               <PopoverContent className="w-80">
-                                <div className="space-y-2">
-                                  <div className="flex items-center space-x-2">
+                                <div className="space-y-3">
+                                  <div className="flex items-center space-x-2 p-2 bg-purple-50 dark:bg-purple-900/20 rounded">
                                     <Checkbox
                                       id={`all-env-${row.id}`}
                                       checked={row.environments.length === environments.length}
@@ -836,41 +867,58 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
                                         updateRowEnvironments(row.id, "all", checked as boolean)
                                       }
                                     />
-                                    <Label htmlFor={`all-env-${row.id}`} className="font-medium">
+                                    <Label
+                                      htmlFor={`all-env-${row.id}`}
+                                      className="font-medium text-purple-900 dark:text-purple-100"
+                                    >
                                       Select All
                                     </Label>
                                   </div>
                                   <Separator />
-                                  {environments.map((env) => (
-                                    <div key={env.id} className="flex items-center space-x-2">
-                                      <Checkbox
-                                        id={`${env.id}-${row.id}`}
-                                        checked={row.environments.includes(env.id)}
-                                        onCheckedChange={(checked) =>
-                                          updateRowEnvironments(row.id, env.id, checked as boolean)
-                                        }
-                                      />
-                                      <Label htmlFor={` ${env.id}-${row.id}`} className="flex items-center gap-2">
-                                        <div className={`w-3 h-3 rounded-full ${env.color}`} />
-                                        {env.name}
-                                      </Label>
-                                    </div>
-                                  ))}
+                                  <div className="max-h-48 overflow-y-auto space-y-2">
+                                    {environments.map((env) => (
+                                      <div
+                                        key={env.id}
+                                        className="flex items-center space-x-2 p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded"
+                                      >
+                                        <Checkbox
+                                          id={`${env.id}-${row.id}`}
+                                          checked={row.environments.includes(env.id)}
+                                          onCheckedChange={(checked) =>
+                                            updateRowEnvironments(row.id, env.id, checked as boolean)
+                                          }
+                                        />
+                                        <Label
+                                          htmlFor={`${env.id}-${row.id}`}
+                                          className="flex items-center gap-2 cursor-pointer"
+                                        >
+                                          <div className={`w-3 h-3 rounded-full ${env.color}`} />
+                                          <div>
+                                            <div className="font-medium text-sm">{env.name}</div>
+                                            <div className="text-xs text-muted-foreground">{env.description}</div>
+                                          </div>
+                                        </Label>
+                                      </div>
+                                    ))}
+                                  </div>
                                 </div>
                               </PopoverContent>
                             </Popover>
                             {row.environments.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1">
+                              <div className="flex flex-wrap gap-1 mt-2">
                                 {row.environments.slice(0, 2).map((envId) => {
                                   const env = environments.find((e) => e.id === envId)
                                   return env ? (
-                                    <Badge key={envId} className={`${env.color} text-white text-xs`}>
+                                    <Badge
+                                      key={envId}
+                                      className={`${env.color} text-white text-xs px-2 py-1 shadow-sm`}
+                                    >
                                       {env.name}
                                     </Badge>
                                   ) : null
                                 })}
                                 {row.environments.length > 2 && (
-                                  <Badge variant="secondary" className="text-xs">
+                                  <Badge variant="secondary" className="text-xs px-2 py-1">
                                     +{row.environments.length - 2}
                                   </Badge>
                                 )}
@@ -878,35 +926,51 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
                             )}
                           </TableCell>
 
-                          {/* Teams */}
+                          {/* Enhanced Teams */}
                           <TableCell>
                             <Popover>
                               <PopoverTrigger asChild>
-                                <Button variant="outline" className="w-full justify-between text-left">
-                                  {row.assignees.length === 0 ? "Select..." : `${row.assignees.length} selected`}
+                                <Button
+                                  variant="outline"
+                                  className="w-full justify-between text-left border-2 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 border-cyan-200 dark:border-cyan-700 focus:border-cyan-500 dark:focus:border-cyan-400"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Users className="w-3 h-3 text-cyan-600" />
+                                    {row.assignees.length === 0 ? "Select..." : `${row.assignees.length} selected`}
+                                  </div>
                                   <ChevronDown className="ml-2 h-4 w-4" />
                                 </Button>
                               </PopoverTrigger>
                               <PopoverContent className="w-80">
                                 <Command>
-                                  <CommandInput placeholder="Search teams..." />
+                                  <CommandInput
+                                    placeholder="Search teams..."
+                                    className="border-cyan-200 dark:border-cyan-700"
+                                  />
                                   <CommandList>
-                                    <CommandEmpty>No teams found.</CommandEmpty>
+                                    <CommandEmpty className="py-4 text-center text-muted-foreground">
+                                      <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                      <p>No teams found.</p>
+                                    </CommandEmpty>
                                     <CommandGroup>
                                       {teams.map((team) => (
                                         <CommandItem
                                           key={team.id}
                                           value={team.id}
                                           onSelect={() => updateRowTeams(row.id, team.id)}
+                                          className="py-3 hover:bg-cyan-50 dark:hover:bg-cyan-900/20"
                                         >
                                           <Check
                                             className={`mr-2 h-4 w-4 ${
-                                              row.assignees.includes(team.id) ? "opacity-100" : "opacity-0"
+                                              row.assignees.includes(team.id)
+                                                ? "opacity-100 text-cyan-600"
+                                                : "opacity-0"
                                             }`}
                                           />
                                           <div>
-                                            <div className="font-medium">{team.name}</div>
-                                            <div className="text-xs text-muted-foreground">{team.email}</div>
+                                            <div className="font-medium text-sm">{team.name}</div>
+                                            <div className="text-xs text-muted-foreground">{team.description}</div>
+                                            <div className="text-xs text-cyan-600 dark:text-cyan-400">{team.email}</div>
                                           </div>
                                         </CommandItem>
                                       ))}
@@ -916,17 +980,21 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
                               </PopoverContent>
                             </Popover>
                             {row.assignees.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1">
+                              <div className="flex flex-wrap gap-1 mt-2">
                                 {row.assignees.slice(0, 2).map((teamId) => {
                                   const team = teams.find((t) => t.id === teamId)
                                   return team ? (
-                                    <Badge key={teamId} variant="secondary" className="text-xs">
+                                    <Badge
+                                      key={teamId}
+                                      variant="secondary"
+                                      className="text-xs px-2 py-1 bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200"
+                                    >
                                       {team.name}
                                     </Badge>
                                   ) : null
                                 })}
                                 {row.assignees.length > 2 && (
-                                  <Badge variant="secondary" className="text-xs">
+                                  <Badge variant="secondary" className="text-xs px-2 py-1">
                                     +{row.assignees.length - 2}
                                   </Badge>
                                 )}
@@ -934,82 +1002,108 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
                             )}
                           </TableCell>
 
-                          {/* Severity */}
+                          {/* Enhanced Severity */}
                           <TableCell>
                             <Select
                               value={row.severity}
                               onValueChange={(value) => updateRow(row.id, "severity", value)}
                             >
-                              <SelectTrigger className="w-full">
+                              <SelectTrigger className="w-full border-2 hover:bg-orange-50 dark:hover:bg-orange-900/20 border-orange-200 dark:border-orange-700 focus:border-orange-500 dark:focus:border-orange-400">
                                 <SelectValue placeholder="Select" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="Low">Low</SelectItem>
-                                <SelectItem value="Medium">Medium</SelectItem>
-                                <SelectItem value="High">High</SelectItem>
+                                <SelectItem value="Low" className="hover:bg-green-50 dark:hover:bg-green-900/20">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                                    <span>Low</span>
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="Medium" className="hover:bg-yellow-50 dark:hover:bg-yellow-900/20">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                                    <span>Medium</span>
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="High" className="hover:bg-red-50 dark:hover:bg-red-900/20">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                                    <span>High</span>
+                                  </div>
+                                </SelectItem>
                               </SelectContent>
                             </Select>
                           </TableCell>
 
-                          {/* Type */}
+                          {/* Enhanced Type */}
                           <TableCell>
                             <Select
                               value={row.outageType}
                               onValueChange={(value) => updateRow(row.id, "outageType", value)}
                             >
-                              <SelectTrigger className="w-full">
+                              <SelectTrigger className="w-full border-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 border-blue-200 dark:border-blue-700 focus:border-blue-500 dark:focus:border-blue-400">
                                 <SelectValue placeholder="Select" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="Internal">Internal</SelectItem>
-                                <SelectItem value="External">External</SelectItem>
+                                <SelectItem value="Internal" className="hover:bg-purple-50 dark:hover:bg-purple-900/20">
+                                  <div className="flex items-center gap-2">
+                                    <Users className="w-3 h-3 text-purple-600" />
+                                    <span>Internal</span>
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="External" className="hover:bg-blue-50 dark:hover:bg-blue-900/20">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                                    <span>External</span>
+                                  </div>
+                                </SelectItem>
                               </SelectContent>
                             </Select>
                           </TableCell>
 
-                          {/* Category */}
+                          {/* Enhanced Category */}
                           <TableCell>
                             <Select
                               value={row.category}
                               onValueChange={(value) => updateRow(row.id, "category", value)}
                             >
-                              <SelectTrigger className="w-full">
+                              <SelectTrigger className="w-full border-2 hover:bg-gray-50 dark:hover:bg-gray-800 focus:border-gray-500 dark:focus:border-gray-400">
                                 <SelectValue placeholder="Select" />
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent className="max-h-48">
                                 {categories.map((cat) => (
-                                  <SelectItem key={cat} value={cat}>
-                                    {cat}
+                                  <SelectItem key={cat} value={cat} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-2 h-2 rounded-full bg-gray-500"></div>
+                                      <span>{cat}</span>
+                                    </div>
                                   </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
                           </TableCell>
 
-                          {/* Affected Models */}
+                          {/* Rest of the cells with enhanced styling... */}
                           <TableCell>
                             <Input
                               value={row.affectedModels}
                               onChange={(e) => updateRow(row.id, "affectedModels", e.target.value)}
                               placeholder="Models/Services"
-                              className="min-w-[140px]"
+                              className="min-w-[140px] border-2 focus:border-blue-500 dark:focus:border-blue-400"
                             />
                           </TableCell>
 
-                          {/* Reason */}
                           <TableCell>
                             <Textarea
                               value={row.reason}
                               onChange={(e) => updateRow(row.id, "reason", e.target.value)}
                               placeholder="Reason for outage"
                               rows={2}
-                              className="min-w-[180px] resize-none"
+                              className="min-w-[180px] resize-none border-2 focus:border-blue-500 dark:focus:border-blue-400"
                             />
                           </TableCell>
 
-                          {/* Impact Details */}
                           <TableCell>
-                            <div className="space-y-1">
+                            <div className="space-y-2">
                               {row.detailedImpact.map((impact, impactIndex) => (
                                 <div key={impactIndex} className="flex gap-1">
                                   <Textarea
@@ -1017,17 +1111,17 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
                                     onChange={(e) => updateRowImpact(row.id, impactIndex, e.target.value)}
                                     placeholder={`Impact ${impactIndex + 1}`}
                                     rows={1}
-                                    className="min-w-[120px] resize-none text-xs"
+                                    className="min-w-[120px] resize-none text-xs border-2 focus:border-orange-500 dark:focus:border-orange-400"
                                   />
                                   {row.detailedImpact.length > 1 && (
                                     <Button
                                       type="button"
                                       variant="outline"
                                       size="icon"
-                                      className="h-6 w-6 shrink-0"
+                                      className="h-8 w-8 shrink-0 hover:bg-red-100 dark:hover:bg-red-900/20"
                                       onClick={() => removeRowImpact(row.id, impactIndex)}
                                     >
-                                      <X className="h-3 w-3" />
+                                      <X className="h-3 w-3 text-red-600" />
                                     </Button>
                                   )}
                                 </div>
@@ -1036,27 +1130,25 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                className="h-6 text-xs"
+                                className="h-8 text-xs hover:bg-green-100 dark:hover:bg-green-900/20 border-green-200 dark:border-green-700"
                                 onClick={() => addRowImpact(row.id)}
                               >
-                                <Plus className="h-3 w-3 mr-1" />
+                                <Plus className="h-3 w-3 mr-1 text-green-600" />
                                 Add
                               </Button>
                             </div>
                           </TableCell>
 
-                          {/* Contact Email */}
                           <TableCell>
                             <Input
                               type="email"
                               value={row.contactEmail}
                               onChange={(e) => updateRow(row.id, "contactEmail", e.target.value)}
                               placeholder="contact@company.com"
-                              className="min-w-[140px]"
+                              className="min-w-[140px] border-2 focus:border-blue-500 dark:focus:border-blue-400"
                             />
                           </TableCell>
 
-                          {/* Estimated Users */}
                           <TableCell>
                             <Input
                               type="number"
@@ -1066,7 +1158,7 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
                                 updateRow(row.id, "estimatedUsers", Number.parseInt(e.target.value) || 0)
                               }
                               placeholder="0"
-                              className="min-w-[80px]"
+                              className="min-w-[80px] border-2 focus:border-blue-500 dark:focus:border-blue-400"
                             />
                           </TableCell>
                         </TableRow>
@@ -1077,24 +1169,50 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
               </div>
             </div>
 
-            <div className="flex justify-between items-center pt-4">
-              <div className="flex gap-2">
-                <Button type="button" variant="outline" onClick={addRow}>
-                  <Plus className="w-4 h-4 mr-2" />
+            <div className="flex justify-between items-center pt-6 border-t-2 border-gray-200 dark:border-gray-700">
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={addRow}
+                  className="px-6 py-3 border-2 hover:bg-green-50 dark:hover:bg-green-900/20 border-green-200 dark:border-green-700"
+                >
+                  <Plus className="w-4 h-4 mr-2 text-green-600" />
                   Add Row
                 </Button>
-                <Button type="button" variant="outline" onClick={clearAllRows}>
-                  <RotateCcw className="w-4 h-4 mr-2" />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={clearAllRows}
+                  className="px-6 py-3 border-2 hover:bg-red-50 dark:hover:bg-red-900/20 border-red-200 dark:border-red-700"
+                >
+                  <RotateCcw className="w-4 h-4 mr-2 text-red-600" />
                   Clear All
                 </Button>
               </div>
 
-              <div className="flex items-center gap-4">
-                <span className="text-sm text-muted-foreground">
-                  {rows.length} outage{rows.length !== 1 ? "s" : ""} to create
-                </span>
-                <Button onClick={handleSubmit} disabled={isSubmitting} size="lg" className="min-w-[140px]">
-                  {isSubmitting ? "Creating..." : `Create ${rows.length} Outage${rows.length !== 1 ? "s" : ""}`}
+              <div className="flex items-center gap-6">
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{rows.length}</div>
+                  <div className="text-sm text-muted-foreground">outage{rows.length !== 1 ? "s" : ""} to create</div>
+                </div>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting}
+                  size="lg"
+                  className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-lg font-semibold shadow-lg"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-5 h-5 mr-2" />
+                      Create {rows.length} Outage{rows.length !== 1 ? "s" : ""}
+                    </>
+                  )}
                 </Button>
               </div>
             </div>

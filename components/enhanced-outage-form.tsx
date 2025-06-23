@@ -565,191 +565,285 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
           </div>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Basic Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="title">Outage Title *</Label>
-                <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
-                  placeholder="e.g., Weekly EPAS Patching"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
-                <Select
-                  value={formData.category}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, category: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {cat}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Enhanced Header Section */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 p-6 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <Label htmlFor="title" className="text-base font-semibold text-blue-900 dark:text-blue-100">
+                    Outage Title *
+                  </Label>
+                  <Input
+                    id="title"
+                    value={formData.title}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
+                    placeholder="e.g., Weekly EPAS Patching"
+                    required
+                    className="h-12 text-lg border-2 border-blue-200 focus:border-blue-500 dark:border-blue-700 dark:focus:border-blue-400"
+                  />
+                </div>
+                <div className="space-y-3">
+                  <Label htmlFor="category" className="text-base font-semibold text-blue-900 dark:text-blue-100">
+                    Category
+                  </Label>
+                  <Select
+                    value={formData.category}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, category: value }))}
+                  >
+                    <SelectTrigger className="h-12 text-lg border-2 border-blue-200 focus:border-blue-500 dark:border-blue-700 dark:focus:border-blue-400">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      {categories.map((cat) => (
+                        <SelectItem
+                          key={cat}
+                          value={cat}
+                          className="py-3 px-4 text-base hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                            <span>{cat}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
 
-            {/* Severity and Type */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="severity">Severity *</Label>
-                <Select
-                  value={formData.severity}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, severity: value as any }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select severity" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Low">Low Impact</SelectItem>
-                    <SelectItem value="Medium">Medium Impact</SelectItem>
-                    <SelectItem value="High">High Impact</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="outageType">Outage Type *</Label>
-                <Select
-                  value={formData.outageType}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, outageType: value as any }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Internal">Internal</SelectItem>
-                    <SelectItem value="External">External</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Date, Time, and Timezone */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="startDate">Start Date & Time *</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="startDate"
-                    type="date"
-                    value={formData.startDate}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, startDate: e.target.value }))}
-                    required
-                  />
-                  <Input
-                    type="time"
-                    value={formData.startTime}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, startTime: e.target.value }))}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="endDate">End Date & Time *</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="endDate"
-                    type="date"
-                    value={formData.endDate}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, endDate: e.target.value }))}
-                    required
-                  />
-                  <Input
-                    type="time"
-                    value={formData.endTime}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, endTime: e.target.value }))}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="timezone">Timezone *</Label>
-                <Select
-                  value={formData.timezone}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, timezone: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select timezone" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-60">
-                    {timezones.map((tz) => (
-                      <SelectItem key={tz.value} value={tz.value}>
-                        <div className="flex justify-between items-center w-full">
-                          <span>{tz.label}</span>
-                          <span className="text-xs text-muted-foreground ml-2">{tz.offset}</span>
+            {/* Enhanced Priority & Type Section */}
+            <div className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-950/20 dark:to-red-950/20 p-6 rounded-lg border border-orange-200 dark:border-orange-800">
+              <h3 className="text-lg font-semibold text-orange-900 dark:text-orange-100 mb-4 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5" />
+                Priority & Classification
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <Label htmlFor="severity" className="text-base font-semibold text-orange-900 dark:text-orange-100">
+                    Severity *
+                  </Label>
+                  <Select
+                    value={formData.severity}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, severity: value as any }))}
+                  >
+                    <SelectTrigger className="h-12 text-lg border-2 border-orange-200 focus:border-orange-500 dark:border-orange-700 dark:focus:border-orange-400">
+                      <SelectValue placeholder="Select severity" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem
+                        value="Low"
+                        className="py-3 px-4 text-base hover:bg-green-50 dark:hover:bg-green-900/20"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
+                            <div className="w-2 h-2 rounded-full bg-white"></div>
+                          </div>
+                          <div>
+                            <div className="font-medium">Low Impact</div>
+                            <div className="text-xs text-muted-foreground">Minimal service disruption</div>
+                          </div>
                         </div>
                       </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      <SelectItem
+                        value="Medium"
+                        className="py-3 px-4 text-base hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-4 h-4 rounded-full bg-yellow-500 flex items-center justify-center">
+                            <div className="w-2 h-2 rounded-full bg-white"></div>
+                          </div>
+                          <div>
+                            <div className="font-medium">Medium Impact</div>
+                            <div className="text-xs text-muted-foreground">Moderate service disruption</div>
+                          </div>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="High" className="py-3 px-4 text-base hover:bg-red-50 dark:hover:bg-red-900/20">
+                        <div className="flex items-center gap-3">
+                          <div className="w-4 h-4 rounded-full bg-red-500 flex items-center justify-center">
+                            <div className="w-2 h-2 rounded-full bg-white"></div>
+                          </div>
+                          <div>
+                            <div className="font-medium">High Impact</div>
+                            <div className="text-xs text-muted-foreground">Significant service disruption</div>
+                          </div>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-3">
+                  <Label htmlFor="outageType" className="text-base font-semibold text-orange-900 dark:text-orange-100">
+                    Outage Type *
+                  </Label>
+                  <Select
+                    value={formData.outageType}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, outageType: value as any }))}
+                  >
+                    <SelectTrigger className="h-12 text-lg border-2 border-orange-200 focus:border-orange-500 dark:border-orange-700 dark:focus:border-orange-400">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem
+                        value="Internal"
+                        className="py-3 px-4 text-base hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-4 h-4 rounded-full bg-purple-500 flex items-center justify-center">
+                            <Users className="w-2 h-2 text-white" />
+                          </div>
+                          <div>
+                            <div className="font-medium">Internal</div>
+                            <div className="text-xs text-muted-foreground">Internal systems only</div>
+                          </div>
+                        </div>
+                      </SelectItem>
+                      <SelectItem
+                        value="External"
+                        className="py-3 px-4 text-base hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
+                            <div className="w-2 h-2 rounded-full bg-white"></div>
+                          </div>
+                          <div>
+                            <div className="font-medium">External</div>
+                            <div className="text-xs text-muted-foreground">Customer-facing services</div>
+                          </div>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
 
-            {/* Duration Preview */}
-            {formData.startDate && formData.endDate && (
-              <Alert>
-                <Clock className="h-4 w-4" />
-                <AlertDescription>
-                  <strong>Duration:</strong>{" "}
-                  {calculateDuration(
-                    formData.startDate,
-                    formData.startTime,
-                    formData.endDate,
-                    formData.endTime,
-                    formData.timezone,
-                  )}
-                  <br />
-                  <strong>Start:</strong> {formatDateTime(formData.startDate, formData.startTime, formData.timezone)}
-                  <br />
-                  <strong>End:</strong> {formatDateTime(formData.endDate, formData.endTime, formData.timezone)}
-                  <br />
-                  <strong>Timezone:</strong>{" "}
-                  {timezones.find((tz) => tz.value === formData.timezone)?.label || formData.timezone}
-                </AlertDescription>
-              </Alert>
-            )}
+            {/* Enhanced Date, Time, and Timezone Section */}
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 p-6 rounded-lg border border-green-200 dark:border-green-800">
+              <h3 className="text-lg font-semibold text-green-900 dark:text-green-100 mb-4 flex items-center gap-2">
+                <Clock className="w-5 h-5" />
+                Schedule Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-3">
+                  <Label htmlFor="startDate" className="text-base font-semibold text-green-900 dark:text-green-100">
+                    Start Date & Time *
+                  </Label>
+                  <div className="space-y-2">
+                    <Input
+                      id="startDate"
+                      type="date"
+                      value={formData.startDate}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, startDate: e.target.value }))}
+                      required
+                      className="h-12 text-lg border-2 border-green-200 focus:border-green-500 dark:border-green-700 dark:focus:border-green-400"
+                    />
+                    <Input
+                      type="time"
+                      value={formData.startTime}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, startTime: e.target.value }))}
+                      className="h-12 text-lg border-2 border-green-200 focus:border-green-500 dark:border-green-700 dark:focus:border-green-400"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <Label htmlFor="endDate" className="text-base font-semibold text-green-900 dark:text-green-100">
+                    End Date & Time *
+                  </Label>
+                  <div className="space-y-2">
+                    <Input
+                      id="endDate"
+                      type="date"
+                      value={formData.endDate}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, endDate: e.target.value }))}
+                      required
+                      className="h-12 text-lg border-2 border-green-200 focus:border-green-500 dark:border-green-700 dark:focus:border-green-400"
+                    />
+                    <Input
+                      type="time"
+                      value={formData.endTime}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, endTime: e.target.value }))}
+                      className="h-12 text-lg border-2 border-green-200 focus:border-green-500 dark:border-green-700 dark:focus:border-green-400"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <Label htmlFor="timezone" className="text-base font-semibold text-green-900 dark:text-green-100">
+                    Timezone *
+                  </Label>
+                  <Select
+                    value={formData.timezone}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, timezone: value }))}
+                  >
+                    <SelectTrigger className="h-12 text-lg border-2 border-green-200 focus:border-green-500 dark:border-green-700 dark:focus:border-green-400">
+                      <SelectValue placeholder="Select timezone" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      {timezones.map((tz) => (
+                        <SelectItem
+                          key={tz.value}
+                          value={tz.value}
+                          className="py-3 px-4 hover:bg-green-50 dark:hover:bg-green-900/20"
+                        >
+                          <div className="flex justify-between items-center w-full">
+                            <div className="flex flex-col">
+                              <span className="font-medium">{tz.label.split(" (")[0]}</span>
+                              <span className="text-xs text-muted-foreground">{tz.offset}</span>
+                            </div>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
 
-            {/* Environments */}
-            <div className="space-y-2">
-              <Label>Affected Environments *</Label>
-              <div className="space-y-3">
-                {/* Select All Option */}
-                <div className="flex items-center space-x-2 p-2 bg-muted/50 rounded-md">
+            {/* Enhanced Environments Section */}
+            <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 p-6 rounded-lg border border-purple-200 dark:border-purple-800">
+              <h3 className="text-lg font-semibold text-purple-900 dark:text-purple-100 mb-4 flex items-center gap-2">
+                <div className="w-5 h-5 rounded bg-purple-500 flex items-center justify-center">
+                  <div className="w-2 h-2 rounded bg-white"></div>
+                </div>
+                Affected Environments *
+              </h3>
+              <div className="space-y-4">
+                {/* Enhanced Select All Option */}
+                <div className="flex items-center space-x-3 p-4 bg-white dark:bg-gray-800 rounded-lg border-2 border-purple-200 dark:border-purple-700 shadow-sm">
                   <Checkbox
                     id="all-environments"
                     checked={isAllEnvironmentsSelected}
                     onCheckedChange={(checked) => handleEnvironmentChange("all", checked as boolean)}
+                    className="w-5 h-5"
                   />
                   <Label
                     htmlFor="all-environments"
-                    className="text-sm cursor-pointer flex items-center gap-2 font-medium"
+                    className="text-base cursor-pointer flex items-center gap-3 font-semibold text-purple-900 dark:text-purple-100"
                   >
-                    <ListChecks className="w-4 h-4" />
+                    <ListChecks className="w-5 h-5" />
                     Select All Environments
                   </Label>
                 </div>
 
-                {/* Individual Environments */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {/* Enhanced Individual Environments */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {environments.map((env) => (
-                    <div key={env.id} className="flex items-center space-x-2 p-2 border rounded-md">
+                    <div
+                      key={env.id}
+                      className="flex items-center space-x-3 p-4 bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600 transition-colors shadow-sm"
+                    >
                       <Checkbox
                         id={env.id}
                         checked={formData.environments.includes(env.id)}
                         onCheckedChange={(checked) => handleEnvironmentChange(env.id, checked as boolean)}
+                        className="w-5 h-5"
                       />
-                      <Label htmlFor={env.id} className="text-sm cursor-pointer flex items-center gap-2 flex-1">
-                        <div className={`w-3 h-3 rounded-full ${env.color}`} />
+                      <Label htmlFor={env.id} className="text-base cursor-pointer flex items-center gap-3 flex-1">
+                        <div className={`w-4 h-4 rounded-full ${env.color} shadow-sm`} />
                         <div>
-                          <div className="font-medium">{env.name}</div>
-                          <div className="text-xs text-muted-foreground">{env.description}</div>
+                          <div className="font-semibold">{env.name}</div>
+                          <div className="text-sm text-muted-foreground">{env.description}</div>
                         </div>
                       </Label>
                     </div>
@@ -758,25 +852,35 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
               </div>
 
               {formData.environments.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {formData.environments.map((envId) => {
-                    const env = getEnvironmentById(envId)
-                    return env ? (
-                      <Badge key={envId} className={`${env.color} text-white`}>
-                        {env.name}
-                      </Badge>
-                    ) : null
-                  })}
+                <div className="mt-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-purple-200 dark:border-purple-700">
+                  <div className="text-sm font-medium text-purple-900 dark:text-purple-100 mb-2">
+                    Selected Environments:
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {formData.environments.map((envId) => {
+                      const env = getEnvironmentById(envId)
+                      return env ? (
+                        <Badge key={envId} className={`${env.color} text-white text-sm px-3 py-1 shadow-sm`}>
+                          {env.name}
+                        </Badge>
+                      ) : null
+                    })}
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* Responsible Teams - Multi-select Dropdown */}
-            <div className="space-y-2">
-              <Label>Responsible Teams</Label>
+            {/* Enhanced Teams Section */}
+            <div className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-950/20 dark:to-blue-950/20 p-6 rounded-lg border border-cyan-200 dark:border-cyan-800">
+              <h3 className="text-lg font-semibold text-cyan-900 dark:text-cyan-100 mb-4 flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                Responsible Teams
+              </h3>
               {teams.length === 0 ? (
-                <div className="p-4 text-center text-muted-foreground border rounded-md">
-                  <p>No teams available. Please check the configuration.</p>
+                <div className="p-6 text-center text-muted-foreground border-2 border-dashed border-cyan-200 dark:border-cyan-700 rounded-lg">
+                  <Users className="w-12 h-12 mx-auto mb-3 text-cyan-400" />
+                  <p className="text-lg font-medium">No teams available</p>
+                  <p className="text-sm">Please check the configuration.</p>
                 </div>
               ) : (
                 <Popover open={teamDropdownOpen} onOpenChange={setTeamDropdownOpen}>
@@ -786,20 +890,26 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
                       variant="outline"
                       role="combobox"
                       aria-expanded={teamDropdownOpen}
-                      className="w-full justify-between"
+                      className="w-full justify-between h-12 text-lg border-2 border-cyan-200 focus:border-cyan-500 dark:border-cyan-700 dark:focus:border-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20"
                       onClick={() => setTeamDropdownOpen(!teamDropdownOpen)}
                     >
-                      {formData.assignees.length === 0
-                        ? "Select teams..."
-                        : `${formData.assignees.length} team${formData.assignees.length > 1 ? "s" : ""} selected`}
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4" />
+                        {formData.assignees.length === 0
+                          ? "Select teams..."
+                          : `${formData.assignees.length} team${formData.assignees.length > 1 ? "s" : ""} selected`}
+                      </div>
                       <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-full p-0" align="start">
                     <Command>
-                      <CommandInput placeholder="Search teams..." />
+                      <CommandInput placeholder="Search teams..." className="h-12 text-base" />
                       <CommandList>
-                        <CommandEmpty>No teams found.</CommandEmpty>
+                        <CommandEmpty className="py-6 text-center text-muted-foreground">
+                          <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                          <p>No teams found.</p>
+                        </CommandEmpty>
                         <CommandGroup>
                           {teams.map((team) => (
                             <CommandItem
@@ -809,17 +919,17 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
                                 console.log("Team selected:", value, team.name)
                                 handleTeamToggle(team.id)
                               }}
-                              className="cursor-pointer"
+                              className="cursor-pointer py-4 px-4 hover:bg-cyan-50 dark:hover:bg-cyan-900/20"
                             >
                               <Check
-                                className={`mr-2 h-4 w-4 ${
-                                  formData.assignees.includes(team.id) ? "opacity-100" : "opacity-0"
+                                className={`mr-3 h-5 w-5 ${
+                                  formData.assignees.includes(team.id) ? "opacity-100 text-cyan-600" : "opacity-0"
                                 }`}
                               />
                               <div className="flex-1">
-                                <div className="font-medium">{team.name}</div>
-                                <div className="text-xs text-muted-foreground">{team.description}</div>
-                                <div className="text-xs text-blue-600">{team.email}</div>
+                                <div className="font-semibold text-base">{team.name}</div>
+                                <div className="text-sm text-muted-foreground">{team.description}</div>
+                                <div className="text-sm text-cyan-600 dark:text-cyan-400">{team.email}</div>
                               </div>
                             </CommandItem>
                           ))}
@@ -831,44 +941,58 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
               )}
 
               {formData.assignees.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {formData.assignees.map((teamId) => {
-                    const team = getTeamById(teamId)
-                    return team ? (
-                      <Badge key={teamId} variant="secondary" className="flex items-center gap-1">
-                        {team.name}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            console.log("Removing team:", team.name)
-                            handleTeamToggle(teamId)
-                          }}
-                          className="ml-1 hover:text-destructive"
+                <div className="mt-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-cyan-200 dark:border-cyan-700">
+                  <div className="text-sm font-medium text-cyan-900 dark:text-cyan-100 mb-2">Selected Teams:</div>
+                  <div className="flex flex-wrap gap-2">
+                    {formData.assignees.map((teamId) => {
+                      const team = getTeamById(teamId)
+                      return team ? (
+                        <Badge
+                          key={teamId}
+                          variant="secondary"
+                          className="flex items-center gap-2 text-sm px-3 py-1 bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200"
                         >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ) : null
-                  })}
+                          <Users className="w-3 h-3" />
+                          {team.name}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              console.log("Removing team:", team.name)
+                              handleTeamToggle(teamId)
+                            }}
+                            className="ml-1 hover:text-destructive transition-colors"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ) : null
+                    })}
+                  </div>
                 </div>
               )}
             </div>
 
+            {/* Rest of the form sections with similar enhanced styling... */}
             {/* Contact and Users */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="contactEmail">Contact Email</Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <Label htmlFor="contactEmail" className="text-base font-semibold">
+                  Contact Email
+                </Label>
                 <Input
                   id="contactEmail"
                   type="email"
                   value={formData.contactEmail}
                   onChange={(e) => setFormData((prev) => ({ ...prev, contactEmail: e.target.value }))}
                   placeholder="contact@company.com"
+                  className="h-12 text-lg border-2 focus:border-blue-500"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="estimatedUsers">Estimated Users Affected</Label>
+              <div className="space-y-3">
+                <Label htmlFor="estimatedUsers" className="text-base font-semibold">
+                  Estimated Users Affected
+                </Label>
                 <Input
                   id="estimatedUsers"
                   type="number"
@@ -878,38 +1002,45 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
                     setFormData((prev) => ({ ...prev, estimatedUsers: Number.parseInt(e.target.value) || 0 }))
                   }
                   placeholder="0"
+                  className="h-12 text-lg border-2 focus:border-blue-500"
                 />
               </div>
             </div>
 
             {/* Affected Models */}
-            <div className="space-y-2">
-              <Label htmlFor="affectedModels">Affected Models/Services</Label>
+            <div className="space-y-3">
+              <Label htmlFor="affectedModels" className="text-base font-semibold">
+                Affected Models/Services
+              </Label>
               <Input
                 id="affectedModels"
                 value={formData.affectedModels}
                 onChange={(e) => setFormData((prev) => ({ ...prev, affectedModels: e.target.value }))}
                 placeholder="e.g., All models in POC environment, User authentication service"
+                className="h-12 text-lg border-2 focus:border-blue-500"
               />
             </div>
 
             {/* Reason */}
-            <div className="space-y-2">
-              <Label htmlFor="reason">Reason for Outage</Label>
+            <div className="space-y-3">
+              <Label htmlFor="reason" className="text-base font-semibold">
+                Reason for Outage
+              </Label>
               <Textarea
                 id="reason"
                 value={formData.reason}
                 onChange={(e) => setFormData((prev) => ({ ...prev, reason: e.target.value }))}
                 placeholder="Describe the reason for this planned outage..."
                 rows={3}
+                className="resize-none h-24 text-lg border-2 focus:border-blue-500"
               />
             </div>
 
             {/* Critical Impact Assessment */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
+            <div className="space-y-5">
+              <div className="flex items-center gap-3">
                 <AlertTriangle className="w-5 h-5 text-orange-500" />
-                <Label className="text-base font-semibold">Critical Impact Assessment</Label>
+                <Label className="text-lg font-semibold">Critical Impact Assessment</Label>
               </div>
               <Alert className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/20">
                 <AlertTriangle className="h-4 w-4 text-orange-600" />
@@ -919,17 +1050,17 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
                 </AlertDescription>
               </Alert>
 
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <Label className="text-sm font-medium">Detailed Impact Items</Label>
                 {formData.detailedImpact.map((impact, index) => (
-                  <div key={index} className="flex gap-2">
+                  <div key={index} className="flex gap-3">
                     <div className="flex-1">
                       <Textarea
                         value={impact}
                         onChange={(e) => updateImpactItem(index, e.target.value)}
                         placeholder={`Impact detail ${index + 1}: Describe specific systems, users, or processes affected...`}
                         rows={2}
-                        className="resize-none"
+                        className="resize-none h-20 text-lg border-2 focus:border-blue-500"
                       />
                     </div>
                     {formData.detailedImpact.length > 1 && (
@@ -958,14 +1089,29 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
               </div>
             </div>
 
-            {/* Submit Button */}
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={clearAllForm}>
+            {/* Enhanced Submit Button */}
+            <div className="flex justify-end gap-4 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <Button type="button" variant="outline" onClick={clearAllForm} size="lg" className="px-8">
                 <RotateCcw className="w-4 h-4 mr-2" />
                 Clear All
               </Button>
-              <Button type="submit" disabled={isSubmitting} size="lg">
-                {isSubmitting ? "Creating..." : "Create Outage"}
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                size="lg"
+                className="px-8 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Create Outage
+                  </>
+                )}
               </Button>
             </div>
           </form>
