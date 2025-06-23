@@ -411,6 +411,15 @@ export default function OutageDashboard() {
     return { start, end }
   }
 
+  // Add state for initial view limit
+  const [initialViewDays] = useState(10) // Show only 10 days initially
+
+  // Update the timeline width calculation to show full range but limit initial view
+  const getInitialViewWidth = () => {
+    const totalDays = Math.ceil((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24))
+    return Math.min(totalDays, initialViewDays) * 80 // 80px per day
+  }
+
   const filters = useMemo(() => {
     console.log("Applying filters...")
     console.log("Total outages before filtering:", outages.length)
@@ -501,6 +510,14 @@ export default function OutageDashboard() {
     console.log("Calculated range from filtered data:", { start, end, days })
     return { start, end, days }
   }, [filters, useCustomRange, customDateRange])
+
+  // Reset scroll position when range changes
+  useEffect(() => {
+    setTimelineScrollPosition(0)
+    if (timelineScrollRef.current) {
+      timelineScrollRef.current.scrollTo({ left: 0 })
+    }
+  }, [range])
 
   const scrollTimelineLeft = () => {
     if (timelineScrollRef.current) {
@@ -1137,9 +1154,12 @@ export default function OutageDashboard() {
                                 ref={timelineScrollRef}
                                 className="relative w-full overflow-x-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200"
                                 onScroll={handleTimelineScroll}
-                                style={{ scrollbarWidth: "thin" }}
+                                style={{
+                                  scrollbarWidth: "thin",
+                                  maxWidth: `${getInitialViewWidth()}px`, // Limit initial view
+                                }}
                               >
-                                {/* Full timeline width container */}
+                                {/* Full timeline width container - shows all months/days */}
                                 <div
                                   style={{
                                     width: `${Math.ceil((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24)) * 80}px`,
@@ -1257,6 +1277,7 @@ export default function OutageDashboard() {
                                           style={{
                                             width: `${Math.ceil((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24)) * 80}px`,
                                             marginLeft: `-${timelineScrollPosition}px`,
+                                            maxWidth: `${getInitialViewWidth()}px`, // Limit initial view
                                           }}
                                         >
                                           {/* Grid lines */}
