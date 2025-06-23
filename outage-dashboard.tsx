@@ -909,7 +909,7 @@ export default function OutageDashboard() {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto ml-4">
           <div className="p-3 xl:p-4 2xl:p-5 space-y-4">
             {/* High-severity alerts */}
             <div className="space-y-2">
