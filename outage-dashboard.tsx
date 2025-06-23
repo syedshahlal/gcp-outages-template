@@ -715,7 +715,8 @@ export default function OutageDashboard() {
       <div className="flex h-[calc(100vh-4rem)] w-full">
         {/* Left Sidebar - Filters - No left margin */}
         <div className="w-80 xl:w-96 2xl:w-[400px] border-r bg-background/50 overflow-y-auto flex-shrink-0">
-          <div className="p-4 space-y-3">
+          <div className="p-4 space-y-3"></div>
+        </div>
 
         {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto">
@@ -1428,5 +1429,5 @@ export default function OutageDashboard() {
       </div>
       <Tooltip />
     </div>
-  );
+  )
 }
