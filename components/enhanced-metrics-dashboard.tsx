@@ -4,22 +4,27 @@ import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Progress } from "@/components/ui/progress"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import {
   TrendingUp,
   TrendingDown,
   Activity,
-  Clock,
   Users,
+  Clock,
   AlertTriangle,
   CheckCircle,
-  BarChart3,
   Calendar,
+  BarChart3,
+  PieChart,
+  RefreshCw,
+  Download,
+  Info,
 } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
-import { formatDetailedDate, getUserTimezone, getTimezoneAbbreviation } from "@/lib/timezone-utils"
+import { formatDetailedDate, getUserTimezone } from "@/lib/timezone-utils"
 
 interface MetricsData {
   summary: {
@@ -30,35 +35,163 @@ interface MetricsData {
     totalDowntime: number
     averageDowntime: number
     totalUsersAffected: number
-    dataAccuracy: number
-    lastValidated: Date
+    completionRate: number
+    criticalOutages: number
+    upcomingCritical: number
   }
   breakdowns: {
     severity: Record<string, number>
     type: Record<string, number>
     environment: Record<string, number>
-    monthly: Array<{ month: string; count: number; downtime: number }>
-    team: Record<string, number>
   }
   trends: {
-    outageFrequency: Array<{ period: string; count: number; trend: "up" | "down" | "stable" }>
-    mttr: Array<{ period: string; hours: number; trend: "up" | "down" | "stable" }>
-    userImpact: Array<{ period: string; users: number; trend: "up" | "down" | "stable" }>
+    monthly: Array<{
+      month: string
+      total: number
+      high: number
+      medium: number
+      low: number
+    }>
+    teamWorkload: Array<{
+      team: string
+      total: number
+      upcoming: number
+      ongoing: number
+    }>
   }
-  recentOutages: any[]
-  upcomingOutages: any[]
-  dataIntegrity: {
-    missingTimestamps: number
-    incompleteDescriptions: number
-    unassignedOutages: number
-    validationErrors: string[]
-  }
+  insights: Array<{
+    type: "warning" | "info" | "success"
+    title: string
+    message: string
+    priority: "high" | "medium" | "low"
+  }>
 }
 
-// Enhanced chart components with better styling and interactivity
-function EnhancedBarChart({ data, config, title }: { data: any[]; config: any; title: string }) {
-  const [chartComponents, setChartComponents] = useState<any>(null)
+interface EnhancedMetricsDashboardProps {
+  data?: MetricsData
+  onRefresh?: () => void
+  isLoading?: boolean
+}
 
+const MetricCard = ({
+  title,
+  value,
+  change,
+  changeType,
+  icon: Icon,
+  description,
+  color = "blue",
+  trend,
+}: {
+  title: string
+  value: string | number
+  change?: string
+  changeType?: "positive" | "negative" | "neutral"
+  icon: any
+  description?: string
+  color?: "blue" | "green" | "red" | "yellow" | "purple"
+  trend?: Array<{ value: number; label: string }>
+}) => {
+  const colorClasses = {
+    blue: "bg-blue-50 text-blue-600 border-blue-200",
+    green: "bg-green-50 text-green-600 border-green-200",
+    red: "bg-red-50 text-red-600 border-red-200",
+    yellow: "bg-yellow-50 text-yellow-600 border-yellow-200",
+    purple: "bg-purple-50 text-purple-600 border-purple-200",
+  }
+
+  const changeColors = {
+    positive: "text-green-600",
+    negative: "text-red-600",
+    neutral: "text-gray-600",
+  }
+
+  return (
+    <Card className="relative overflow-hidden">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <div className={`p-2 rounded-lg ${colorClasses[color]}`}>
+                <Icon className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-600">{title}</p>
+                <p className="text-2xl font-bold text-gray-900">{value}</p>
+              </div>
+            </div>
+            {description && <p className="text-xs text-gray-500 mt-1">{description}</p>}
+            {change && (
+              <div className={`flex items-center gap-1 mt-2 text-sm ${changeColors[changeType || "neutral"]}`}>
+                {changeType === "positive" && <TrendingUp className="w-4 h-4" />}
+                {changeType === "negative" && <TrendingDown className="w-4 h-4" />}
+                <span>{change}</span>
+              </div>
+            )}
+          </div>
+          {trend && trend.length > 0 && (
+            <div className="w-20 h-12">
+              {/* Mini trend visualization */}
+              <div className="flex items-end h-full gap-1">
+                {trend.slice(-6).map((point, index) => (
+                  <div
+                    key={index}
+                    className={`flex-1 ${colorClasses[color]} opacity-60 rounded-sm`}
+                    style={{ height: `${Math.max(20, (point.value / Math.max(...trend.map((t) => t.value))) * 100)}%` }}
+                    title={`${point.label}: ${point.value}`}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+const InsightCard = ({ insight }: { insight: MetricsData["insights"][0] }) => {
+  const iconMap = {
+    warning: AlertTriangle,
+    info: Info,
+    success: CheckCircle,
+  }
+
+  const colorMap = {
+    warning: "border-yellow-200 bg-yellow-50",
+    info: "border-blue-200 bg-blue-50",
+    success: "border-green-200 bg-green-50",
+  }
+
+  const iconColorMap = {
+    warning: "text-yellow-600",
+    info: "text-blue-600",
+    success: "text-green-600",
+  }
+
+  const Icon = iconMap[insight.type]
+
+  return (
+    <Alert className={`${colorMap[insight.type]} border`}>
+      <Icon className={`h-4 w-4 ${iconColorMap[insight.type]}`} />
+      <AlertDescription>
+        <div className="font-semibold text-sm">{insight.title}</div>
+        <div className="text-sm mt-1">{insight.message}</div>
+      </AlertDescription>
+    </Alert>
+  )
+}
+
+export default function EnhancedMetricsDashboard({
+  data,
+  onRefresh,
+  isLoading = false,
+}: EnhancedMetricsDashboardProps) {
+  const [selectedTab, setSelectedTab] = useState("overview")
+  const [chartComponents, setChartComponents] = useState<any>(null)
+  const userTimezone = getUserTimezone()
+
+  // Load chart components dynamically
   useEffect(() => {
     const loadCharts = async () => {
       try {
@@ -66,7 +199,14 @@ function EnhancedBarChart({ data, config, title }: { data: any[]; config: any; t
         setChartComponents({
           ResponsiveContainer: recharts.ResponsiveContainer,
           BarChart: recharts.BarChart,
+          LineChart: recharts.LineChart,
+          PieChart: recharts.PieChart,
+          Area: recharts.Area,
+          AreaChart: recharts.AreaChart,
           Bar: recharts.Bar,
+          Line: recharts.Line,
+          Pie: recharts.Pie,
+          Cell: recharts.Cell,
           XAxis: recharts.XAxis,
           YAxis: recharts.YAxis,
           CartesianGrid: recharts.CartesianGrid,
@@ -79,551 +219,438 @@ function EnhancedBarChart({ data, config, title }: { data: any[]; config: any; t
     loadCharts()
   }, [])
 
-  if (!chartComponents) {
+  // Generate sample data if none provided
+  const metricsData = useMemo(() => {
     return (
-      <div className="h-[300px] w-full bg-gray-100 animate-pulse rounded-lg flex items-center justify-center">
-        <div className="text-gray-500">Loading {title}...</div>
-      </div>
+      data || {
+        summary: {
+          totalOutages: 0,
+          upcomingOutages: 0,
+          pastOutages: 0,
+          ongoingOutages: 0,
+          totalDowntime: 0,
+          averageDowntime: 0,
+          totalUsersAffected: 0,
+          completionRate: 0,
+          criticalOutages: 0,
+          upcomingCritical: 0,
+        },
+        breakdowns: {
+          severity: { High: 0, Medium: 0, Low: 0 },
+          type: { Internal: 0, External: 0 },
+          environment: {},
+        },
+        trends: {
+          monthly: [],
+          teamWorkload: [],
+        },
+        insights: [],
+      }
+    )
+  }, [data])
+
+  const exportData = () => {
+    const exportData = {
+      generatedAt: new Date().toISOString(),
+      timezone: userTimezone,
+      metrics: metricsData,
+    }
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `outage-metrics-${new Date().toISOString().split("T")[0]}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center p-12">
+          <div className="text-center">
+            <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+            <p className="text-gray-600">Loading metrics data...</p>
+          </div>
+        </CardContent>
+      </Card>
     )
   }
 
-  const { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } = chartComponents
-
-  return (
-    <ResponsiveContainer width="100%" height="100%">
-      <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-        <XAxis dataKey="name" tick={{ fontSize: 12 }} tickLine={{ stroke: "#666" }} />
-        <YAxis tick={{ fontSize: 12 }} tickLine={{ stroke: "#666" }} />
-        <ChartTooltip content={<ChartTooltipContent />} cursor={{ fill: "rgba(0,0,0,0.1)" }} />
-        <Legend />
-        {Object.entries(config).map(([key, value]: [string, any]) => (
-          <Bar key={key} dataKey={key} fill={value.color} name={value.label} radius={[2, 2, 0, 0]} />
-        ))}
-      </BarChart>
-    </ResponsiveContainer>
-  )
-}
-
-function EnhancedPieChart({ data, config, title }: { data: any[]; config: any; title: string }) {
-  const [chartComponents, setChartComponents] = useState<any>(null)
-
-  useEffect(() => {
-    const loadCharts = async () => {
-      try {
-        const recharts = await import("recharts")
-        setChartComponents({
-          ResponsiveContainer: recharts.ResponsiveContainer,
-          PieChart: recharts.PieChart,
-          Pie: recharts.Pie,
-          Cell: recharts.Cell,
-          Legend: recharts.Legend,
-        })
-      } catch (error) {
-        console.error("Failed to load chart components:", error)
-      }
-    }
-    loadCharts()
-  }, [])
-
-  if (!chartComponents) {
-    return (
-      <div className="h-[300px] w-full bg-gray-100 animate-pulse rounded-lg flex items-center justify-center">
-        <div className="text-gray-500">Loading {title}...</div>
-      </div>
-    )
-  }
-
-  const { ResponsiveContainer, PieChart, Pie, Cell, Legend } = chartComponents
-
-  const COLORS = ["#ef4444", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#f97316"]
-
-  return (
-    <ResponsiveContainer width="100%" height="100%">
-      <PieChart>
-        <Pie
-          data={data}
-          cx="50%"
-          cy="50%"
-          labelLine={false}
-          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-          outerRadius={80}
-          fill="#8884d8"
-          dataKey="value"
-        >
-          {data.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-          ))}
-        </Pie>
-        <ChartTooltip content={<ChartTooltipContent />} />
-        <Legend />
-      </PieChart>
-    </ResponsiveContainer>
-  )
-}
-
-export function EnhancedMetricsDashboard() {
-  const { toast } = useToast()
-  const [metricsData, setMetricsData] = useState<MetricsData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [selectedTimezone, setSelectedTimezone] = useState<string>("")
-  const [dataValidationStatus, setDataValidationStatus] = useState<"validating" | "valid" | "errors">("validating")
-
-  useEffect(() => {
-    setSelectedTimezone(getUserTimezone())
-  }, [])
-
-  const fetchMetricsData = async () => {
-    try {
-      setLoading(true)
-      setDataValidationStatus("validating")
-
-      // Fetch comprehensive metrics with data validation
-      const response = await fetch("/api/metrics?includeValidation=true", {
-        cache: "no-store",
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch metrics data")
-      }
-
-      const data = await response.json()
-
-      // Validate data integrity
-      const validationResult = validateMetricsData(data)
-
-      if (validationResult.isValid) {
-        setMetricsData(data)
-        setDataValidationStatus("valid")
-        toast({
-          title: "Metrics Updated",
-          description: `Data validated successfully. Accuracy: ${data.summary.dataAccuracy}%`,
-        })
-      } else {
-        setDataValidationStatus("errors")
-        toast({
-          title: "Data Validation Issues",
-          description: `Found ${validationResult.errors.length} validation errors`,
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      console.error("Error fetching metrics:", error)
-      setDataValidationStatus("errors")
-      toast({
-        title: "Error Loading Metrics",
-        description: "Failed to load dashboard metrics",
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const validateMetricsData = (data: any) => {
-    const errors: string[] = []
-
-    // Check for required fields
-    if (!data.summary) errors.push("Missing summary data")
-    if (!data.breakdowns) errors.push("Missing breakdown data")
-    if (!data.trends) errors.push("Missing trend data")
-
-    // Validate data consistency
-    if (data.summary) {
-      const totalCalculated = data.summary.upcomingOutages + data.summary.pastOutages + data.summary.ongoingOutages
-      if (Math.abs(totalCalculated - data.summary.totalOutages) > 1) {
-        errors.push("Inconsistent outage totals")
-      }
-    }
-
-    // Check for missing timestamps
-    if (data.dataIntegrity?.missingTimestamps > 0) {
-      errors.push(`${data.dataIntegrity.missingTimestamps} outages missing timestamps`)
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-    }
-  }
-
-  useEffect(() => {
-    fetchMetricsData()
-
-    // Set up auto-refresh every 5 minutes
-    const interval = setInterval(fetchMetricsData, 5 * 60 * 1000)
-    return () => clearInterval(interval)
-  }, [])
-
-  const chartData = useMemo(() => {
-    if (!metricsData) return null
-
-    return {
-      severityData: Object.entries(metricsData.breakdowns.severity).map(([key, value]) => ({
-        name: key,
-        value,
-        severity: value,
-      })),
-      typeData: Object.entries(metricsData.breakdowns.type).map(([key, value]) => ({
-        name: key,
-        value,
-        type: value,
-      })),
-      environmentData: Object.entries(metricsData.breakdowns.environment).map(([key, value]) => ({
-        name: key,
-        value,
-        environment: value,
-      })),
-      monthlyData: metricsData.breakdowns.monthly.map((item) => ({
-        name: item.month,
-        outages: item.count,
-        downtime: item.downtime,
-      })),
-    }
-  }, [metricsData])
-
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(8)].map((_, i) => (
-            <Card key={i}>
-              <CardContent className="p-6">
-                <div className="animate-pulse space-y-2">
-                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                  <div className="h-8 bg-gray-200 rounded w-1/2"></div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
-  if (!metricsData) {
-    return (
-      <Alert variant="destructive">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>Failed to load metrics data. Please try refreshing the page.</AlertDescription>
-      </Alert>
-    )
-  }
+  const COLORS = ["#3b82f6", "#ef4444", "#f59e0b", "#10b981", "#8b5cf6", "#f97316"]
 
   return (
     <div className="space-y-6">
-      {/* Data Validation Status */}
-      <Alert
-        className={
-          dataValidationStatus === "valid"
-            ? "border-green-200 bg-green-50"
-            : dataValidationStatus === "errors"
-              ? "border-red-200 bg-red-50"
-              : "border-yellow-200 bg-yellow-50"
-        }
-      >
-        <div className="flex items-center gap-2">
-          {dataValidationStatus === "valid" && <CheckCircle className="h-4 w-4 text-green-600" />}
-          {dataValidationStatus === "errors" && <AlertTriangle className="h-4 w-4 text-red-600" />}
-          {dataValidationStatus === "validating" && <Activity className="h-4 w-4 text-yellow-600 animate-spin" />}
-          <AlertDescription>
-            <strong>Data Status:</strong>{" "}
-            {dataValidationStatus === "valid"
-              ? `Validated - ${metricsData.summary.dataAccuracy}% accuracy`
-              : dataValidationStatus === "errors"
-                ? `Validation errors detected`
-                : "Validating data integrity..."}
-            {metricsData.summary.lastValidated && (
-              <span className="ml-2 text-sm text-muted-foreground">
-                Last validated: {formatDetailedDate(metricsData.summary.lastValidated, selectedTimezone)}
-              </span>
-            )}
-          </AlertDescription>
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Outage Metrics Dashboard</h2>
+          <p className="text-gray-600">
+            Real-time insights and analytics • Updated {formatDetailedDate(new Date(), userTimezone)}
+          </p>
         </div>
-      </Alert>
-
-      {/* Enhanced Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-2 hover:shadow-lg transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Outages</p>
-                <div className="text-3xl font-bold text-blue-600">
-                  {metricsData.summary.totalOutages.toLocaleString()}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">Across all environments</p>
-              </div>
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <BarChart3 className="w-8 h-8 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 hover:shadow-lg transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Active/Upcoming</p>
-                <div className="text-3xl font-bold text-orange-600">
-                  {(metricsData.summary.ongoingOutages + metricsData.summary.upcomingOutages).toLocaleString()}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {metricsData.summary.ongoingOutages} active, {metricsData.summary.upcomingOutages} scheduled
-                </p>
-              </div>
-              <div className="p-3 bg-orange-100 rounded-lg">
-                <Clock className="w-8 h-8 text-orange-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 hover:shadow-lg transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Downtime</p>
-                <div className="text-3xl font-bold text-red-600">
-                  {metricsData.summary.totalDowntime.toLocaleString()}h
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Avg: {metricsData.summary.averageDowntime.toFixed(1)}h per outage
-                </p>
-              </div>
-              <div className="p-3 bg-red-100 rounded-lg">
-                <TrendingDown className="w-8 h-8 text-red-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 hover:shadow-lg transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Users Affected</p>
-                <div className="text-3xl font-bold text-purple-600">
-                  {metricsData.summary.totalUsersAffected.toLocaleString()}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">Cumulative impact</p>
-              </div>
-              <div className="p-3 bg-purple-100 rounded-lg">
-                <Users className="w-8 h-8 text-purple-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={exportData}>
+            <Download className="w-4 h-4 mr-2" />
+            Export Data
+          </Button>
+          {onRefresh && (
+            <Button variant="outline" size="sm" onClick={onRefresh}>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Refresh
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* Data Integrity Status */}
-      {metricsData.dataIntegrity && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle className="w-5 h-5" />
-              Data Integrity Status
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="text-center p-4 bg-muted/50 rounded-lg">
-                <div className="text-2xl font-bold text-red-600">{metricsData.dataIntegrity.missingTimestamps}</div>
-                <p className="text-sm text-muted-foreground">Missing Timestamps</p>
-              </div>
-              <div className="text-center p-4 bg-muted/50 rounded-lg">
-                <div className="text-2xl font-bold text-yellow-600">
-                  {metricsData.dataIntegrity.incompleteDescriptions}
-                </div>
-                <p className="text-sm text-muted-foreground">Incomplete Descriptions</p>
-              </div>
-              <div className="text-center p-4 bg-muted/50 rounded-lg">
-                <div className="text-2xl font-bold text-orange-600">{metricsData.dataIntegrity.unassignedOutages}</div>
-                <p className="text-sm text-muted-foreground">Unassigned Outages</p>
-              </div>
-            </div>
-            {metricsData.dataIntegrity.validationErrors.length > 0 && (
-              <Alert variant="destructive" className="mt-4">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  <strong>Validation Errors:</strong>
-                  <ul className="list-disc list-inside mt-2">
-                    {metricsData.dataIntegrity.validationErrors.map((error, index) => (
-                      <li key={index}>{error}</li>
-                    ))}
-                  </ul>
-                </AlertDescription>
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
+      {/* Insights Alert Cards */}
+      {metricsData.insights.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-lg font-semibold text-gray-900">Key Insights</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {metricsData.insights
+              .sort((a, b) => {
+                const priorityOrder = { high: 3, medium: 2, low: 1 }
+                return priorityOrder[b.priority] - priorityOrder[a.priority]
+              })
+              .map((insight, index) => (
+                <InsightCard key={index} insight={insight} />
+              ))}
+          </div>
+        </div>
       )}
 
-      {/* Enhanced Charts */}
-      <Tabs defaultValue="breakdowns" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="breakdowns">Breakdowns</TabsTrigger>
-          <TabsTrigger value="trends">Trends</TabsTrigger>
-          <TabsTrigger value="timeline">Timeline</TabsTrigger>
+      <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="overview" className="flex items-center gap-2">
+            <Activity className="w-4 h-4" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="trends" className="flex items-center gap-2">
+            <BarChart3 className="w-4 h-4" />
+            Trends
+          </TabsTrigger>
+          <TabsTrigger value="breakdowns" className="flex items-center gap-2">
+            <PieChart className="w-4 h-4" />
+            Breakdowns
+          </TabsTrigger>
+          <TabsTrigger value="teams" className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            Teams
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="breakdowns" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Severity Distribution</CardTitle>
-                <CardDescription>Outages by severity level</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ChartContainer
-                  config={{
-                    High: { label: "High", color: "hsl(var(--chart-1))" },
-                    Medium: { label: "Medium", color: "hsl(var(--chart-2))" },
-                    Low: { label: "Low", color: "hsl(var(--chart-3))" },
-                  }}
-                  className="h-[300px]"
-                >
-                  {chartData && (
-                    <EnhancedPieChart data={chartData.severityData} config={{}} title="Severity Distribution" />
-                  )}
-                </ChartContainer>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Environment Impact</CardTitle>
-                <CardDescription>Outages by environment</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ChartContainer
-                  config={{
-                    environment: { label: "Outages", color: "hsl(var(--chart-4))" },
-                  }}
-                  className="h-[300px]"
-                >
-                  {chartData && (
-                    <EnhancedBarChart
-                      data={chartData.environmentData}
-                      config={{ value: { label: "Outages", color: "#3b82f6" } }}
-                      title="Environment Impact"
-                    />
-                  )}
-                </ChartContainer>
-              </CardContent>
-            </Card>
+        <TabsContent value="overview" className="space-y-6">
+          {/* Key Metrics Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <MetricCard
+              title="Total Outages"
+              value={metricsData.summary.totalOutages}
+              icon={Calendar}
+              color="blue"
+              description="All scheduled outages"
+            />
+            <MetricCard
+              title="Upcoming Outages"
+              value={metricsData.summary.upcomingOutages}
+              icon={Clock}
+              color="yellow"
+              description="Scheduled for future"
+            />
+            <MetricCard
+              title="Critical Outages"
+              value={metricsData.summary.criticalOutages}
+              icon={AlertTriangle}
+              color="red"
+              description="High severity outages"
+            />
+            <MetricCard
+              title="Users Affected"
+              value={metricsData.summary.totalUsersAffected.toLocaleString()}
+              icon={Users}
+              color="purple"
+              description="Estimated total impact"
+            />
           </div>
 
+          {/* Secondary Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <MetricCard
+              title="Completion Rate"
+              value={`${metricsData.summary.completionRate}%`}
+              icon={CheckCircle}
+              color="green"
+              description="Successfully completed outages"
+            />
+            <MetricCard
+              title="Total Downtime"
+              value={`${metricsData.summary.totalDowntime}h`}
+              icon={Clock}
+              color="red"
+              description="Cumulative outage duration"
+            />
+            <MetricCard
+              title="Average Duration"
+              value={`${metricsData.summary.averageDowntime}h`}
+              icon={Activity}
+              color="blue"
+              description="Mean outage duration"
+            />
+          </div>
+
+          {/* Status Overview */}
           <Card>
             <CardHeader>
-              <CardTitle>Monthly Trends</CardTitle>
-              <CardDescription>Outage frequency and downtime by month</CardDescription>
+              <CardTitle>Current Status Overview</CardTitle>
+              <CardDescription>Real-time outage status distribution</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm font-medium">Ongoing</span>
+                    <span className="text-sm text-gray-600">{metricsData.summary.ongoingOutages}</span>
+                  </div>
+                  <Progress
+                    value={(metricsData.summary.ongoingOutages / Math.max(1, metricsData.summary.totalOutages)) * 100}
+                    className="h-2"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm font-medium">Upcoming</span>
+                    <span className="text-sm text-gray-600">{metricsData.summary.upcomingOutages}</span>
+                  </div>
+                  <Progress
+                    value={(metricsData.summary.upcomingOutages / Math.max(1, metricsData.summary.totalOutages)) * 100}
+                    className="h-2"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm font-medium">Completed</span>
+                    <span className="text-sm text-gray-600">{metricsData.summary.pastOutages}</span>
+                  </div>
+                  <Progress
+                    value={(metricsData.summary.pastOutages / Math.max(1, metricsData.summary.totalOutages)) * 100}
+                    className="h-2"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="trends" className="space-y-6">
+          {/* Monthly Trends Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Monthly Outage Trends</CardTitle>
+              <CardDescription>Historical outage data by month and severity</CardDescription>
             </CardHeader>
             <CardContent>
               <ChartContainer
                 config={{
-                  outages: { label: "Outages", color: "hsl(var(--chart-1))" },
-                  downtime: { label: "Downtime (hours)", color: "hsl(var(--chart-2))" },
+                  total: { label: "Total", color: "hsl(var(--chart-1))" },
+                  high: { label: "High", color: "hsl(var(--chart-2))" },
+                  medium: { label: "Medium", color: "hsl(var(--chart-3))" },
+                  low: { label: "Low", color: "hsl(var(--chart-4))" },
                 }}
                 className="h-[400px]"
               >
-                {chartData && (
-                  <EnhancedBarChart
-                    data={chartData.monthlyData}
-                    config={{
-                      outages: { label: "Outages", color: "#3b82f6" },
-                      downtime: { label: "Downtime (hours)", color: "#ef4444" },
-                    }}
-                    title="Monthly Trends"
-                  />
+                {chartComponents ? (
+                  <chartComponents.ResponsiveContainer width="100%" height="100%">
+                    <chartComponents.AreaChart data={metricsData.trends.monthly}>
+                      <chartComponents.CartesianGrid strokeDasharray="3 3" />
+                      <chartComponents.XAxis dataKey="month" />
+                      <chartComponents.YAxis />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <chartComponents.Legend />
+                      <chartComponents.Area
+                        type="monotone"
+                        dataKey="high"
+                        stackId="1"
+                        stroke="var(--color-high)"
+                        fill="var(--color-high)"
+                        fillOpacity={0.8}
+                      />
+                      <chartComponents.Area
+                        type="monotone"
+                        dataKey="medium"
+                        stackId="1"
+                        stroke="var(--color-medium)"
+                        fill="var(--color-medium)"
+                        fillOpacity={0.8}
+                      />
+                      <chartComponents.Area
+                        type="monotone"
+                        dataKey="low"
+                        stackId="1"
+                        stroke="var(--color-low)"
+                        fill="var(--color-low)"
+                        fillOpacity={0.8}
+                      />
+                    </chartComponents.AreaChart>
+                  </chartComponents.ResponsiveContainer>
+                ) : (
+                  <div className="h-[400px] flex items-center justify-center">
+                    <div className="text-gray-500">Loading chart...</div>
+                  </div>
                 )}
               </ChartContainer>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="trends" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {metricsData.trends.outageFrequency.map((trend, index) => (
-              <Card key={index}>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">{trend.period}</p>
-                      <div className="text-2xl font-bold">{trend.count}</div>
-                      <p className="text-xs text-muted-foreground">outages</p>
-                    </div>
-                    <div
-                      className={`p-2 rounded-lg ${
-                        trend.trend === "up" ? "bg-red-100" : trend.trend === "down" ? "bg-green-100" : "bg-gray-100"
-                      }`}
-                    >
-                      {trend.trend === "up" && <TrendingUp className="w-6 h-6 text-red-600" />}
-                      {trend.trend === "down" && <TrendingDown className="w-6 h-6 text-green-600" />}
-                      {trend.trend === "stable" && <Activity className="w-6 h-6 text-gray-600" />}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="timeline" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                Upcoming Outages Timeline
-              </CardTitle>
-              <CardDescription>
-                Next scheduled outages with timezone: {getTimezoneAbbreviation(selectedTimezone)}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {metricsData.upcomingOutages.slice(0, 10).map((outage, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex-1">
-                      <h4 className="font-medium">{outage.title}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {formatDetailedDate(new Date(outage.startDate), selectedTimezone)}
-                      </p>
-                      <div className="flex gap-2 mt-2">
+        <TabsContent value="breakdowns" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Severity Breakdown */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Severity Distribution</CardTitle>
+                <CardDescription>Outages by severity level</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {Object.entries(metricsData.breakdowns.severity).map(([severity, count]) => (
+                    <div key={severity} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
                         <Badge
-                          variant={
-                            outage.severity === "High"
-                              ? "destructive"
-                              : outage.severity === "Medium"
-                                ? "default"
-                                : "secondary"
+                          className={
+                            severity === "High"
+                              ? "bg-red-100 text-red-800"
+                              : severity === "Medium"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : "bg-green-100 text-green-800"
                           }
                         >
-                          {outage.severity}
+                          {severity}
                         </Badge>
-                        <Badge variant="outline">{outage.outageType || "Internal"}</Badge>
+                        <span className="text-sm text-gray-600">{count} outages</span>
+                      </div>
+                      <div className="w-24">
+                        <Progress
+                          value={(count / Math.max(1, metricsData.summary.totalOutages)) * 100}
+                          className="h-2"
+                        />
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium">{outage.assignee}</p>
-                      <p className="text-xs text-muted-foreground">{outage.environments?.join(", ")}</p>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Type Breakdown */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Outage Type Distribution</CardTitle>
+                <CardDescription>Internal vs External outages</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {Object.entries(metricsData.breakdowns.type).map(([type, count]) => (
+                    <div key={type} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Badge
+                          className={
+                            type === "External" ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"
+                          }
+                        >
+                          {type}
+                        </Badge>
+                        <span className="text-sm text-gray-600">{count} outages</span>
+                      </div>
+                      <div className="w-24">
+                        <Progress
+                          value={(count / Math.max(1, metricsData.summary.totalOutages)) * 100}
+                          className="h-2"
+                        />
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Environment Impact */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Environment Impact Analysis</CardTitle>
+              <CardDescription>Outage frequency by environment</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Object.entries(metricsData.breakdowns.environment)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([env, count]) => (
+                    <div key={env} className="p-4 border rounded-lg">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="font-medium">{env}</span>
+                        <Badge variant="secondary">{count}</Badge>
+                      </div>
+                      <Progress value={(count / Math.max(1, metricsData.summary.totalOutages)) * 100} className="h-2" />
+                      <span className="text-xs text-gray-500 mt-1">
+                        {((count / Math.max(1, metricsData.summary.totalOutages)) * 100).toFixed(1)}% of total
+                      </span>
+                    </div>
+                  ))}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
-      </Tabs>
 
-      {/* Refresh Button */}
-      <div className="flex justify-center">
-        <Button onClick={fetchMetricsData} disabled={loading}>
-          <Activity className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-          {loading ? "Refreshing..." : "Refresh Metrics"}
-        </Button>
-      </div>
+        <TabsContent value="teams" className="space-y-6">
+          {/* Team Workload */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Team Workload Analysis</CardTitle>
+              <CardDescription>Outage assignments and workload distribution</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[400px]">
+                <div className="space-y-4">
+                  {metricsData.trends.teamWorkload.map((team) => (
+                    <div key={team.team} className="p-4 border rounded-lg">
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="font-medium text-lg">{team.team}</span>
+                        <Badge variant="outline" className="font-semibold">
+                          {team.total} total
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-yellow-600">{team.upcoming}</div>
+                          <div className="text-gray-600">Upcoming</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-red-600">{team.ongoing}</div>
+                          <div className="text-gray-600">Ongoing</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-green-600">
+                            {team.total - team.upcoming - team.ongoing}
+                          </div>
+                          <div className="text-gray-600">Completed</div>
+                        </div>
+                      </div>
+                      <div className="mt-3">
+                        <Progress
+                          value={(team.total / Math.max(1, metricsData.summary.totalOutages)) * 100}
+                          className="h-2"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

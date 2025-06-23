@@ -33,6 +33,9 @@ import { useToast } from "@/hooks/use-toast"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 
+// Add this import at the top
+import { getCommonTimezones, getUserTimezone, formatDetailedDate } from "@/lib/timezone-utils"
+
 /* -------------------------------------------------------------------------- */
 /*                         Client-side helpers (API fetch)                    */
 /* -------------------------------------------------------------------------- */
@@ -103,23 +106,24 @@ interface Team {
   description: string
 }
 
+// Add timezone to the form data interface
 interface OutageFormData {
   title: string
   startDate: string
   startTime: string
   endDate: string
   endTime: string
+  timezone: string // Add this field
   environments: string[]
   affectedModels: string
   reason: string
   detailedImpact: string[]
-  assignees: string[] // Changed from assignee to assignees (multiple)
+  assignees: string[]
   severity: "High" | "Medium" | "Low" | ""
   category: string
   contactEmail: string
   estimatedUsers: number
   outageType: "Internal" | "External" | ""
-  timezone: string
 }
 
 interface EnhancedOutageFormProps {
@@ -152,15 +156,6 @@ const typeColors: Record<string, string> = {
   External: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800",
 }
 
-// Timezone options
-const timezones = [
-  { value: "America/Los_Angeles", label: "Pacific Time (US & Canada)" },
-  { value: "America/Denver", label: "Mountain Time (US & Canada)" },
-  { value: "America/Chicago", label: "Central Time (US & Canada)" },
-  { value: "America/New_York", label: "Eastern Time (US & Canada)" },
-  { value: "UTC", label: "UTC" },
-]
-
 export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProps) {
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -177,24 +172,28 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
   const [teams, setTeams] = useState<Team[]>([])
   const [loadingConfig, setLoadingConfig] = useState(true)
 
+  // Update the initial form data to include timezone
   const [formData, setFormData] = useState<OutageFormData>({
     title: "",
     startDate: "",
     startTime: "",
     endDate: "",
     endTime: "",
+    timezone: getUserTimezone(), // Default to user's timezone
     environments: [],
     affectedModels: "",
     reason: "",
     detailedImpact: [""],
-    assignees: [], // Changed to array
+    assignees: [],
     severity: "",
     category: "",
     contactEmail: "",
     estimatedUsers: 0,
     outageType: "",
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, // Default to user's timezone
   })
+
+  // Add timezone data
+  const [timezones] = useState(() => getCommonTimezones())
 
   // Load configuration data on component mount
   useEffect(() => {
@@ -300,6 +299,7 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
     }))
   }
 
+  // Update the clearAllForm function to include timezone reset
   const clearAllForm = () => {
     setFormData({
       title: "",
@@ -307,6 +307,7 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
       startTime: "",
       endDate: "",
       endTime: "",
+      timezone: getUserTimezone(),
       environments: [],
       affectedModels: "",
       reason: "",
@@ -317,7 +318,6 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
       contactEmail: "",
       estimatedUsers: 0,
       outageType: "",
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     })
     toast({
       title: "Form Cleared",
@@ -325,66 +325,26 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
     })
   }
 
-  const formatDateTime = (date: string, time: string, timezone: string) => {
-    try {
-      const dateTimeString = `${date}T${time || "00:00"}`
-      const utcDate = new Date(dateTimeString)
-
-      // Convert to specified timezone
-      const formatter = new Intl.DateTimeFormat("en-US", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone: timezone,
-      })
-
-      return formatter.format(utcDate)
-    } catch (error) {
-      console.error("Error formatting date/time:", error)
-      return "Invalid Date"
-    }
+  // Update the formatDateTime function to use the selected timezone:
+  const formatDateTime = (date: string, time: string, timezone?: string) => {
+    const dt = new Date(`${date}T${time || "00:00"}`)
+    return formatDetailedDate(dt, timezone || formData.timezone)
   }
 
+  // Update the calculateDuration function to use timezone:
   const calculateDuration = (
     startDate: string,
     startTime: string,
     endDate: string,
     endTime: string,
-    timezone: string,
+    timezone?: string,
   ) => {
-    try {
-      // Validate timezone
-      if (!timezone) {
-        throw new Error("Timezone is required to calculate duration.")
-      }
-
-      const startDateTimeString = `${startDate}T${startTime || "00:00"}`
-      const endDateTimeString = `${endDate}T${endTime || "23:59"}`
-
-      // Convert to Date objects in UTC
-      const start = new Date(startDateTimeString)
-      const end = new Date(endDateTimeString)
-
-      // Validate dates
-      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-        throw new Error("Invalid start or end date/time.")
-      }
-
-      // Calculate duration in milliseconds
-      const durationMs = end.getTime() - start.getTime()
-
-      // Convert to hours and days
-      const hours = Math.floor(durationMs / (1000 * 60 * 60))
-      const days = Math.floor(hours / 24)
-
-      return days ? `${days} d ${hours % 24} h` : `${hours} h`
-    } catch (error) {
-      console.error("Error calculating duration:", error)
-      return "Invalid Duration"
-    }
+    const tz = timezone || formData.timezone
+    const start = new Date(`${startDate}T${startTime || "00:00"}`)
+    const end = new Date(`${endDate}T${endTime || "23:59"}`)
+    const hours = Math.floor((end.getTime() - start.getTime()) / 3.6e6)
+    const days = Math.floor(hours / 24)
+    return days ? `${days} d ${hours % 24} h` : `${hours} h`
   }
 
   const getEnvironmentById = (id: string) => environments.find((env) => env.id === id)
@@ -416,16 +376,6 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
         return
       }
 
-      // Validate timezone
-      if (!formData.timezone) {
-        toast({
-          title: "Validation Error",
-          description: "Please select a timezone.",
-          variant: "destructive",
-        })
-        return
-      }
-
       // Create the outage data
       const selectedEnvironmentNames = formData.environments.map((envId) => {
         const env = getEnvironmentById(envId)
@@ -437,21 +387,16 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
         return team ? team.name : teamId
       })
 
-      // Convert dates to UTC before sending to the server
-      const startDateUTC = new Date(`${formData.startDate}T${formData.startTime || "00:00"}`)
-      const endDateUTC = new Date(`${formData.endDate}T${formData.endTime || "23:59"}`)
-
       const outageData = {
         title: formData.title,
-        startDate: startDateUTC,
-        endDate: endDateUTC,
+        startDate: new Date(`${formData.startDate}T${formData.startTime || "00:00"}`),
+        endDate: new Date(`${formData.endDate}T${formData.endTime || "23:59"}`),
         environments: selectedEnvironmentNames,
         affectedModels: formData.affectedModels,
         reason: formData.reason,
         detailedImpact: formData.detailedImpact.filter((item) => item.trim() !== ""),
         assignee: selectedTeamNames.join(", "), // Convert array to string for backend compatibility
         severity: formData.severity as "High" | "Medium" | "Low",
-        timezone: formData.timezone,
       }
 
       console.log("Submitting outage data:", outageData)
@@ -466,7 +411,6 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
           estimatedUsers: formData.estimatedUsers,
           outageType: formData.outageType,
           assignees: selectedTeamNames, // Keep array for display
-          timezone: formData.timezone,
         }
 
         setCreatedOutage(newOutage)
@@ -689,8 +633,8 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
               </div>
             </div>
 
-            {/* Date and Time */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Date, Time, and Timezone */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="startDate">Start Date & Time *</Label>
                 <div className="flex gap-2">
@@ -725,30 +669,31 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
                   />
                 </div>
               </div>
-            </div>
-
-            {/* Timezone Selection */}
-            <div className="space-y-2">
-              <Label htmlFor="timezone">Timezone *</Label>
-              <Select
-                value={formData.timezone}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, timezone: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select timezone" />
-                </SelectTrigger>
-                <SelectContent>
-                  {timezones.map((tz) => (
-                    <SelectItem key={tz.value} value={tz.value}>
-                      {tz.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="space-y-2">
+                <Label htmlFor="timezone">Timezone *</Label>
+                <Select
+                  value={formData.timezone}
+                  onValueChange={(value) => setFormData((prev) => ({ ...prev, timezone: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select timezone" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    {timezones.map((tz) => (
+                      <SelectItem key={tz.value} value={tz.value}>
+                        <div className="flex justify-between items-center w-full">
+                          <span>{tz.label}</span>
+                          <span className="text-xs text-muted-foreground ml-2">{tz.offset}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {/* Duration Preview */}
-            {formData.startDate && formData.endDate && formData.timezone && (
+            {formData.startDate && formData.endDate && (
               <Alert>
                 <Clock className="h-4 w-4" />
                 <AlertDescription>
@@ -764,6 +709,9 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
                   <strong>Start:</strong> {formatDateTime(formData.startDate, formData.startTime, formData.timezone)}
                   <br />
                   <strong>End:</strong> {formatDateTime(formData.endDate, formData.endTime, formData.timezone)}
+                  <br />
+                  <strong>Timezone:</strong>{" "}
+                  {timezones.find((tz) => tz.value === formData.timezone)?.label || formData.timezone}
                 </AlertDescription>
               </Alert>
             )}
@@ -1064,10 +1012,10 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
                       <strong>Start:</strong>{" "}
-                      {formatDateTime(formData.startDate, formData.startTime, createdOutage.timezone)}
+                      {formatDateTime(formData.startDate, formData.startTime, formData.timezone)}
                     </div>
                     <div>
-                      <strong>End:</strong> {formatDateTime(formData.endDate, formData.endTime, createdOutage.timezone)}
+                      <strong>End:</strong> {formatDateTime(formData.endDate, formData.endTime, formData.timezone)}
                     </div>
                     <div>
                       <strong>Duration:</strong>{" "}
@@ -1076,7 +1024,7 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
                         formData.startTime,
                         formData.endDate,
                         formData.endTime,
-                        createdOutage.timezone,
+                        formData.timezone,
                       )}
                     </div>
                     <div>
