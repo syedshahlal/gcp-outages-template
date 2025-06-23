@@ -1191,7 +1191,6 @@ export default function OutageDashboard() {
                                 onScroll={handleTimelineScroll}
                                 style={{
                                   scrollbarWidth: "thin",
-                                  maxWidth: `${getInitialViewWidth()}px`, // Limit initial view
                                 }}
                               >
                                 {/* Full timeline width container - shows all months/days */}
@@ -1312,7 +1311,6 @@ export default function OutageDashboard() {
                                           style={{
                                             width: `${Math.ceil((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24)) * 80}px`,
                                             marginLeft: `-${timelineScrollPosition}px`,
-                                            maxWidth: `${getInitialViewWidth()}px`, // Limit initial view
                                           }}
                                         >
                                           {/* Grid lines */}
