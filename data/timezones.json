@@ -1,0 +1,84 @@
+{
+  "timezones": [
+    {
+      "id": "america-new_york",
+      "name": "Eastern Time",
+      "value": "America/New_York",
+      "offset": "UTC-5/-4",
+      "label": "Eastern Time (ET)",
+      "region": "North America"
+    },
+    {
+      "id": "america-chicago",
+      "name": "Central Time",
+      "value": "America/Chicago",
+      "offset": "UTC-6/-5",
+      "label": "Central Time (CT)",
+      "region": "North America"
+    },
+    {
+      "id": "america-denver",
+      "name": "Mountain Time",
+      "value": "America/Denver",
+      "offset": "UTC-7/-6",
+      "label": "Mountain Time (MT)",
+      "region": "North America"
+    },
+    {
+      "id": "america-los_angeles",
+      "name": "Pacific Time",
+      "value": "America/Los_Angeles",
+      "offset": "UTC-8/-7",
+      "label": "Pacific Time (PT)",
+      "region": "North America"
+    },
+    {
+      "id": "europe-london",
+      "name": "Greenwich Mean Time",
+      "value": "Europe/London",
+      "offset": "UTC+0/+1",
+      "label": "Greenwich Mean Time (GMT)",
+      "region": "Europe"
+    },
+    {
+      "id": "europe-paris",
+      "name": "Central European Time",
+      "value": "Europe/Paris",
+      "offset": "UTC+1/+2",
+      "label": "Central European Time (CET)",
+      "region": "Europe"
+    },
+    {
+      "id": "asia-tokyo",
+      "name": "Japan Standard Time",
+      "value": "Asia/Tokyo",
+      "offset": "UTC+9",
+      "label": "Japan Standard Time (JST)",
+      "region": "Asia"
+    },
+    {
+      "id": "asia-shanghai",
+      "name": "China Standard Time",
+      "value": "Asia/Shanghai",
+      "offset": "UTC+8",
+      "label": "China Standard Time (CST)",
+      "region": "Asia"
+    },
+    {
+      "id": "asia-kolkata",
+      "name": "India Standard Time",
+      "value": "Asia/Kolkata",
+      "offset": "UTC+5:30",
+      "label": "India Standard Time (IST)",
+      "region": "Asia"
+    },
+    {
+      "id": "australia-sydney",
+      "name": "Australian Eastern Time",
+      "value": "Australia/Sydney",
+      "offset": "UTC+10/+11",
+      "label": "Australian Eastern Time (AET)",
+      "region": "Australia"
+    }
+  ]
+}

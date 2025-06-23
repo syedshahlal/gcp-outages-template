@@ -1,0 +1,74 @@
+{
+  "categories": [
+    {
+      "id": "maintenance",
+      "name": "Maintenance",
+      "description": "Routine system maintenance and updates",
+      "color": "bg-blue-500",
+      "icon": "wrench"
+    },
+    {
+      "id": "security-update",
+      "name": "Security Update",
+      "description": "Security patches and vulnerability fixes",
+      "color": "bg-red-500",
+      "icon": "shield"
+    },
+    {
+      "id": "infrastructure-upgrade",
+      "name": "Infrastructure Upgrade",
+      "description": "Hardware and infrastructure improvements",
+      "color": "bg-green-500",
+      "icon": "server"
+    },
+    {
+      "id": "database-migration",
+      "name": "Database Migration",
+      "description": "Database schema changes and migrations",
+      "color": "bg-purple-500",
+      "icon": "database"
+    },
+    {
+      "id": "network-maintenance",
+      "name": "Network Maintenance",
+      "description": "Network infrastructure maintenance",
+      "color": "bg-orange-500",
+      "icon": "network"
+    },
+    {
+      "id": "software-deployment",
+      "name": "Software Deployment",
+      "description": "Application and software deployments",
+      "color": "bg-cyan-500",
+      "icon": "code"
+    },
+    {
+      "id": "hardware-replacement",
+      "name": "Hardware Replacement",
+      "description": "Physical hardware replacement and upgrades",
+      "color": "bg-gray-500",
+      "icon": "cpu"
+    },
+    {
+      "id": "emergency-patch",
+      "name": "Emergency Patch",
+      "description": "Critical emergency patches and hotfixes",
+      "color": "bg-red-600",
+      "icon": "alert-triangle"
+    },
+    {
+      "id": "capacity-expansion",
+      "name": "Capacity Expansion",
+      "description": "System capacity and performance improvements",
+      "color": "bg-indigo-500",
+      "icon": "trending-up"
+    },
+    {
+      "id": "other",
+      "name": "Other",
+      "description": "Other maintenance activities",
+      "color": "bg-gray-400",
+      "icon": "more-horizontal"
+    }
+  ]
+}

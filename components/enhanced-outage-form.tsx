@@ -33,8 +33,9 @@ import { useToast } from "@/hooks/use-toast"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 
-// Add this import at the top
-import { getCommonTimezones, getUserTimezone, formatDetailedDate } from "@/lib/timezone-utils"
+// Import the new config data hook
+import { useConfigData } from "@/hooks/use-config-data"
+import { getUserTimezone, formatDetailedDate } from "@/lib/timezone-utils"
 
 /* -------------------------------------------------------------------------- */
 /*                         Client-side helpers (API fetch)                    */
@@ -73,87 +74,27 @@ async function sendOutageNotifications(payload: {
   return (await res.json()) as { success: boolean; message: string }
 }
 
-async function fetchConfig(type: "environments" | "teams") {
-  console.log(`Fetching config for type: ${type}`)
-  const url = `/api/config?type=${type}`
-  console.log(`Making request to: ${url}`)
-
-  const res = await fetch(url)
-  console.log(`Response status: ${res.status}`)
-
-  if (!res.ok) {
-    const errorText = await res.text()
-    console.error(`API error response: ${errorText}`)
-    throw new Error(`Failed to fetch ${type} config: ${res.status} ${res.statusText}`)
-  }
-
-  const data = await res.json()
-  console.log(`Received data for ${type}:`, data)
-  return data
-}
-
-interface Environment {
-  id: string
-  name: string
-  color: string
-  description: string
-}
-
-interface Team {
-  id: string
-  name: string
-  email: string
-  description: string
-}
-
-// Add timezone to the form data interface
 interface OutageFormData {
   title: string
   startDate: string
   startTime: string
   endDate: string
   endTime: string
-  timezone: string // Add this field
+  timezone: string
   environments: string[]
   affectedModels: string
   reason: string
   detailedImpact: string[]
   assignees: string[]
-  severity: "High" | "Medium" | "Low" | ""
+  severity: string
   category: string
   contactEmail: string
   estimatedUsers: number
-  outageType: "Internal" | "External" | ""
+  outageType: string
 }
 
 interface EnhancedOutageFormProps {
   onSuccess?: () => void
-}
-
-const categories = [
-  "Maintenance",
-  "Security Update",
-  "Infrastructure Upgrade",
-  "Database Migration",
-  "Network Maintenance",
-  "Software Deployment",
-  "Hardware Replacement",
-  "Emergency Patch",
-  "Capacity Expansion",
-  "Other",
-]
-
-const severityColors: Record<string, string> = {
-  High: "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800",
-  Medium:
-    "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-800",
-  Low: "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800",
-}
-
-const typeColors: Record<string, string> = {
-  Internal:
-    "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-800",
-  External: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800",
 }
 
 export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProps) {
@@ -167,19 +108,25 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
   const [sendingEmail, setSendingEmail] = useState(false)
   const [teamDropdownOpen, setTeamDropdownOpen] = useState(false)
 
-  // Configuration data
-  const [environments, setEnvironments] = useState<Environment[]>([])
-  const [teams, setTeams] = useState<Team[]>([])
-  const [loadingConfig, setLoadingConfig] = useState(true)
+  // Use the new config data hook
+  const { data: configData, loading: loadingConfig, error: configError } = useConfigData()
 
-  // Update the initial form data to include timezone
+  // Extract data from config
+  const environments = configData.environments || []
+  const teams = configData.teams || []
+  const categories = configData.categories || []
+  const severities = configData.severities || []
+  const outageTypes = configData.outageTypes || []
+  const timezones = configData.timezones || []
+
+  // Form data state
   const [formData, setFormData] = useState<OutageFormData>({
     title: "",
     startDate: "",
     startTime: "",
     endDate: "",
     endTime: "",
-    timezone: getUserTimezone(), // Default to user's timezone
+    timezone: getUserTimezone(),
     environments: [],
     affectedModels: "",
     reason: "",
@@ -192,63 +139,25 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
     outageType: "",
   })
 
-  // Add timezone data
-  const [timezones] = useState(() => getCommonTimezones())
-
-  // Load configuration data on component mount
+  // Handle config loading error
   useEffect(() => {
-    const loadConfig = async () => {
-      try {
-        console.log("Starting to load configuration...")
-
-        const [envConfig, teamConfig] = await Promise.all([fetchConfig("environments"), fetchConfig("teams")])
-
-        console.log("Raw environment config response:", envConfig)
-        console.log("Raw team config response:", teamConfig)
-
-        const envList = Array.isArray(envConfig.environments) ? envConfig.environments : envConfig
-        const teamList = Array.isArray(teamConfig.teams) ? teamConfig.teams : teamConfig
-
-        console.log("Processed environments:", envList)
-        console.log("Processed teams:", teamList)
-        console.log("Teams count:", teamList.length)
-
-        setEnvironments(envList)
-        setTeams(teamList)
-
-        console.log("Configuration loaded successfully")
-      } catch (error) {
-        console.error("Failed to load configuration:", error)
-        console.error("Error details:", error.message)
-
-        toast({
-          title: "Configuration Error",
-          description: `Failed to load configuration: ${error.message}`,
-          variant: "destructive",
-        })
-
-        // Set empty arrays as fallback
-        setEnvironments([])
-        setTeams([])
-      } finally {
-        setLoadingConfig(false)
-        console.log("Configuration loading completed")
-      }
+    if (configError) {
+      toast({
+        title: "Configuration Error",
+        description: configError,
+        variant: "destructive",
+      })
     }
-
-    loadConfig()
-  }, [toast])
+  }, [configError, toast])
 
   const handleEnvironmentChange = (envId: string, checked: boolean) => {
     if (envId === "all") {
       if (checked) {
-        // Select all environments
         setFormData((prev) => ({
           ...prev,
           environments: environments.map((env) => env.id),
         }))
       } else {
-        // Deselect all environments
         setFormData((prev) => ({
           ...prev,
           environments: [],
@@ -299,7 +208,6 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
     }))
   }
 
-  // Update the clearAllForm function to include timezone reset
   const clearAllForm = () => {
     setFormData({
       title: "",
@@ -325,13 +233,11 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
     })
   }
 
-  // Update the formatDateTime function to use the selected timezone:
   const formatDateTime = (date: string, time: string, timezone?: string) => {
     const dt = new Date(`${date}T${time || "00:00"}`)
     return formatDetailedDate(dt, timezone || formData.timezone)
   }
 
-  // Update the calculateDuration function to use timezone:
   const calculateDuration = (
     startDate: string,
     startTime: string,
@@ -339,7 +245,6 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
     endTime: string,
     timezone?: string,
   ) => {
-    const tz = timezone || formData.timezone
     const start = new Date(`${startDate}T${startTime || "00:00"}`)
     const end = new Date(`${endDate}T${endTime || "23:59"}`)
     const hours = Math.floor((end.getTime() - start.getTime()) / 3.6e6)
@@ -349,6 +254,9 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
 
   const getEnvironmentById = (id: string) => environments.find((env) => env.id === id)
   const getTeamById = (id: string) => teams.find((team) => team.id === id)
+  const getSeverityById = (id: string) => severities.find((sev) => sev.id === id)
+  const getOutageTypeById = (id: string) => outageTypes.find((type) => type.id === id)
+  const getCategoryById = (id: string) => categories.find((cat) => cat.id === id)
 
   const isAllEnvironmentsSelected = environments.length > 0 && formData.environments.length === environments.length
 
@@ -387,16 +295,25 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
         return team ? team.name : teamId
       })
 
+      // Map severity and outage type to their display names
+      const severityObj = getSeverityById(formData.severity)
+      const outageTypeObj = getOutageTypeById(formData.outageType)
+
       const outageData = {
         title: formData.title,
         startDate: new Date(`${formData.startDate}T${formData.startTime || "00:00"}`),
         endDate: new Date(`${formData.endDate}T${formData.endTime || "23:59"}`),
+        timezone: formData.timezone,
         environments: selectedEnvironmentNames,
         affectedModels: formData.affectedModels,
         reason: formData.reason,
         detailedImpact: formData.detailedImpact.filter((item) => item.trim() !== ""),
-        assignee: selectedTeamNames.join(", "), // Convert array to string for backend compatibility
-        severity: formData.severity as "High" | "Medium" | "Low",
+        assignee: selectedTeamNames.join(", "),
+        severity: severityObj?.name || formData.severity,
+        category: formData.category,
+        contactEmail: formData.contactEmail,
+        estimatedUsers: formData.estimatedUsers,
+        outageType: outageTypeObj?.name || formData.outageType,
       }
 
       console.log("Submitting outage data:", outageData)
@@ -406,11 +323,7 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
       if (result.success) {
         const newOutage = {
           ...result.outage,
-          category: formData.category,
-          contactEmail: formData.contactEmail,
-          estimatedUsers: formData.estimatedUsers,
-          outageType: formData.outageType,
-          assignees: selectedTeamNames, // Keep array for display
+          assignees: selectedTeamNames,
         }
 
         setCreatedOutage(newOutage)
@@ -432,10 +345,8 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
           description: "Outage has been created successfully!",
         })
 
-        // Show email notification dialog
         setShowEmailDialog(true)
 
-        // Call onSuccess callback
         if (onSuccess) {
           onSuccess()
         }
@@ -470,8 +381,6 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
         .map((email) => email.trim())
         .filter((email) => email)
 
-      console.log("Sending email to:", recipients)
-
       const result = await sendOutageNotifications({
         recipientEmails: recipients,
         subject: emailSubject,
@@ -479,8 +388,6 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
         dashboardUrl: `${window.location.origin}`,
         recentOutages: [createdOutage],
       })
-
-      console.log("Email result:", result)
 
       if (result.success) {
         toast({
@@ -596,13 +503,16 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
                     <SelectContent className="max-h-60">
                       {categories.map((cat) => (
                         <SelectItem
-                          key={cat}
-                          value={cat}
+                          key={cat.id}
+                          value={cat.id}
                           className="py-3 px-4 text-base hover:bg-blue-50 dark:hover:bg-blue-900/20"
                         >
                           <div className="flex items-center gap-3">
-                            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                            <span>{cat}</span>
+                            <div className={`w-3 h-3 rounded-full ${cat.color}`}></div>
+                            <div>
+                              <div className="font-medium">{cat.name}</div>
+                              <div className="text-xs text-muted-foreground">{cat.description}</div>
+                            </div>
                           </div>
                         </SelectItem>
                       ))}
@@ -625,51 +535,29 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
                   </Label>
                   <Select
                     value={formData.severity}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, severity: value as any }))}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, severity: value }))}
                   >
                     <SelectTrigger className="h-12 text-lg border-2 border-orange-200 focus:border-orange-500 dark:border-orange-700 dark:focus:border-orange-400">
                       <SelectValue placeholder="Select severity" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem
-                        value="Low"
-                        className="py-3 px-4 text-base hover:bg-green-50 dark:hover:bg-green-900/20"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
-                            <div className="w-2 h-2 rounded-full bg-white"></div>
+                      {severities.map((sev) => (
+                        <SelectItem
+                          key={sev.id}
+                          value={sev.id}
+                          className={`py-3 px-4 text-base hover:${sev.bgColor} dark:hover:${sev.bgColor}/20`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-4 h-4 rounded-full ${sev.color} flex items-center justify-center`}>
+                              <div className="w-2 h-2 rounded-full bg-white"></div>
+                            </div>
+                            <div>
+                              <div className="font-medium">{sev.name}</div>
+                              <div className="text-xs text-muted-foreground">{sev.description}</div>
+                            </div>
                           </div>
-                          <div>
-                            <div className="font-medium">Low Impact</div>
-                            <div className="text-xs text-muted-foreground">Minimal service disruption</div>
-                          </div>
-                        </div>
-                      </SelectItem>
-                      <SelectItem
-                        value="Medium"
-                        className="py-3 px-4 text-base hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-4 h-4 rounded-full bg-yellow-500 flex items-center justify-center">
-                            <div className="w-2 h-2 rounded-full bg-white"></div>
-                          </div>
-                          <div>
-                            <div className="font-medium">Medium Impact</div>
-                            <div className="text-xs text-muted-foreground">Moderate service disruption</div>
-                          </div>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="High" className="py-3 px-4 text-base hover:bg-red-50 dark:hover:bg-red-900/20">
-                        <div className="flex items-center gap-3">
-                          <div className="w-4 h-4 rounded-full bg-red-500 flex items-center justify-center">
-                            <div className="w-2 h-2 rounded-full bg-white"></div>
-                          </div>
-                          <div>
-                            <div className="font-medium">High Impact</div>
-                            <div className="text-xs text-muted-foreground">Significant service disruption</div>
-                          </div>
-                        </div>
-                      </SelectItem>
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -679,40 +567,33 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
                   </Label>
                   <Select
                     value={formData.outageType}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, outageType: value as any }))}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, outageType: value }))}
                   >
                     <SelectTrigger className="h-12 text-lg border-2 border-orange-200 focus:border-orange-500 dark:border-orange-700 dark:focus:border-orange-400">
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem
-                        value="Internal"
-                        className="py-3 px-4 text-base hover:bg-purple-50 dark:hover:bg-purple-900/20"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-4 h-4 rounded-full bg-purple-500 flex items-center justify-center">
-                            <Users className="w-2 h-2 text-white" />
+                      {outageTypes.map((type) => (
+                        <SelectItem
+                          key={type.id}
+                          value={type.id}
+                          className={`py-3 px-4 text-base hover:${type.bgColor} dark:hover:${type.bgColor}/20`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-4 h-4 rounded-full ${type.color} flex items-center justify-center`}>
+                              {type.icon === "users" ? (
+                                <Users className="w-2 h-2 text-white" />
+                              ) : (
+                                <div className="w-2 h-2 rounded-full bg-white"></div>
+                              )}
+                            </div>
+                            <div>
+                              <div className="font-medium">{type.name}</div>
+                              <div className="text-xs text-muted-foreground">{type.description}</div>
+                            </div>
                           </div>
-                          <div>
-                            <div className="font-medium">Internal</div>
-                            <div className="text-xs text-muted-foreground">Internal systems only</div>
-                          </div>
-                        </div>
-                      </SelectItem>
-                      <SelectItem
-                        value="External"
-                        className="py-3 px-4 text-base hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
-                            <div className="w-2 h-2 rounded-full bg-white"></div>
-                          </div>
-                          <div>
-                            <div className="font-medium">External</div>
-                            <div className="text-xs text-muted-foreground">Customer-facing services</div>
-                          </div>
-                        </div>
-                      </SelectItem>
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -782,13 +663,13 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
                     <SelectContent className="max-h-60">
                       {timezones.map((tz) => (
                         <SelectItem
-                          key={tz.value}
+                          key={tz.id}
                           value={tz.value}
                           className="py-3 px-4 hover:bg-green-50 dark:hover:bg-green-900/20"
                         >
                           <div className="flex justify-between items-center w-full">
                             <div className="flex flex-col">
-                              <span className="font-medium">{tz.label.split(" (")[0]}</span>
+                              <span className="font-medium">{tz.label}</span>
                               <span className="text-xs text-muted-foreground">{tz.offset}</span>
                             </div>
                           </div>
@@ -799,6 +680,30 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
                 </div>
               </div>
             </div>
+
+            {/* Duration Preview */}
+            {formData.startDate && formData.endDate && (
+              <Alert>
+                <Clock className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>Duration:</strong>{" "}
+                  {calculateDuration(
+                    formData.startDate,
+                    formData.startTime,
+                    formData.endDate,
+                    formData.endTime,
+                    formData.timezone,
+                  )}
+                  <br />
+                  <strong>Start:</strong> {formatDateTime(formData.startDate, formData.startTime, formData.timezone)}
+                  <br />
+                  <strong>End:</strong> {formatDateTime(formData.endDate, formData.endTime, formData.timezone)}
+                  <br />
+                  <strong>Timezone:</strong>{" "}
+                  {timezones.find((tz) => tz.value === formData.timezone)?.label || formData.timezone}
+                </AlertDescription>
+              </Alert>
+            )}
 
             {/* Enhanced Environments Section */}
             <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 p-6 rounded-lg border border-purple-200 dark:border-purple-800">
@@ -973,7 +878,6 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
               )}
             </div>
 
-            {/* Rest of the form sections with similar enhanced styling... */}
             {/* Contact and Users */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-3">
@@ -1147,10 +1051,12 @@ export default function EnhancedOutageForm({ onSuccess }: EnhancedOutageFormProp
                     </div>
                     <div className="flex gap-2">
                       {createdOutage.severity && (
-                        <Badge className={severityColors[createdOutage.severity]}>{createdOutage.severity}</Badge>
+                        <Badge className="bg-blue-100 text-blue-800 border-blue-200">{createdOutage.severity}</Badge>
                       )}
                       {createdOutage.outageType && (
-                        <Badge className={typeColors[createdOutage.outageType]}>{createdOutage.outageType}</Badge>
+                        <Badge className="bg-purple-100 text-purple-800 border-purple-200">
+                          {createdOutage.outageType}
+                        </Badge>
                       )}
                     </div>
                   </div>

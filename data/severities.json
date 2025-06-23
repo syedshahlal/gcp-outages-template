@@ -1,0 +1,37 @@
+{
+  "severities": [
+    {
+      "id": "low",
+      "name": "Low",
+      "description": "Minimal service disruption expected",
+      "color": "bg-green-500",
+      "textColor": "text-green-800",
+      "bgColor": "bg-green-100",
+      "borderColor": "border-green-200",
+      "priority": 1,
+      "icon": "check-circle"
+    },
+    {
+      "id": "medium",
+      "name": "Medium",
+      "description": "Moderate service disruption expected",
+      "color": "bg-yellow-500",
+      "textColor": "text-yellow-800",
+      "bgColor": "bg-yellow-100",
+      "borderColor": "border-yellow-200",
+      "priority": 2,
+      "icon": "alert-circle"
+    },
+    {
+      "id": "high",
+      "name": "High",
+      "description": "Significant service disruption expected",
+      "color": "bg-red-500",
+      "textColor": "text-red-800",
+      "bgColor": "bg-red-100",
+      "borderColor": "border-red-200",
+      "priority": 3,
+      "icon": "alert-triangle"
+    }
+  ]
+}

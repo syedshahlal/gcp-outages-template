@@ -1,0 +1,26 @@
+{
+  "outageTypes": [
+    {
+      "id": "internal",
+      "name": "Internal",
+      "description": "Internal systems and services only",
+      "color": "bg-purple-500",
+      "textColor": "text-purple-800",
+      "bgColor": "bg-purple-100",
+      "borderColor": "border-purple-200",
+      "icon": "users",
+      "scope": "internal"
+    },
+    {
+      "id": "external",
+      "name": "External",
+      "description": "Customer-facing services and systems",
+      "color": "bg-blue-500",
+      "textColor": "text-blue-800",
+      "bgColor": "bg-blue-100",
+      "borderColor": "border-blue-200",
+      "icon": "globe",
+      "scope": "external"
+    }
+  ]
+}
