@@ -175,7 +175,13 @@ export function InteractiveReport() {
       const past = outages.filter((o) => o.endDate < now)
       const ongoing = outages.filter((o) => o.startDate <= now && o.endDate >= now)
 
-      const sum = <T,>(arr: T[], fn: (v: T) => number) => arr.reduce((a, b) => a + fn(b), 0)
+      // BEFORE
+      // const sum = <T,>(arr: T[], fn: (v: T) => number) => arr.reduce((a, b) => a + fn(b), 0)
+      // AFTER
+      function sum<T>(arr: T[], fn: (v: T) => number): number {
+        return arr.reduce((acc, cur) => acc + fn(cur), 0)
+      }
+
       const totalDowntime = sum(outages, (o) => (+o.endDate - +o.startDate) / 36e5)
       const avgDowntime = outages.length ? totalDowntime / outages.length : 0
       const usersAffected = sum(outages, (o: any) => o.estimatedUsers || 0)
