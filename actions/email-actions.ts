@@ -1,6 +1,8 @@
 "use server"
 
 import { createTransporter, SENDER_EMAIL } from "@/lib/email-config"
+import * as XLSX from "xlsx"
+import type { Buffer } from "buffer"
 
 export interface EmailNotificationData {
   recipientEmails: string[]
@@ -8,6 +10,7 @@ export interface EmailNotificationData {
   message?: string
   dashboardUrl?: string
   recentOutages?: any[]
+  includeAttachment?: boolean
 }
 
 interface OutageEmailData {
@@ -26,6 +29,10 @@ interface OutageEmailData {
   outageType?: "Internal" | "External"
   estimatedUsers?: number
   timezone?: string
+  reason?: string
+  status?: string
+  createdAt?: string
+  updatedAt?: string
 }
 
 function getPriorityStyles(priority: string): string {
@@ -83,17 +90,135 @@ function formatDuration(startDate: string, endDate: string, providedDuration?: s
   }
 }
 
+// Generate Excel attachment with outage details
+function generateExcelAttachment(outages: OutageEmailData[]): Buffer {
+  const worksheetData = outages.map((outage, index) => ({
+    "Outage #": index + 1,
+    ID: safeValue(outage.id, "N/A"),
+    Title: safeValue(outage.title, "Untitled Outage"),
+    Description: safeValue(outage.description, "No description provided"),
+    Priority: safeValue(outage.priority, "Medium"),
+    Type: safeValue(outage.outageType, "Internal"),
+    Status: safeValue(outage.status, "Scheduled"),
+    Category: safeValue(outage.category, "Maintenance"),
+    "Start Date": new Date(outage.startDate).toLocaleString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZoneName: "short",
+    }),
+    "End Date": new Date(outage.endDate).toLocaleString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZoneName: "short",
+    }),
+    Duration: formatDuration(outage.startDate, outage.endDate, outage.duration),
+    Environments:
+      outage.environments && outage.environments.length > 0
+        ? outage.environments.join(", ")
+        : "No environments specified",
+    "Assigned Team": safeValue(outage.team, "Not assigned"),
+    "Contact Email": safeValue(outage.contactEmail, "No contact provided"),
+    Reason: safeValue(outage.reason, "No reason provided"),
+    "Impact Details": safeValue(outage.impact, "Impact details not specified"),
+    "Estimated Users Affected": outage.estimatedUsers || 0,
+    "Created At": outage.createdAt ? new Date(outage.createdAt).toLocaleString() : "N/A",
+    "Last Updated": outage.updatedAt ? new Date(outage.updatedAt).toLocaleString() : "N/A",
+  }))
+
+  // Create workbook with multiple sheets
+  const workbook = XLSX.utils.book_new()
+
+  // Main outages sheet
+  const mainWorksheet = XLSX.utils.json_to_sheet(worksheetData)
+
+  // Set column widths for better readability
+  const columnWidths = [
+    { wch: 10 }, // Outage #
+    { wch: 20 }, // ID
+    { wch: 25 }, // Title
+    { wch: 40 }, // Description
+    { wch: 12 }, // Priority
+    { wch: 12 }, // Type
+    { wch: 12 }, // Status
+    { wch: 15 }, // Category
+    { wch: 25 }, // Start Date
+    { wch: 25 }, // End Date
+    { wch: 12 }, // Duration
+    { wch: 30 }, // Environments
+    { wch: 20 }, // Assigned Team
+    { wch: 25 }, // Contact Email
+    { wch: 30 }, // Reason
+    { wch: 40 }, // Impact Details
+    { wch: 15 }, // Estimated Users
+    { wch: 20 }, // Created At
+    { wch: 20 }, // Last Updated
+  ]
+
+  mainWorksheet["!cols"] = columnWidths
+  XLSX.utils.book_append_sheet(workbook, mainWorksheet, "Outage Details")
+
+  // Summary sheet
+  const summaryData = [
+    { Metric: "Total Outages", Value: outages.length },
+    { Metric: "High Priority", Value: outages.filter((o) => (o.priority || "Medium") === "High").length },
+    { Metric: "Medium Priority", Value: outages.filter((o) => (o.priority || "Medium") === "Medium").length },
+    { Metric: "Low Priority", Value: outages.filter((o) => (o.priority || "Medium") === "Low").length },
+    { Metric: "External Outages", Value: outages.filter((o) => (o.outageType || "Internal") === "External").length },
+    { Metric: "Internal Outages", Value: outages.filter((o) => (o.outageType || "Internal") === "Internal").length },
+    { Metric: "Total Users Affected", Value: outages.reduce((sum, o) => sum + (o.estimatedUsers || 0), 0) },
+    { Metric: "Report Generated", Value: new Date().toLocaleString() },
+  ]
+
+  const summaryWorksheet = XLSX.utils.json_to_sheet(summaryData)
+  summaryWorksheet["!cols"] = [{ wch: 25 }, { wch: 20 }]
+  XLSX.utils.book_append_sheet(workbook, summaryWorksheet, "Summary")
+
+  // Environment breakdown sheet
+  const envBreakdown = new Map<string, number>()
+  outages.forEach((outage) => {
+    if (outage.environments && outage.environments.length > 0) {
+      outage.environments.forEach((env) => {
+        envBreakdown.set(env, (envBreakdown.get(env) || 0) + 1)
+      })
+    }
+  })
+
+  const envData = Array.from(envBreakdown.entries()).map(([env, count]) => ({
+    Environment: env,
+    "Outage Count": count,
+    Percentage: `${((count / outages.length) * 100).toFixed(1)}%`,
+  }))
+
+  if (envData.length > 0) {
+    const envWorksheet = XLSX.utils.json_to_sheet(envData)
+    envWorksheet["!cols"] = [{ wch: 20 }, { wch: 15 }, { wch: 15 }]
+    XLSX.utils.book_append_sheet(workbook, envWorksheet, "Environment Impact")
+  }
+
+  // Generate buffer
+  return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer
+}
+
 // Generate enhanced full-width HTML email template
 function generateEmailHTML(outages: OutageEmailData[]): string {
   const outageCards = outages
     .map((outage) => {
       const safePriority = safeValue(outage.priority, "Medium")
       const safeType = safeValue(outage.outageType, "Internal")
-      const safeTeam = safeValue(outage.team, "Operations Team")
+      const safeTeam = safeValue(outage.team, "Not assigned")
       const safeCategory = safeValue(outage.category, "Maintenance")
       const safeImpact = safeValue(outage.impact, "Service may be temporarily unavailable")
       const safeDescription = safeValue(outage.description, "Planned maintenance activity")
       const safeContactEmail = safeValue(outage.contactEmail, "support@company.com")
+      const safeReason = safeValue(outage.reason, "Maintenance required")
       const safeDuration = formatDuration(outage.startDate, outage.endDate, outage.duration)
 
       return `
@@ -106,6 +231,10 @@ function generateEmailHTML(outages: OutageEmailData[]): string {
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td style="vertical-align: top;">
+                        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                          <span style="color: #16a34a; font-size: 18px; margin-right: 8px;">✅</span>
+                          <span style="background: #dcfce7; color: #16a34a; padding: 4px 12px; border-radius: 16px; font-size: 12px; font-weight: 600;">Created Outage</span>
+                        </div>
                         <h2 style="margin: 0 0 8px 0; color: #1f2937; font-size: 22px; font-weight: 700; line-height: 1.3;">${safeValue(outage.title, "Scheduled Maintenance")}</h2>
                         <div style="color: #6b7280; font-size: 14px; margin-bottom: 12px;">
                           <strong>ID:</strong> ${safeValue(outage.id, "N/A")} • 
@@ -114,7 +243,7 @@ function generateEmailHTML(outages: OutageEmailData[]): string {
                       </td>
                       <td style="text-align: right; vertical-align: top; white-space: nowrap;">
                         <div style="margin-bottom: 8px;">
-                          <span style="padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; ${getPriorityStyles(safePriority)}">${safePriority} Priority</span>
+                          <span style="padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; ${getPriorityStyles(safePriority)}">${safePriority}</span>
                         </div>
                         <div>
                           <span style="padding: 6px 14px; border-radius: 16px; font-size: 12px; font-weight: 500; ${getTypeStyles(safeType)}">${safeType}</span>
@@ -179,7 +308,7 @@ function generateEmailHTML(outages: OutageEmailData[]): string {
                           </div>
                           <div style="color: #0c4a6e; font-size: 14px; line-height: 1.5;">
                             <div style="margin-bottom: 8px;">
-                              <strong>Team:</strong><br>
+                              <strong>Teams:</strong><br>
                               ${safeTeam}
                             </div>
                             <div>
@@ -194,19 +323,34 @@ function generateEmailHTML(outages: OutageEmailData[]): string {
                   
                   <!-- Environments Section -->
                   <div style="margin-bottom: 20px; padding: 16px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
-                    <h4 style="margin: 0 0 12px 0; color: #374151; font-size: 15px; font-weight: 600;">Affected Environments</h4>
+                    <h4 style="margin: 0 0 12px 0; color: #374151; font-size: 15px; font-weight: 600;">Environments:</h4>
                     <div>
                       ${
                         outage.environments && outage.environments.length > 0
                           ? outage.environments
-                              .map(
-                                (env) =>
-                                  `<span style="background: #e0e7ff; color: #3730a3; padding: 6px 12px; border-radius: 16px; margin: 0 8px 6px 0; font-size: 13px; font-weight: 500; display: inline-block;">${env}</span>`,
-                              )
+                              .map((env) => {
+                                // Color coding for different environments
+                                let envColor = "#e0e7ff; color: #3730a3" // default blue
+                                if (env.toLowerCase().includes("prod"))
+                                  envColor = "#fee2e2; color: #dc2626" // red for prod
+                                else if (env.toLowerCase().includes("dev"))
+                                  envColor = "#dcfce7; color: #16a34a" // green for dev
+                                else if (env.toLowerCase().includes("uat"))
+                                  envColor = "#fef3c7; color: #d97706" // yellow for uat
+                                else if (env.toLowerCase().includes("beta")) envColor = "#f3e8ff; color: #7c3aed" // purple for beta
+
+                                return `<span style="background: ${envColor}; padding: 6px 12px; border-radius: 16px; margin: 0 8px 6px 0; font-size: 13px; font-weight: 500; display: inline-block;">${env}</span>`
+                              })
                               .join("")
                           : '<span style="color: #6b7280; font-style: italic;">No specific environments listed</span>'
                       }
                     </div>
+                  </div>
+                  
+                  <!-- Reason Section -->
+                  <div style="margin-bottom: 20px; padding: 16px; background: #f0f9ff; border-radius: 8px; border: 1px solid #bfdbfe;">
+                    <h4 style="margin: 0 0 8px 0; color: #1e40af; font-size: 15px; font-weight: 600;">Reason:</h4>
+                    <p style="color: #1e3a8a; margin: 0; font-size: 14px; line-height: 1.5;">${safeReason}</p>
                   </div>
                   
                   <!-- Impact Section -->
@@ -281,8 +425,11 @@ function generateEmailHTML(outages: OutageEmailData[]): string {
                   <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px 16px 0 0; overflow: hidden;">
                     <tr>
                       <td style="padding: 40px 32px; text-align: center; color: white;">
-                        <h1 style="margin: 0 0 12px 0; font-size: 32px; font-weight: 700; line-height: 1.2;">GCP Planned Outage Notification</h1>
-                        <p style="margin: 0; font-size: 18px; opacity: 0.95; font-weight: 400;">New scheduled outage(s) require your attention</p>
+                        <h1 style="margin: 0 0 12px 0; font-size: 32px; font-weight: 700; line-height: 1.2;">🚨 GCP Planned Outage Notification</h1>
+                        <p style="margin: 0; font-size: 18px; opacity: 0.95; font-weight: 400;">New outage(s) have been created and require your attention</p>
+                        <div style="margin-top: 16px; padding: 12px 24px; background: rgba(255,255,255,0.2); border-radius: 20px; display: inline-block;">
+                          <span style="font-size: 16px; font-weight: 600;">📎 Detailed report attached</span>
+                        </div>
                       </td>
                     </tr>
                   </table>
@@ -306,7 +453,7 @@ function generateEmailHTML(outages: OutageEmailData[]): string {
                             <tr>
                               <td width="20%" style="text-align: center; padding: 20px 10px; background: white; border-radius: 10px; border: 1px solid #e0e7ff; vertical-align: top;">
                                 <div style="font-size: 28px; font-weight: 700; color: #1e40af; margin-bottom: 6px;">${outages.length}</div>
-                                <div style="font-size: 12px; color: #6b7280; font-weight: 600; text-transform: uppercase;">Total Outages</div>
+                                <div style="font-size: 12px; color: #6b7280; font-weight: 600; text-transform: uppercase;">New Outages</div>
                               </td>
                               <td width="4%"></td>
                               ${
@@ -355,12 +502,33 @@ function generateEmailHTML(outages: OutageEmailData[]): string {
                           <div style="background: #fef2f2; border: 2px solid #fecaca; border-radius: 10px; padding: 20px; margin-top: 24px; text-align: center;">
                             <div style="color: #dc2626; font-size: 16px; font-weight: 700;">
                               <span style="font-size: 20px; margin-right: 8px;">🚨</span>
-                              Critical Alert: ${criticalCount} high-priority outage(s) scheduled
+                              Critical Alert: ${criticalCount} high-priority outage(s) created
                             </div>
                           </div>
                           `
                               : ""
                           }
+                        </div>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              
+              <!-- Attachment Notice -->
+              <tr>
+                <td style="padding: 0;">
+                  <table width="100%" cellpadding="0" cellspacing="0" style="background: white;">
+                    <tr>
+                      <td style="padding: 0 32px 24px 32px;">
+                        <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding: 20px; border-radius: 10px; border: 2px solid #10b981; text-align: center;">
+                          <div style="color: #065f46; font-size: 18px; font-weight: 700; margin-bottom: 8px;">
+                            <span style="font-size: 24px; margin-right: 8px;">📎</span>
+                            Detailed Excel Report Attached
+                          </div>
+                          <p style="color: #047857; margin: 0; font-size: 14px;">
+                            A comprehensive Excel file with all outage details, summary statistics, and environment breakdown is attached to this email for your records and analysis.
+                          </p>
                         </div>
                       </td>
                     </tr>
@@ -376,7 +544,7 @@ function generateEmailHTML(outages: OutageEmailData[]): string {
                       <td style="padding: 0 32px 32px 32px;">
                         <h2 style="color: #1f2937; margin: 0 0 24px 0; font-size: 24px; font-weight: 700;">
                           <span style="font-size: 26px; margin-right: 8px;">📋</span>
-                          Detailed Outage Information
+                          Created Outage Details
                         </h2>
                         
                         <table width="100%" cellpadding="0" cellspacing="0">
@@ -458,9 +626,10 @@ export async function sendOutageNotifications(
   let emailList: string[] = []
   let outageList: OutageEmailData[] = Array.isArray(outages) ? outages : []
 
-  let subject = "🚨 GCP Planned Outage Notification - Action Required"
+  let subject = "🚨 GCP Planned Outage Notification - New Outages Created"
   let message = ""
   let dashboardUrl = ""
+  let includeAttachment = true
 
   if (Array.isArray(emailsOrPayload)) {
     emailList = emailsOrPayload
@@ -474,6 +643,7 @@ export async function sendOutageNotifications(
     subject = emailsOrPayload.subject || subject
     message = emailsOrPayload.message || message
     dashboardUrl = emailsOrPayload.dashboardUrl || dashboardUrl
+    includeAttachment = emailsOrPayload.includeAttachment !== false
     outageList =
       Array.isArray(emailsOrPayload.recentOutages) && emailsOrPayload.recentOutages.length
         ? (emailsOrPayload.recentOutages as OutageEmailData[])
@@ -490,17 +660,35 @@ export async function sendOutageNotifications(
     const transporter = createTransporter()
     const htmlContent = generateEmailHTML(outageList)
 
+    // Generate Excel attachment if requested and outages exist
+    const attachments: any[] = []
+    if (includeAttachment && outageList.length > 0) {
+      const excelBuffer = generateExcelAttachment(outageList)
+      const timestamp = new Date().toISOString().split("T")[0]
+
+      attachments.push({
+        filename: `GCP_Outages_Report_${timestamp}.xlsx`,
+        content: excelBuffer,
+        contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      })
+    }
+
     if (isPreview) {
       // In preview mode, just return the email content for inspection
       return {
         success: true,
         isPreview: true,
-        message: `📧 PREVIEW MODE: Email content generated for ${emailList.length} recipient(s). No actual emails sent in v0 preview environment.`,
+        message: `📧 PREVIEW MODE: Email content generated for ${emailList.length} recipient(s). ${attachments.length > 0 ? "Excel attachment prepared." : "No attachment."} No actual emails sent in v0 preview environment.`,
         emailPreview: {
           from: SENDER_EMAIL,
           to: emailList,
           subject,
           html: htmlContent,
+          attachments: attachments.map((att) => ({
+            filename: att.filename,
+            size: `${Math.round(att.content.length / 1024)}KB`,
+            type: att.contentType,
+          })),
         },
       }
     }
@@ -512,6 +700,7 @@ export async function sendOutageNotifications(
         to: email,
         subject,
         html: htmlContent,
+        attachments: attachments,
       })
     })
 
@@ -519,7 +708,7 @@ export async function sendOutageNotifications(
     return {
       success: true,
       isPreview: false,
-      message: `✅ REAL EMAILS SENT: ${emailList.length} notification(s) sent successfully from ${SENDER_EMAIL}`,
+      message: `✅ REAL EMAILS SENT: ${emailList.length} notification(s) sent successfully from ${SENDER_EMAIL}${attachments.length > 0 ? " with Excel attachment" : ""}`,
     }
   } catch (error) {
     console.error("Email sending failed:", error)
