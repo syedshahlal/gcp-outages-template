@@ -189,6 +189,10 @@ export default function OutageDashboard() {
   const [visibleDays, setVisibleDays] = useState(10) // Show 10 days at a time
   const timelineScrollRef = useRef<HTMLDivElement>(null)
 
+  // Add auto-refresh state
+  const [autoRefresh, setAutoRefresh] = useState(false)
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState<NodeJS.Timeout | null>(null)
+
   /* ---------------------------- Side Effects ---------------------------- */
 
   useEffect(() => {
@@ -297,17 +301,27 @@ export default function OutageDashboard() {
   useEffect(() => {
     if (!mounted || outages.length === 0) return
 
-    console.log("Setting up auto-refresh interval")
-    const id = setInterval(() => {
-      console.log("Auto-refreshing outages...")
-      fetchOutages(true)
-    }, 30000)
-
-    return () => {
-      console.log("Clearing auto-refresh interval")
-      clearInterval(id)
+    // Clear existing interval
+    if (autoRefreshInterval) {
+      clearInterval(autoRefreshInterval)
+      setAutoRefreshInterval(null)
     }
-  }, [mounted, outages.length])
+
+    if (autoRefresh) {
+      console.log("Setting up auto-refresh interval (1 hour)")
+      const id = setInterval(() => {
+        console.log("Auto-refreshing outages...")
+        fetchOutages(true)
+      }, 3600000) // 1 hour = 3600000ms
+
+      setAutoRefreshInterval(id)
+
+      return () => {
+        console.log("Clearing auto-refresh interval")
+        clearInterval(id)
+      }
+    }
+  }, [mounted, outages.length, autoRefresh])
 
   /* ------------------------------- Derived ------------------------------ */
 
@@ -559,6 +573,15 @@ export default function OutageDashboard() {
       .slice(0, 10)
   }, [outages])
 
+  // Add this useEffect for cleanup
+  useEffect(() => {
+    return () => {
+      if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval)
+      }
+    }
+  }, [autoRefreshInterval])
+
   /* ----------------------------- Render UI ------------------------------ */
 
   if (!mounted)
@@ -657,10 +680,22 @@ export default function OutageDashboard() {
               <span>Last updated: {lastUpdated?.toLocaleTimeString() || "Never"}</span>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground border rounded-md px-3 py-1">
+              <label htmlFor="auto-refresh" className="cursor-pointer flex items-center gap-2">
+                <input
+                  id="auto-refresh"
+                  type="checkbox"
+                  checked={autoRefresh}
+                  onChange={(e) => setAutoRefresh(e.target.checked)}
+                  className="rounded"
+                />
+                <span>Auto-refresh (1hr)</span>
+              </label>
+            </div>
             <Button variant="outline" size="sm" onClick={() => fetchOutages(true)} disabled={refreshing}>
               <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-              {refreshing ? "Refreshing…" : "Refresh"}
+              {refreshing ? "Refreshing…" : "Manual Refresh"}
             </Button>
             <ThemeToggle />
           </div>
