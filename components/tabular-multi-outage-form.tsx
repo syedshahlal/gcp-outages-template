@@ -625,7 +625,7 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
               </Alert>
             )}
 
-            <ScrollArea className="w-full border rounded-md">
+            <ScrollArea className="w-full border rounded-md" orientation="horizontal">
               <div className="min-w-[1800px] p-4">
                 <Table>
                   <TableHeader>
