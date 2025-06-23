@@ -1,7 +1,6 @@
 "use client"
 
 import React from "react"
-// import React from "react" // Removed redundant import
 
 import { useState, useMemo, useEffect, useRef } from "react"
 import {
@@ -10,6 +9,9 @@ import {
   AlertTriangle,
   Plus,
   BarChart3,
+  Filter,
+  Search,
+  RotateCcw,
   RefreshCw,
   FileText,
   Globe,
@@ -20,10 +22,15 @@ import {
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { TimezoneSelector } from "@/components/timezone-selector"
 import dynamic from "next/dynamic"
 import { useToast } from "@/hooks/use-toast"
 import { getUserTimezone, formatTimelineDate, getTimezoneAbbreviation, formatDetailedDate } from "@/lib/timezone-utils"
@@ -32,7 +39,6 @@ import { getUserTimezone, formatTimelineDate, getTimezoneAbbreviation, formatDet
 import outagesJson from "@/data/outages.json"
 
 // Dynamically imported heavy components with no SSR
-// EnhancedOutageForm  (uses default OR named export)
 const EnhancedOutageForm = dynamic(
   () =>
     import("./components/enhanced-outage-form").then(
@@ -41,7 +47,6 @@ const EnhancedOutageForm = dynamic(
   { ssr: false, loading: () => <div className="h-96 rounded-lg bg-muted animate-pulse" /> },
 )
 
-// TabularMultiOutageForm
 const TabularMultiOutageForm = dynamic(
   () =>
     import("./components/tabular-multi-outage-form").then(
@@ -134,11 +139,6 @@ const diffLabel = (start: Date, end: Date) => {
   return days ? `${days} d ${hours % 24} h` : `${hours} h`
 }
 
-// Add scroll functions after the existing helper functions:
-
-// Add these helper functions after the existing helper functions
-
-// Timeline scroll functions
 /* -------------------------------------------------------------------------- */
 /*                            Main Dashboard Component                         */
 /* -------------------------------------------------------------------------- */
@@ -184,10 +184,6 @@ export default function OutageDashboard() {
   const [timelineWidth, setTimelineWidth] = useState(0)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
-  // Add state for timeline hover:
-  // Remove this line:
-  // const [timelineHover, setTimelineHover] = useState<{ x: number; time: Date; visible: boolean } | null>(null)
-
   // Add these state variables for scroll management after the existing state variables:
   const [timelineScrollPosition, setTimelineScrollPosition] = useState(0)
   const [visibleDays, setVisibleDays] = useState(10) // Show 10 days at a time
@@ -227,11 +223,6 @@ export default function OutageDashboard() {
       // Give the UI a tiny delay for nicer spinners
       await new Promise((r) => setTimeout(r, 300))
 
-      /* ----------------------------------------------------------
-       * 1) Try the API route first (only works in prod / dev-server)
-       * 2) If that fails (e.g. Next.js preview) fall back to the
-       *    embedded JSON so the page still renders.
-       * ---------------------------------------------------------- */
       let data: any[] | null = null
 
       try {
@@ -247,14 +238,12 @@ export default function OutageDashboard() {
         if (resp.ok) {
           const json = await resp.json()
           console.log("API response data:", json)
-          // The API can return either an array or an object { outages: [...] }
           data = Array.isArray(json) ? json : (json?.outages ?? [])
         } else {
           console.warn("API responded but not OK:", resp.status)
         }
       } catch (apiError) {
         console.warn("API fetch failed:", apiError)
-        /* network / runtime error - ignore – we'll fall back */
       }
 
       if (!data || data.length === 0) {
@@ -266,7 +255,7 @@ export default function OutageDashboard() {
 
       const parsed = data.map((o: any) => ({
         ...o,
-        id: o.id || Math.random().toString(36).substr(2, 9), // Ensure ID exists
+        id: o.id || Math.random().toString(36).substr(2, 9),
         startDate: new Date(o.startDate),
         endDate: new Date(o.endDate),
         createdAt: o.createdAt ? new Date(o.createdAt) : new Date(),
@@ -411,15 +400,13 @@ export default function OutageDashboard() {
     let referenceDate = now
 
     if (upcomingOutages.length > 0) {
-      // Use the earliest upcoming outage as reference
       referenceDate = upcomingOutages[0].startDate
     } else if (ongoingOutages.length > 0) {
-      // Use ongoing outages
       referenceDate = ongoingOutages[0].startDate
     }
 
-    const start = new Date(referenceDate.getTime() - 3 * 24 * 60 * 60 * 1000) // 3 days before
-    const end = new Date(referenceDate.getTime() + 14 * 24 * 60 * 60 * 1000) // 14 days after
+    const start = new Date(referenceDate.getTime() - 3 * 24 * 60 * 60 * 1000)
+    const end = new Date(referenceDate.getTime() + 14 * 24 * 60 * 60 * 1000)
 
     return { start, end }
   }
@@ -447,7 +434,7 @@ export default function OutageDashboard() {
           `Custom range filter for ${o.title}: ${dateMatch} (${outageStart}-${outageEnd} overlaps ${customDateRange.start}-${customDateRange.end})`,
         )
       } else if (selectedMonth) {
-        const outageMonth = o.startDate.toISOString().substring(0, 7) // YYYY-MM format
+        const outageMonth = o.startDate.toISOString().substring(0, 7)
         dateMatch = outageMonth === selectedMonth
         console.log(`Month filter for ${o.title}: ${dateMatch} (${outageMonth} === ${selectedMonth})`)
       }
@@ -459,7 +446,6 @@ export default function OutageDashboard() {
       const searchMatch = search === "" || txt.includes(search.toLowerCase())
       console.log(`Search filter for ${o.title}: ${searchMatch}`)
 
-      // Update the filters logic to include severity
       const severityMatch = severityFilter.length === 0 || severityFilter.includes(o.severity)
 
       const finalMatch = dateMatch && envMatch && searchMatch && severityMatch
@@ -516,20 +502,12 @@ export default function OutageDashboard() {
     return { start, end, days }
   }, [filters, useCustomRange, customDateRange])
 
-  const ganttPos = (s: Date, e: Date) => {
-    const pct = (v: number) => (v / (range.end.getTime() - range.start.getTime())) * 100
-    return {
-      left: `${pct(s.getTime() - range.start.getTime())}%`,
-      width: `${Math.max(2, pct(e.getTime() - s.getTime()))}%`,
-    }
-  }
-
   const scrollTimelineLeft = () => {
     if (timelineScrollRef.current) {
       const scrollAmount =
         (timelineScrollRef.current.scrollWidth /
           Math.ceil((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24))) *
-        3 // Scroll 3 days at a time
+        3
       const newPosition = Math.max(0, timelineScrollPosition - scrollAmount)
       timelineScrollRef.current.scrollTo({ left: newPosition, behavior: "smooth" })
       setTimelineScrollPosition(newPosition)
@@ -541,7 +519,7 @@ export default function OutageDashboard() {
       const scrollAmount =
         (timelineScrollRef.current.scrollWidth /
           Math.ceil((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24))) *
-        3 // Scroll 3 days at a time
+        3
       const maxScroll = timelineScrollRef.current.scrollWidth - timelineScrollRef.current.clientWidth
       const newPosition = Math.min(maxScroll, timelineScrollPosition + scrollAmount)
       timelineScrollRef.current.scrollTo({ left: newPosition, behavior: "smooth" })
@@ -553,24 +531,6 @@ export default function OutageDashboard() {
     setTimelineScrollPosition(e.currentTarget.scrollLeft)
   }
 
-  // Calculate visible date range based on scroll position
-  const getVisibleDateRange = () => {
-    const totalDays = Math.ceil((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24))
-    const totalWidth = timelineScrollRef.current?.scrollWidth || 1000
-    const visibleWidth = timelineScrollRef.current?.clientWidth || 800
-
-    const scrollPercentage = timelineScrollPosition / (totalWidth - visibleWidth)
-    const startDayOffset = Math.floor(scrollPercentage * (totalDays - visibleDays))
-
-    const visibleStart = new Date(range.start)
-    visibleStart.setDate(visibleStart.getDate() + startDayOffset)
-
-    const visibleEnd = new Date(visibleStart)
-    visibleEnd.setDate(visibleEnd.getDate() + visibleDays)
-
-    return { start: visibleStart, end: visibleEnd, totalDays }
-  }
-
   // Get upcoming outages for right sidebar
   const upcomingOutages = useMemo(() => {
     const now = new Date()
@@ -579,7 +539,7 @@ export default function OutageDashboard() {
     return outages
       .filter((o) => o.startDate >= now && o.startDate <= nextMonth)
       .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
-      .slice(0, 10) // Show top 10 upcoming outages
+      .slice(0, 10)
   }, [outages])
 
   /* ----------------------------- Render UI ------------------------------ */
@@ -610,26 +570,6 @@ export default function OutageDashboard() {
         {tooltip.o.outageType && <div className="text-sm opacity-90">Type: {tooltip.o.outageType}</div>}
       </div>
     ) : null
-
-  const scrollTimeline = (direction: "left" | "right") => {
-    if (scrollContainerRef.current) {
-      const scrollAmount = 200
-      const newPosition =
-        direction === "left"
-          ? Math.max(0, scrollPosition - scrollAmount)
-          : Math.min(
-              scrollContainerRef.current.scrollWidth - scrollContainerRef.current.clientWidth,
-              scrollPosition + scrollAmount,
-            )
-
-      scrollContainerRef.current.scrollTo({ left: newPosition, behavior: "smooth" })
-      setScrollPosition(newPosition)
-    }
-  }
-
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    setScrollPosition(e.currentTarget.scrollLeft)
-  }
 
   const applyQuickFilter = (
     filterType: string,
@@ -678,7 +618,6 @@ export default function OutageDashboard() {
         setUseCustomRange(false)
         setCustomDateRange({ start: "", end: "" })
         setSeverityFilter([])
-        // Reset month to current month
         const now = new Date()
         const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
         setSelectedMonth(currentMonth)
@@ -713,12 +652,194 @@ export default function OutageDashboard() {
 
       {/* Three Column Layout - Flush Left */}
       <div className="flex h-[calc(100vh-4rem)] w-full">
-        {/* Left Sidebar - Filters - No left margin */}
+        {/* Left Sidebar - Filters */}
         <div className="w-80 xl:w-96 2xl:w-[400px] border-r bg-background/50 overflow-y-auto flex-shrink-0">
-          <div className="p-4 space-y-3"></div>
+          <div className="p-4 space-y-3">
+            {/* Filters Card */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Filter className="h-5 w-5" />
+                  Filters
+                  {(envFilter.length < ENVIRONMENTS.length || search || sortBy !== "date") && (
+                    <Badge variant="secondary" className="ml-2">
+                      {filters.length} filtered
+                    </Badge>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 p-4">
+                {/* Timezone Selector */}
+                <div className="space-y-2">
+                  <TimezoneSelector
+                    value={selectedTimezone}
+                    onValueChange={setSelectedTimezone}
+                    label="Display Timezone"
+                    showCurrentTime={true}
+                  />
+                </div>
+
+                {/* Search */}
+                <div className="space-y-2">
+                  <Label>Search</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className="pl-10"
+                      placeholder="Title, team, category…"
+                    />
+                  </div>
+                </div>
+
+                {/* Sort and Month */}
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="space-y-2">
+                    <Label>Sort By</Label>
+                    <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="date">Date</SelectItem>
+                        <SelectItem value="severity">Severity</SelectItem>
+                        <SelectItem value="team">Team</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Month</Label>
+                    <Select
+                      value={selectedMonth}
+                      onValueChange={(val) => {
+                        setSelectedMonth(val)
+                        setUseCustomRange(false)
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {monthOptions.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>
+                            {o.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Custom Date Range */}
+                <div className="space-y-3 border-t pt-4">
+                  <div className="flex items-center space-x-3">
+                    <Checkbox
+                      id="custom-range"
+                      checked={useCustomRange}
+                      onCheckedChange={(checked) => setUseCustomRange(checked as boolean)}
+                    />
+                    <Label htmlFor="custom-range" className="cursor-pointer font-medium flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Custom Date Range
+                    </Label>
+                  </div>
+                  {useCustomRange && (
+                    <div className="space-y-3">
+                      <div className="space-y-2">
+                        <Label className="text-sm">Start Date</Label>
+                        <Input
+                          type="date"
+                          value={customDateRange.start}
+                          onChange={(e) => setCustomDateRange((prev) => ({ ...prev, start: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">End Date</Label>
+                        <Input
+                          type="date"
+                          value={customDateRange.end}
+                          onChange={(e) => setCustomDateRange((prev) => ({ ...prev, end: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Environment checkboxes */}
+                <div className="space-y-3 border-t pt-4">
+                  <Label className="text-sm font-medium">Environments</Label>
+                  <div className="space-y-3">
+                    {/* Select All toggle */}
+                    <div className="flex items-center space-x-3">
+                      <Checkbox
+                        id="all"
+                        checked={allSelected}
+                        ref={(el) => {
+                          if (el) el.indeterminate = someSelected
+                        }}
+                        onCheckedChange={(c) => setEnvFilter(c ? [...ENVIRONMENTS] : [])}
+                      />
+                      <Label htmlFor="all" className="cursor-pointer font-medium">
+                        Select All
+                      </Label>
+                    </div>
+
+                    {/* Individual environment toggles */}
+                    <div className="space-y-2">
+                      {ENVIRONMENTS.map((env) => (
+                        <div key={env} className="flex items-center space-x-3">
+                          <Checkbox
+                            id={env}
+                            checked={envFilter.includes(env)}
+                            onCheckedChange={(c) => {
+                              setEnvFilter(c ? [...envFilter, env] : envFilter.filter((e) => e !== env))
+                            }}
+                          />
+                          <Label htmlFor={env} className="cursor-pointer flex items-center gap-2 flex-1">
+                            <div
+                              className={`w-3 h-3 rounded-full ${environmentColors[env as keyof typeof environmentColors]}`}
+                            />
+                            <span className="text-sm">{env}</span>
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Reset Button */}
+                <div className="border-t pt-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setEnvFilter([...ENVIRONMENTS])
+                      setSearch("")
+                      setSortBy("date")
+                      setUseCustomRange(false)
+                      setCustomDateRange({ start: "", end: "" })
+                      setSeverityFilter([])
+                      const now = new Date()
+                      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+                      setSelectedMonth(currentMonth)
+                      toast({
+                        title: "All Filters Reset",
+                        description: "All filter settings have been restored to defaults",
+                      })
+                    }}
+                    className="w-full"
+                  >
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Reset Filters
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
-        {/* Main Content Area */}
+        {/* Main Content Area - Expanded */}
         <div className="flex-1 overflow-y-auto">
           <div className="p-4 xl:p-5 2xl:p-6 space-y-4">
             {/* High-severity alerts */}
@@ -757,7 +878,7 @@ export default function OutageDashboard() {
               {/* Dashboard Content */}
               <TabsContent value="dashboard" className="space-y-4">
                 {/* Stats Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-4">
                   <Card
                     className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-blue-500"
                     onClick={() =>
@@ -878,6 +999,7 @@ export default function OutageDashboard() {
                       <Calendar className="h-8 w-8 text-orange-500" />
                     </CardContent>
                   </Card>
+
                   <Card
                     className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-purple-500"
                     onClick={() => {
@@ -939,6 +1061,19 @@ export default function OutageDashboard() {
                             return <BarChart3 className="h-8 w-8 text-purple-500" />
                           }
                         })()}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-green-500">
+                    <CardContent className="flex items-center justify-between p-4">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Recovery Rate</p>
+                        <div className="text-2xl font-bold text-green-600">100%</div>
+                        <p className="text-xs text-green-600 font-medium">All resolved</p>
+                      </div>
+                      <div className="h-8 w-8 rounded-full bg-green-500 flex items-center justify-center">
+                        <span className="text-white text-xs font-bold">✓</span>
                       </div>
                     </CardContent>
                   </Card>
@@ -1296,7 +1431,7 @@ export default function OutageDashboard() {
           </div>
         </div>
 
-        {/* Right Sidebar - Upcoming Outages */}
+        {/* Right Sidebar - Upcoming Outages - Pushed to end */}
         <div className="w-80 xl:w-96 2xl:w-[400px] border-l bg-background/50 overflow-y-auto flex-shrink-0">
           <div className="p-2 space-y-3">
             <Card>
