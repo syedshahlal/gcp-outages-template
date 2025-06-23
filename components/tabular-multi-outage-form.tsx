@@ -14,7 +14,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import {
@@ -635,7 +634,7 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="space-y-4 w-full">
             <Alert>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
@@ -652,7 +651,7 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
               </Alert>
             )}
 
-            <div className="relative">
+            <div className="relative w-full max-w-full">
               {/* Left scroll indicator */}
               {showLeftIndicator && (
                 <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-background to-transparent z-20 pointer-events-none flex items-center justify-start pl-2">
@@ -667,13 +666,14 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
                 </div>
               )}
 
-              <ScrollArea className="w-full border rounded-md">
+              <div className="w-full border rounded-md overflow-hidden">
                 <div
                   ref={scrollContainerRef}
-                  className="min-w-[1800px] p-4 overflow-x-scroll overflow-y-visible scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200"
+                  className="w-full p-4 overflow-x-auto overflow-y-visible scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200"
                   onScroll={handleScroll}
+                  style={{ minWidth: "100%" }}
                 >
-                  <Table>
+                  <Table className="min-w-[1800px]">
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-[50px] sticky left-0 bg-background z-10">Actions</TableHead>
@@ -1032,7 +1032,7 @@ export default function TabularMultiOutageForm({ onSuccess }: { onSuccess?: () =
                     </TableBody>
                   </Table>
                 </div>
-              </ScrollArea>
+              </div>
             </div>
 
             <div className="flex justify-between items-center pt-4">
