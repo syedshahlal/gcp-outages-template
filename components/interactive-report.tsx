@@ -14,6 +14,7 @@ import {
   CartesianGrid,
   ResponsiveContainer,
   PieChart as RechartsPieChart,
+  Pie, // 👈 add this
   Cell,
   LineChart,
   Line,
@@ -1208,11 +1209,11 @@ ${reportData.upcomingOutages
             <ChartContainer config={{}} className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsPieChart>
-                  <RechartsPieChart data={durationData} cx="50%" cy="50%" outerRadius={80}>
+                  <Pie data={durationData} cx="50%" cy="50%" outerRadius={80} dataKey="value">
                     {durationData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
-                  </RechartsPieChart>
+                  </Pie>
                   <ChartTooltip content={<ChartTooltipContent />} />
                 </RechartsPieChart>
               </ResponsiveContainer>
@@ -1299,11 +1300,11 @@ ${reportData.upcomingOutages
             <ChartContainer config={{}} className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsPieChart>
-                  <RechartsPieChart data={severityData} cx="50%" cy="50%" outerRadius={80}>
+                  <Pie data={severityData} cx="50%" cy="50%" outerRadius={80} dataKey="value">
                     {severityData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
-                  </RechartsPieChart>
+                  </Pie>
                   <ChartTooltip content={<ChartTooltipContent />} />
                 </RechartsPieChart>
               </ResponsiveContainer>
