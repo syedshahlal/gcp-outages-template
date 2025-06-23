@@ -1461,15 +1461,380 @@ export default function OutageDashboard() {
 
               {/* Metrics Content */}
               <TabsContent value="metrics">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Outage Metrics</CardTitle>
-                    <CardDescription>Visualize outage data and trends.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">Coming soon...</p>
-                  </CardContent>
-                </Card>
+                <div className="space-y-6">
+                  {/* Overview Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-muted-foreground">Total Downtime</p>
+                            <div className="text-2xl font-bold">
+                              {Math.round(
+                                filters.reduce(
+                                  (acc, o) => acc + (o.endDate.getTime() - o.startDate.getTime()) / (1000 * 60 * 60),
+                                  0,
+                                ),
+                              )}
+                              h
+                            </div>
+                            <p className="text-xs text-muted-foreground">This period</p>
+                          </div>
+                          <Clock className="h-8 w-8 text-blue-500" />
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-muted-foreground">Avg Duration</p>
+                            <div className="text-2xl font-bold">
+                              {filters.length > 0
+                                ? Math.round(
+                                    filters.reduce(
+                                      (acc, o) =>
+                                        acc + (o.endDate.getTime() - o.startDate.getTime()) / (1000 * 60 * 60),
+                                      0,
+                                    ) / filters.length,
+                                  )
+                                : 0}
+                              h
+                            </div>
+                            <p className="text-xs text-muted-foreground">Per outage</p>
+                          </div>
+                          <BarChart3 className="h-8 w-8 text-green-500" />
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-muted-foreground">Users Affected</p>
+                            <div className="text-2xl font-bold">
+                              {filters.reduce((acc, o) => acc + (o.estimatedUsers || 0), 0).toLocaleString()}
+                            </div>
+                            <p className="text-xs text-muted-foreground">Total impact</p>
+                          </div>
+                          <Users className="h-8 w-8 text-orange-500" />
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-muted-foreground">Critical Outages</p>
+                            <div className="text-2xl font-bold text-red-600">
+                              {filters.filter((o) => o.severity === "High").length}
+                            </div>
+                            <p className="text-xs text-muted-foreground">High severity</p>
+                          </div>
+                          <AlertTriangle className="h-8 w-8 text-red-500" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Charts Row */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Severity Distribution */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Severity Distribution</CardTitle>
+                        <CardDescription>Breakdown of outages by severity level</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {[
+                            {
+                              severity: "High",
+                              count: filters.filter((o) => o.severity === "High").length,
+                              color: "bg-red-500",
+                            },
+                            {
+                              severity: "Medium",
+                              count: filters.filter((o) => o.severity === "Medium").length,
+                              color: "bg-yellow-500",
+                            },
+                            {
+                              severity: "Low",
+                              count: filters.filter((o) => o.severity === "Low").length,
+                              color: "bg-green-500",
+                            },
+                          ].map((item) => {
+                            const percentage = filters.length > 0 ? (item.count / filters.length) * 100 : 0
+                            return (
+                              <div key={item.severity} className="space-y-2">
+                                <div className="flex justify-between text-sm">
+                                  <span className="font-medium">{item.severity}</span>
+                                  <span>
+                                    {item.count} ({percentage.toFixed(1)}%)
+                                  </span>
+                                </div>
+                                <div className="w-full bg-muted rounded-full h-2">
+                                  <div
+                                    className={`h-2 rounded-full ${item.color}`}
+                                    style={{ width: `${percentage}%` }}
+                                  />
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Environment Impact */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Environment Impact</CardTitle>
+                        <CardDescription>Outages by environment</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {ENVIRONMENTS.map((env) => {
+                            const count = filters.filter((o) => o.environments.includes(env)).length
+                            const percentage = filters.length > 0 ? (count / filters.length) * 100 : 0
+                            return (
+                              <div key={env} className="space-y-2">
+                                <div className="flex justify-between text-sm">
+                                  <div className="flex items-center gap-2">
+                                    <div className={`w-3 h-3 rounded-full ${environmentColors[env]}`} />
+                                    <span className="font-medium">{env}</span>
+                                  </div>
+                                  <span>
+                                    {count} ({percentage.toFixed(1)}%)
+                                  </span>
+                                </div>
+                                <div className="w-full bg-muted rounded-full h-2">
+                                  <div
+                                    className={`h-2 rounded-full ${environmentColors[env]}`}
+                                    style={{ width: `${percentage}%` }}
+                                  />
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Timeline Analysis */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Timeline Analysis</CardTitle>
+                      <CardDescription>Outage frequency over time</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {/* Monthly breakdown */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {(() => {
+                            const monthlyData = filters.reduce(
+                              (acc, outage) => {
+                                const month = outage.startDate.toISOString().substring(0, 7)
+                                acc[month] = (acc[month] || 0) + 1
+                                return acc
+                              },
+                              {} as Record<string, number>,
+                            )
+
+                            return Object.entries(monthlyData)
+                              .sort(([a], [b]) => a.localeCompare(b))
+                              .slice(-3)
+                              .map(([month, count]) => (
+                                <div key={month} className="text-center p-4 border rounded-lg">
+                                  <div className="text-2xl font-bold">{count}</div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {new Date(month + "-01").toLocaleDateString("en-US", {
+                                      month: "long",
+                                      year: "numeric",
+                                    })}
+                                  </div>
+                                </div>
+                              ))
+                          })()}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Team Performance */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Team Performance</CardTitle>
+                      <CardDescription>Outages by responsible team</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {(() => {
+                          const teamData = filters.reduce(
+                            (acc, outage) => {
+                              const team = outage.assignee || "Unassigned"
+                              if (!acc[team]) {
+                                acc[team] = { count: 0, totalHours: 0, highSeverity: 0 }
+                              }
+                              acc[team].count += 1
+                              acc[team].totalHours +=
+                                (outage.endDate.getTime() - outage.startDate.getTime()) / (1000 * 60 * 60)
+                              if (outage.severity === "High") acc[team].highSeverity += 1
+                              return acc
+                            },
+                            {} as Record<string, { count: number; totalHours: number; highSeverity: number }>,
+                          )
+
+                          return Object.entries(teamData)
+                            .sort(([, a], [, b]) => b.count - a.count)
+                            .slice(0, 5)
+                            .map(([team, data]) => (
+                              <div key={team} className="flex justify-between items-center p-3 border rounded-lg">
+                                <div>
+                                  <div className="font-medium">{team}</div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {data.count} outages • {Math.round(data.totalHours)}h total
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-sm font-medium">{data.highSeverity} high severity</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    Avg: {Math.round(data.totalHours / data.count)}h
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                        })()}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Export Options */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Export & Reports</CardTitle>
+                      <CardDescription>Generate detailed reports and export data</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <Button variant="outline" onClick={generateFilteredReport} className="h-auto p-4">
+                          <div className="text-center">
+                            <FileText className="h-6 w-6 mx-auto mb-2" />
+                            <div className="font-medium">Detailed Report</div>
+                            <div className="text-xs text-muted-foreground">Text format with all details</div>
+                          </div>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          className="h-auto p-4"
+                          onClick={() => {
+                            const csvContent = [
+                              [
+                                "Title",
+                                "Start Date",
+                                "End Date",
+                                "Duration (hours)",
+                                "Severity",
+                                "Team",
+                                "Environments",
+                                "Users Affected",
+                              ].join(","),
+                              ...filters.map((o) =>
+                                [
+                                  `"${o.title}"`,
+                                  o.startDate.toISOString(),
+                                  o.endDate.toISOString(),
+                                  Math.round((o.endDate.getTime() - o.startDate.getTime()) / (1000 * 60 * 60)),
+                                  o.severity,
+                                  `"${o.assignee}"`,
+                                  `"${o.environments.join("; ")}"`,
+                                  o.estimatedUsers || 0,
+                                ].join(","),
+                              ),
+                            ].join("\n")
+
+                            const blob = new Blob([csvContent], { type: "text/csv" })
+                            const url = URL.createObjectURL(blob)
+                            const a = document.createElement("a")
+                            a.href = url
+                            a.download = `outages-data-${new Date().toISOString().split("T")[0]}.csv`
+                            a.click()
+                            URL.revokeObjectURL(url)
+
+                            toast({
+                              title: "CSV Export Complete",
+                              description: "Outage data has been exported to CSV format",
+                            })
+                          }}
+                        >
+                          <div className="text-center">
+                            <BarChart3 className="h-6 w-6 mx-auto mb-2" />
+                            <div className="font-medium">CSV Export</div>
+                            <div className="text-xs text-muted-foreground">Spreadsheet compatible</div>
+                          </div>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          className="h-auto p-4"
+                          onClick={() => {
+                            const summaryData = {
+                              period: `${formatTimelineDate(range.start, selectedTimezone)} - ${formatTimelineDate(range.end, selectedTimezone)}`,
+                              totalOutages: filters.length,
+                              totalDowntime: Math.round(
+                                filters.reduce(
+                                  (acc, o) => acc + (o.endDate.getTime() - o.startDate.getTime()) / (1000 * 60 * 60),
+                                  0,
+                                ),
+                              ),
+                              averageDuration:
+                                filters.length > 0
+                                  ? Math.round(
+                                      filters.reduce(
+                                        (acc, o) =>
+                                          acc + (o.endDate.getTime() - o.startDate.getTime()) / (1000 * 60 * 60),
+                                        0,
+                                      ) / filters.length,
+                                    )
+                                  : 0,
+                              usersAffected: filters.reduce((acc, o) => acc + (o.estimatedUsers || 0), 0),
+                              severityBreakdown: {
+                                high: filters.filter((o) => o.severity === "High").length,
+                                medium: filters.filter((o) => o.severity === "Medium").length,
+                                low: filters.filter((o) => o.severity === "Low").length,
+                              },
+                            }
+
+                            const jsonContent = JSON.stringify(summaryData, null, 2)
+                            const blob = new Blob([jsonContent], { type: "application/json" })
+                            const url = URL.createObjectURL(blob)
+                            const a = document.createElement("a")
+                            a.href = url
+                            a.download = `outages-summary-${new Date().toISOString().split("T")[0]}.json`
+                            a.click()
+                            URL.revokeObjectURL(url)
+
+                            toast({
+                              title: "JSON Export Complete",
+                              description: "Summary data has been exported in JSON format",
+                            })
+                          }}
+                        >
+                          <div className="text-center">
+                            <Server className="h-6 w-6 mx-auto mb-2" />
+                            <div className="font-medium">JSON Summary</div>
+                            <div className="text-xs text-muted-foreground">API compatible format</div>
+                          </div>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
               </TabsContent>
             </Tabs>
           </div>
