@@ -180,13 +180,19 @@ export function InteractiveReport() {
       const avgDowntime = outages.length ? totalDowntime / outages.length : 0
       const usersAffected = sum(outages, (o: any) => o.estimatedUsers || 0)
 
-      const countBy = <K extends keyof (typeof outages)[0]>(arr: any[], key: K) =>
-        arr.reduce<Record<string, number>>((acc, o) => {
-          const val = o[key]
-          if (Array.isArray(val)) val.forEach((v) => (acc[v] = (acc[v] || 0) + 1))
-          else acc[val as string] = (acc[val as string] || 0) + 1
+      // generic countBy that works for any property name
+      function countBy<T extends Record<string, any>>(arr: T[], key: keyof T): Record<string, number> {
+        return arr.reduce<Record<string, number>>((acc, cur) => {
+          const val = cur[key]
+          if (Array.isArray(val)) {
+            val.forEach((v) => (acc[v] = (acc[v] || 0) + 1))
+          } else {
+            const k = String(val)
+            acc[k] = (acc[k] || 0) + 1
+          }
           return acc
         }, {})
+      }
 
       // Advanced metrics calculations
       const criticalOutages = outages.filter((o) => o.severity === "High").length
