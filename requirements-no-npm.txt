@@ -1,0 +1,79 @@
+# GCP Planned Outages Management System - Alternative Installation Methods
+# This file documents ways to run the project WITHOUT npm dependency
+
+# =============================================================================
+# OPTION 1: ALTERNATIVE PACKAGE MANAGERS
+# =============================================================================
+
+# Using Yarn (Facebook's package manager)
+# Installation: https://yarnpkg.com/getting-started/install
+# Commands:
+# yarn install
+# yarn dev
+# yarn build
+# yarn start
+
+# Using pnpm (Fast, disk space efficient)
+# Installation: npm install -g pnpm (or use standalone installer)
+# Commands:
+# pnpm install
+# pnpm dev
+# pnpm build
+# pnpm start
+
+# Using Bun (Ultra-fast JavaScript runtime)
+# Installation: curl -fsSL https://bun.sh/install | bash
+# Commands:
+# bun install
+# bun dev
+# bun run build
+# bun start
+
+# =============================================================================
+# OPTION 2: DOCKER CONTAINERIZATION (RECOMMENDED)
+# =============================================================================
+# No local Node.js or package manager installation required
+# Only requires Docker Desktop
+
+# See Dockerfile and docker-compose.yml for complete setup
+# Commands:
+# docker-compose up --build
+# docker-compose up -d (detached mode)
+
+# =============================================================================
+# OPTION 3: DENO RUNTIME (EXPERIMENTAL)
+# =============================================================================
+# Using Deno instead of Node.js
+# Installation: https://deno.land/manual/getting_started/installation
+# Requires code modifications for Deno compatibility
+
+# =============================================================================
+# OPTION 4: STATIC BUILD DEPLOYMENT
+# =============================================================================
+# Pre-built static files that can be served by any web server
+# No runtime dependencies required in production
+
+# Build once, deploy anywhere:
+# Apache HTTP Server
+# Nginx
+# Caddy
+# Python HTTP Server
+# Any static file hosting service
+
+# =============================================================================
+# OPTION 5: CLOUD-BASED DEVELOPMENT
+# =============================================================================
+# GitHub Codespaces
+# GitPod
+# CodeSandbox
+# StackBlitz
+# Repl.it
+
+# =============================================================================
+# BROWSER REQUIREMENTS (All Options)
+# =============================================================================
+# Modern browsers with ES2020 support:
+# - Chrome 88+
+# - Firefox 85+
+# - Safari 14+
+# - Edge 88+
