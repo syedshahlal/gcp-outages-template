@@ -10,9 +10,6 @@ import {
   AlertTriangle,
   Plus,
   BarChart3,
-  Filter,
-  Search,
-  RotateCcw,
   RefreshCw,
   FileText,
   Globe,
@@ -23,15 +20,10 @@ import {
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { TimezoneSelector } from "@/components/timezone-selector"
 import dynamic from "next/dynamic"
 import { useToast } from "@/hooks/use-toast"
 import { getUserTimezone, formatTimelineDate, getTimezoneAbbreviation, formatDetailedDate } from "@/lib/timezone-utils"
@@ -696,10 +688,10 @@ export default function OutageDashboard() {
   }
 
   return (
-    <div className="min-h-screen w-screen bg-background">
+    <div className="min-h-screen w-full bg-background">
       {/* Header */}
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-        <div className="flex h-16 items-center justify-between px-4 w-full max-w-none">
+        <div className="flex h-16 items-center justify-between pl-4 pr-4 w-full">
           <div className="flex items-center gap-4">
             <h1 className="text-xl font-bold">GCP Planned Outages Dashboard</h1>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -719,199 +711,15 @@ export default function OutageDashboard() {
         </div>
       </header>
 
-      {/* Three Column Layout */}
+      {/* Three Column Layout - Flush Left */}
       <div className="flex h-[calc(100vh-4rem)] w-full">
-        {/* Left Sidebar - Filters */}
-        <div className="w-80 xl:w-96 2xl:w-[400px] border-r bg-background/50 overflow-y-auto flex-shrink-0 mr-4">
-          <div className="p-0 space-y-3">
-            {/* Filters Card */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Filter className="h-5 w-5" />
-                  Filters
-                  {(envFilter.length < ENVIRONMENTS.length || search || sortBy !== "date") && (
-                    <Badge variant="secondary" className="ml-2">
-                      {filters.length} filtered
-                    </Badge>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 p-4">
-                {/* Timezone Selector */}
-                <div className="space-y-2">
-                  <TimezoneSelector
-                    value={selectedTimezone}
-                    onValueChange={setSelectedTimezone}
-                    label="Display Timezone"
-                    showCurrentTime={true}
-                  />
-                </div>
-
-                {/* Search */}
-                <div className="space-y-2">
-                  <Label>Search</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      className="pl-10"
-                      placeholder="Title, team, category…"
-                    />
-                  </div>
-                </div>
-
-                {/* Sort and Month */}
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="space-y-2">
-                    <Label>Sort By</Label>
-                    <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="date">Date</SelectItem>
-                        <SelectItem value="severity">Severity</SelectItem>
-                        <SelectItem value="team">Team</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Month</Label>
-                    <Select
-                      value={selectedMonth}
-                      onValueChange={(val) => {
-                        setSelectedMonth(val)
-                        setUseCustomRange(false)
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {monthOptions.map((o) => (
-                          <SelectItem key={o.value} value={o.value}>
-                            {o.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Custom Date Range */}
-                <div className="space-y-3 border-t pt-4">
-                  <div className="flex items-center space-x-3">
-                    <Checkbox
-                      id="custom-range"
-                      checked={useCustomRange}
-                      onCheckedChange={(checked) => setUseCustomRange(checked as boolean)}
-                    />
-                    <Label htmlFor="custom-range" className="cursor-pointer font-medium flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      Custom Date Range
-                    </Label>
-                  </div>
-                  {useCustomRange && (
-                    <div className="space-y-3">
-                      <div className="space-y-2">
-                        <Label className="text-sm">Start Date</Label>
-                        <Input
-                          type="date"
-                          value={customDateRange.start}
-                          onChange={(e) => setCustomDateRange((prev) => ({ ...prev, start: e.target.value }))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-sm">End Date</Label>
-                        <Input
-                          type="date"
-                          value={customDateRange.end}
-                          onChange={(e) => setCustomDateRange((prev) => ({ ...prev, end: e.target.value }))}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Environment checkboxes */}
-                <div className="space-y-3 border-t pt-4">
-                  <Label className="text-sm font-medium">Environments</Label>
-                  <div className="space-y-3">
-                    {/* Select All toggle */}
-                    <div className="flex items-center space-x-3">
-                      <Checkbox
-                        id="all"
-                        checked={allSelected}
-                        ref={(el) => {
-                          if (el) el.indeterminate = someSelected
-                        }}
-                        onCheckedChange={(c) => setEnvFilter(c ? [...ENVIRONMENTS] : [])}
-                      />
-                      <Label htmlFor="all" className="cursor-pointer font-medium">
-                        Select All
-                      </Label>
-                    </div>
-
-                    {/* Individual environment toggles */}
-                    <div className="space-y-2">
-                      {ENVIRONMENTS.map((env) => (
-                        <div key={env} className="flex items-center space-x-3">
-                          <Checkbox
-                            id={env}
-                            checked={envFilter.includes(env)}
-                            onChange={(c) => {
-                              setEnvFilter(c ? [...envFilter, env] : envFilter.filter((e) => e !== env))
-                            }}
-                          />
-                          <Label htmlFor={env} className="cursor-pointer flex items-center gap-2 flex-1">
-                            <div
-                              className={`w-3 h-3 rounded-full ${environmentColors[env as keyof typeof environmentColors]}`}
-                            />
-                            <span className="text-sm">{env}</span>
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Reset Button */}
-                <div className="border-t pt-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setEnvFilter([...ENVIRONMENTS])
-                      setSearch("")
-                      setSortBy("date")
-                      setUseCustomRange(false)
-                      setCustomDateRange({ start: "", end: "" })
-                      setSeverityFilter([])
-                      // Reset month to current month
-                      const now = new Date()
-                      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
-                      setSelectedMonth(currentMonth)
-                      toast({
-                        title: "All Filters Reset",
-                        description: "All filter settings have been restored to defaults",
-                      })
-                    }}
-                    className="w-full"
-                  >
-                    <RotateCcw className="h-4 w-4 mr-2" />
-                    Reset Filters
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+        {/* Left Sidebar - Filters - No left margin */}
+        <div className="w-80 xl:w-96 2xl:w-[400px] border-r bg-background/50 overflow-y-auto flex-shrink-0">
+          <div className="p-4 space-y-3">
 
         {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto">
-          <div className="p-3 xl:p-4 2xl:p-5 space-y-4">
+          <div className="p-4 xl:p-5 2xl:p-6 space-y-4">
             {/* High-severity alerts */}
             <div className="space-y-2">
               {filters
@@ -1620,5 +1428,5 @@ export default function OutageDashboard() {
       </div>
       <Tooltip />
     </div>
-  )
+  );
 }
