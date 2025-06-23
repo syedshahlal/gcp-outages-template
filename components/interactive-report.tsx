@@ -39,7 +39,6 @@ import {
   Wifi,
   Cpu,
 } from "lucide-react"
-import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -716,13 +715,14 @@ ${reportData.upcomingOutages
   if (loading) {
     return (
       <div className="space-y-6">
-        {[...Array(4)].map((_, i) => (
-          <Card key={i}>
-            <CardContent className="p-6">
-              <div className="h-32 bg-muted animate-pulse rounded" />
-            </CardContent>
-          </Card>
-        ))}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-center h-32">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <span className="ml-2">Generating ML predictions...</span>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -916,32 +916,6 @@ ${reportData.upcomingOutages
                   </SelectContent>
                 </Select>
               </div>
-
-              {/* Custom Time Range Inputs */}
-              {filters.timeRange === "custom" && (
-                <div className="col-span-full">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-background border border-border rounded-lg">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Start Date</Label>
-                      <Input
-                        type="date"
-                        value={customTimeRange.start}
-                        onChange={(e) => setCustomTimeRange((prev) => ({ ...prev, start: e.target.value }))}
-                        className="w-full"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">End Date</Label>
-                      <Input
-                        type="date"
-                        value={customTimeRange.end}
-                        onChange={(e) => setCustomTimeRange((prev) => ({ ...prev, end: e.target.value }))}
-                        className="w-full"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
 
               <div className="flex items-end">
                 <Button
@@ -1299,107 +1273,6 @@ ${reportData.upcomingOutages
         </Card>
       </div>
 
-      {/* Benchmarking Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5" />
-            Industry Benchmarking
-          </CardTitle>
-          <CardDescription>Compare your metrics against industry standards</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="text-center">
-              <div className="text-sm text-muted-foreground mb-2">MTTR Comparison</div>
-              <div className="flex items-center justify-center gap-4">
-                <div>
-                  <div className="text-2xl font-bold text-blue-600">{currentData.summary.mttr}h</div>
-                  <div className="text-xs text-muted-foreground">Your MTTR</div>
-                </div>
-                <div className="text-muted-foreground">vs</div>
-                <div>
-                  <div className="text-2xl font-bold text-gray-600">{currentData.benchmarks.industryMTTR}h</div>
-                  <div className="text-xs text-muted-foreground">Industry Avg</div>
-                </div>
-              </div>
-              <div className="mt-2">
-                <Badge
-                  variant={currentData.summary.mttr! <= currentData.benchmarks.industryMTTR ? "default" : "destructive"}
-                >
-                  {currentData.summary.mttr! <= currentData.benchmarks.industryMTTR ? "Above Average" : "Below Average"}
-                </Badge>
-              </div>
-            </div>
-
-            <div className="text-center">
-              <div className="text-sm text-muted-foreground mb-2">Availability Comparison</div>
-              <div className="flex items-center justify-center gap-4">
-                <div>
-                  <div className="text-2xl font-bold text-green-600">{currentData.summary.availability}%</div>
-                  <div className="text-xs text-muted-foreground">Your Availability</div>
-                </div>
-                <div className="text-muted-foreground">vs</div>
-                <div>
-                  <div className="text-2xl font-bold text-gray-600">{currentData.benchmarks.industryAvailability}%</div>
-                  <div className="text-xs text-muted-foreground">Industry Avg</div>
-                </div>
-              </div>
-              <div className="mt-2">
-                <Badge
-                  variant={
-                    currentData.summary.availability! >= currentData.benchmarks.industryAvailability
-                      ? "default"
-                      : "destructive"
-                  }
-                >
-                  {currentData.summary.availability! >= currentData.benchmarks.industryAvailability
-                    ? "Above Average"
-                    : "Below Average"}
-                </Badge>
-              </div>
-            </div>
-
-            <div className="text-center">
-              <div className="text-sm text-muted-foreground mb-2">SLA Target</div>
-              <div className="flex items-center justify-center gap-4">
-                <div>
-                  <div className="text-2xl font-bold text-purple-600">{currentData.summary.slaCompliance}%</div>
-                  <div className="text-xs text-muted-foreground">Current SLA</div>
-                </div>
-                <div className="text-muted-foreground">vs</div>
-                <div>
-                  <div className="text-2xl font-bold text-gray-600">{currentData.benchmarks.targetSLA}%</div>
-                  <div className="text-xs text-muted-foreground">Target SLA</div>
-                </div>
-              </div>
-              <div className="mt-2">
-                <Badge
-                  variant={
-                    currentData.summary.slaCompliance! >= currentData.benchmarks.targetSLA ? "default" : "destructive"
-                  }
-                >
-                  {currentData.summary.slaCompliance! >= currentData.benchmarks.targetSLA
-                    ? "Meeting Target"
-                    : "Below Target"}
-                </Badge>
-              </div>
-            </div>
-
-            <div className="text-center">
-              <div className="text-sm text-muted-foreground mb-2">Best Practice Score</div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-indigo-600">{currentData.benchmarks.bestPracticeScore}/100</div>
-                <div className="text-xs text-muted-foreground">Industry Best Practice</div>
-              </div>
-              <div className="mt-2">
-                <Progress value={currentData.benchmarks.bestPracticeScore} className="h-2" />
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Original Charts Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Severity Breakdown */}
@@ -1492,6 +1365,20 @@ ${reportData.upcomingOutages
         </CardContent>
       </Card>
 
+      {/* ML Predictions Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Brain className="h-5 w-5" />
+            Machine Learning Predictions
+          </CardTitle>
+          <CardDescription>AI-powered forecasting and predictive analytics</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <MLPredictionsDashboard outages={[...currentData.recentOutages, ...currentData.upcomingOutages]} />
+        </CardContent>
+      </Card>
+
       {/* Upcoming Outages */}
       <Card>
         <CardHeader>
@@ -1535,7 +1422,7 @@ ${reportData.upcomingOutages
         </CardContent>
       </Card>
 
-      {/* Key Metrics */}
+      {/* Key Performance Indicators */}
       <Card>
         <CardHeader>
           <CardTitle>Key Performance Indicators</CardTitle>
@@ -1564,20 +1451,6 @@ ${reportData.upcomingOutages
               <p className="text-sm text-muted-foreground">Avg Users per Outage</p>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* ML Predictions Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Brain className="h-5 w-5" />
-            Machine Learning Predictions
-          </CardTitle>
-          <CardDescription>AI-powered forecasting and predictive analytics</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <MLPredictionsDashboard outages={[...currentData.recentOutages, ...currentData.upcomingOutages]} />
         </CardContent>
       </Card>
     </div>
