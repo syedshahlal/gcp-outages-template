@@ -1068,6 +1068,70 @@ export default function OutageDashboard() {
                       <Calendar className="h-8 w-8 text-orange-500" />
                     </CardContent>
                   </Card>
+                  <Card
+                    className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-purple-500"
+                    onClick={() => {
+                      const now = new Date()
+                      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+                      const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0)
+                      setCustomDateRange({
+                        start: lastMonth.toISOString().split("T")[0],
+                        end: lastMonthEnd.toISOString().split("T")[0],
+                      })
+                      setUseCustomRange(true)
+                      toast({ title: "Filtered by Last Month", description: "Showing outages from previous month" })
+                    }}
+                  >
+                    <CardContent className="flex items-center justify-between p-4">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Month Comparison</p>
+                        <div className="text-2xl font-bold text-purple-600">
+                          {(() => {
+                            const now = new Date()
+                            const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+                            const lastMonth = `${now.getFullYear()}-${String(now.getMonth()).padStart(2, "0")}`
+
+                            const currentMonthOutages = outages.filter(
+                              (o) => o.startDate.toISOString().substring(0, 7) === currentMonth,
+                            ).length
+
+                            const lastMonthOutages = outages.filter(
+                              (o) => o.startDate.toISOString().substring(0, 7) === lastMonth,
+                            ).length
+
+                            const diff = currentMonthOutages - lastMonthOutages
+                            return diff >= 0 ? `+${diff}` : `${diff}`
+                          })()}
+                        </div>
+                        <p className="text-xs text-purple-600 font-medium">vs last month</p>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        {(() => {
+                          const now = new Date()
+                          const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+                          const lastMonth = `${now.getFullYear()}-${String(now.getMonth()).padStart(2, "0")}`
+
+                          const currentMonthOutages = outages.filter(
+                            (o) => o.startDate.toISOString().substring(0, 7) === currentMonth,
+                          ).length
+
+                          const lastMonthOutages = outages.filter(
+                            (o) => o.startDate.toISOString().substring(0, 7) === lastMonth,
+                          ).length
+
+                          const diff = currentMonthOutages - lastMonthOutages
+
+                          if (diff > 0) {
+                            return <AlertTriangle className="h-8 w-8 text-red-500" />
+                          } else if (diff < 0) {
+                            return <BarChart3 className="h-8 w-8 text-green-500" />
+                          } else {
+                            return <BarChart3 className="h-8 w-8 text-purple-500" />
+                          }
+                        })()}
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
 
                 {/* Timeline */}
