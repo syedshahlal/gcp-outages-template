@@ -1,6 +1,7 @@
 "use client"
 
-import type React from "react"
+import React from "react"
+// import React from "react" // Removed redundant import
 
 import { useState, useMemo, useEffect, useRef } from "react"
 import {
@@ -1461,15 +1462,26 @@ export default function OutageDashboard() {
 
               {/* Metrics Content */}
               <TabsContent value="metrics">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Outage Metrics</CardTitle>
-                    <CardDescription>Visualize outage data and trends.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">Coming soon...</p>
-                  </CardContent>
-                </Card>
+                <div className="space-y-6">
+                  {/* Import and render the InteractiveReport component */}
+                  {React.createElement(
+                    dynamic(() => import("./components/interactive-report").then((mod) => mod.InteractiveReport), {
+                      ssr: false,
+                      loading: () => (
+                        <div className="space-y-6">
+                          <Card>
+                            <CardContent className="p-6">
+                              <div className="flex items-center justify-center h-32">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                                <span className="ml-2">Loading analytics...</span>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      ),
+                    }),
+                  )}
+                </div>
               </TabsContent>
             </Tabs>
           </div>
