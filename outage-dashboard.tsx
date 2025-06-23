@@ -722,7 +722,7 @@ export default function OutageDashboard() {
       <div className="flex h-[calc(100vh-4rem)] w-full">
         {/* Left Sidebar - Filters */}
         <div className="w-80 xl:w-96 2xl:w-[400px] border-r bg-background/50 overflow-y-auto flex-shrink-0">
-          <div className="p-2 space-y-3">
+          <div className="p-0 space-y-3">
             {/* Filters Card */}
             <Card>
               <CardHeader className="pb-3">
@@ -736,7 +736,7 @@ export default function OutageDashboard() {
                   )}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3 p-3">
+              <CardContent className="space-y-3 p-4">
                 {/* Timezone Selector */}
                 <div className="space-y-2">
                   <TimezoneSelector
